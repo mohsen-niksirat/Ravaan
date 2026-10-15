@@ -69,6 +69,7 @@ class Config:
     case_hotkey: HotkeySpec = field(
         default_factory=lambda: HotkeySpec(key="F12", modifiers=["Shift"])
     )
+    inline_calc_enabled: bool = True
 
 
 def config_dir() -> Path:
@@ -177,6 +178,7 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         case_hotkey=_hotkey_from_dict(
             data.get("case_hotkey"), HotkeySpec("F12", ["Shift"])
         ),
+        inline_calc_enabled=bool(data.get("inline_calc_enabled", True)),
     )
 
 

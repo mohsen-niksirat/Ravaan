@@ -293,6 +293,28 @@ class RavanApp:
         if ch is None:
             return
 
+        # Inline calculator (e.g. 1200*1.09= -> 1308)
+        if ch == "=" and self.cfg.inline_calc_enabled:
+            from ravan.core.calc import calculate, extract_math_expression
+
+            text = self.journal.text()
+            expr = extract_math_expression(text)
+            if expr:
+                res = calculate(expr)
+                if res is not None:
+                    delete_n = len(expr) + 1
+                    self._suppress_until = time.monotonic() + 0.05
+                    replace_last_n_with(delete_n, res)
+                    for _ in range(len(expr)):
+                        if self.journal._chars:
+                            self.journal._chars.pop()
+                    for c in res:
+                        self.journal.push(c)
+                    self.overlay.hide()
+                    set_popup_visible(False)
+                    log.info("Inline calc: %r= → %r", expr, res)
+                    return
+
         if ch.isspace() or ch in ".,;:!?\n\r\t":
             word = self.journal.last_word(allow_trailing_spaces=False)
 

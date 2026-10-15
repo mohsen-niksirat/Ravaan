@@ -35,6 +35,8 @@ def main(argv: list[str] | None = None) -> int:
     p_norm.add_argument("--digits", choices=["fa", "en", "keep"], default="keep")
     p_jalali = sub.add_parser("jalali", help="Show current or converted Jalali (Shamsi) date")
     p_jalali.add_argument("date", nargs="?", default=None, help="Gregorian date (YYYY-MM-DD) or empty for today")
+    p_calc = sub.add_parser("calc", help="Evaluate a math expression (supports Persian digits)")
+    p_calc.add_argument("expr", help="Mathematical expression e.g. '1200*1.09' or '۱۲*۵'")
 
     args = parser.parse_args(argv)
 
@@ -135,6 +137,17 @@ def main(argv: list[str] | None = None) -> int:
         if not args.date:
             print(f"Current time:    {current_time_str(persian_digits=True)} ({current_time_str(persian_digits=False)})")
         return 0
+
+    if args.cmd == "calc":
+        from ravan.core.calc import calculate
+
+        res = calculate(args.expr)
+        if res is not None:
+            print(res)
+            return 0
+        else:
+            print("Error: Invalid mathematical expression", file=sys.stderr)
+            return 1
 
     return 1
 

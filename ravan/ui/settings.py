@@ -170,6 +170,12 @@ class SettingsWindow:
         ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
         row += 1
 
+        self._calc_var = tk.BooleanVar(value=self.cfg.inline_calc_enabled)
+        ttk.Checkbutton(
+            frm, text="Inline math calculator on '=' (e.g. 1200*1.09=)", variable=self._calc_var
+        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+        row += 1
+
         self._digits_var = tk.BooleanVar(value=self.cfg.quickpick_digits)
         ttk.Checkbutton(
             frm, text="Digits 1–5 quick-pick in popup", variable=self._digits_var
@@ -310,6 +316,7 @@ class SettingsWindow:
         cfg.auto_zwnj_enabled = self._zwnj_var.get()
         cfg.shift_space_zwnj = self._shift_space_var.get()
         cfg.clipboard_history_enabled = self._cliphist_var.get()
+        cfg.inline_calc_enabled = self._calc_var.get()
         cfg.quickpick_digits = self._digits_var.get()
         cfg.english_dict_enabled = self._en_dict_var.get()
         cfg.persian_dict_enabled = self._fa_dict_var.get()
