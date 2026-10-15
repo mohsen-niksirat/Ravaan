@@ -1,6 +1,10 @@
 # Roadmap
  
-Done (v0.3):
+Done (v0.4):
+- Dynamic snippets with Persian Jalali (Shamsi) calendar date/time expander (`/today`, `/shamsi`, `/tarikh`, `/time`, `/uuid`, `{{placeholders}}`, and CLI `jalali`)
+- In-place text transformation (case cycling with `Shift+F12` and Persian normalizer with `Ctrl+F12`)
+- Inline quick math calculator on `=` trigger (`(50+30)*2= -> 160`, supporting Persian digits `۱۲*۵= -> ۶۰`, and CLI `calc`)
+- User custom dictionary (`user_words.txt`), in-memory priority merging in `Dictionary` and `DictPredictor`, settings window editor, and CLI `dict list/add/remove`
 - Selection layout conversion (convert highlighted text in place or fall back to last word)
 - Smart Persian half-space (ZWNJ): prefix/suffix auto-attachment + `Shift+Space` hotkey
 - Caret clipboard history ring buffer popup (`Alt+V`) with quick 1–5 number paste

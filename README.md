@@ -14,8 +14,12 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 | M4 | Autocorrect + snippets | on word boundary |
 | M5 | Smart Persian half-space (ZWNJ: می/نمی & ها/تر/ترین) | Auto or `Shift+Space` |
 | M6 | Clipboard history ring buffer popup | `Alt+V` |
-| M7 | Persian/Arabic text & number normalization | CLI `norm` & `num` |
-| M8 | Settings window, tray menu, startup, exclusions | tray → Settings… |
+| M7 | Persian/Arabic text & number normalization | `Ctrl+F12` or CLI `norm` & `num` |
+| M8 | Cycle text case (UPPER → lower → Title) | `Shift+F12` |
+| M9 | Inline math calculator | Type e.g. `1200*1.09=` or `۱۲*۵=` |
+| M10 | Dynamic Jalali (Shamsi) date & time expander | `/today`, `/shamsi`, `/tarikh` |
+| M11 | User custom dictionary & word learning | tray → Settings… or CLI `dict` |
+| M12 | Settings window, tray menu, startup, exclusions | tray → Settings… |
 
 ### Convert Selection or Last Word (`F12`)
 
@@ -28,19 +32,39 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 - Automatically attaches plural/comparative suffixes like `کتاب ها` → `کتاب‌ها`, `سریع تر` → `سریع‌تر`.
 - Press `Shift+Space` anytime to insert an explicit zero-width non-joiner (`\u200c`).
 
+### In-Place Text Normalization (`Ctrl+F12`) & Case Cycling (`Shift+F12`)
+
+- Press `Ctrl+F12` to clean and normalize Persian text in selected text (standardizes 'ي' and 'ك', spacing, ZWNJ) or the last typed word.
+- Press `Shift+F12` to cycle letter case (`UPPERCASE` → `lowercase` → `Title Case`) in selected text or the last typed word.
+
 ### Caret Clipboard History (`Alt+V`)
 
 - Press `Alt+V` to open a quick paste popup right next to your active cursor.
 - Browse recent clipboard items with **↑ / ↓**, press **Enter** or **1–5** to instantly paste into the active window.
 
-### Persian / Arabic Normalizer & Numbers
+### Inline Math Calculator on `=`
 
-CLI utilities for cleaning and standardizing text:
-```bash
-python -m ravan.cli num 12345        # Output: ۱۲۳۴۵
-python -m ravan.cli num ۱۲۳۴۵ --to en # Output: 12345
-python -m ravan.cli norm "ي ك ٪"     # Output: "ی ک ٪" (standardizes Arabic chars & spacing)
-```
+- Type any arithmetic expression followed by `=` anywhere to compute the result:
+  `1200*1.09=` → `1308`
+  `(50+30)*2=` → `160`
+  `۱۲*۵=` → `۶۰` (supports Persian numbers)
+
+### Dynamic Jalali Date, Time & Macro Snippets
+
+- Type `/today` or `/shamsi` or `/امروز` + space → expands to current Shamsi date (`۱۴۰۵/۰۷/۲۳`).
+- Type `/tarikh` or `/تاریخ` + space → expands to worded Persian date (`۲۳ مهر ۱۴۰۵`).
+- Type `/time` or `/saat` or `/ساعت` + space → expands to current time (`۱۶:۲۰`).
+- Type `/uuid` + space → expands to a fresh UUID.
+- Use placeholders like `{{shamsi}}`, `{{time}}`, `{{uuid}}` in custom snippet templates!
+
+### User Custom Dictionary
+
+- Add custom jargon, names, or terminology in **Settings → Custom words** or via CLI:
+  ```bash
+  python -m ravan.cli dict add "fastapi"
+  python -m ravan.cli dict list
+  ```
+- Words in your custom dictionary immediately appear in word prediction completions!
 
 ### How to pick a suggestion
 
@@ -147,8 +171,13 @@ ravan/
 - تبدیل چیدمان متن انتخاب‌شده یا آخرین کلمه تایپ شده بین فارسی و انگلیسی با `F12`
   مثال: `o,vn` → `خورد` یا انتخاب یک پاراگراف و زدن `F12`
 - نیم‌فاصله‌گذاری هوشمند فارسی (ZWNJ): اتصال خودکار «می/نمی» و پسوندهای «ها/تر/ترین/مند/شناس» یا درج با `Shift+Space`
-- تاریخچه کلیپ‌بورد در محل نشانگر (Alt+V) با امکان چسباندن سریع با شماره‌های ۱ تا ۵
-- پیشنهاد تکمیل کلمه نزدیک نشانگر (با واژه‌نامه گسترش‌یافته بیش از ۱۳۰۰ کلمه پرکاربرد)
+- نرمال‌سازی درجا و پاکسازی متن فارسی (اصلاح «ي» و «ك»، نیم‌فاصله‌ها و علائم) با `Ctrl+F12`
+- تغییر چرخشی وضعیت حروف لاتین (UPPERCASE → lowercase → Title Case) با `Shift+F12`
+- تاریخچه کلیپ‌بورد در محل نشانگر (`Alt+V`) با امکان چسباندن سریع با شماره‌های ۱ تا ۵
+- ماشین‌حساب ریاضی درون‌خطی هنگام تایپ با فشردن کلید `=` (مانند `1200*1.09=` یا با اعداد فارسی `۱۲*۵=`)
+- درج تاریخ روز هجری شمسی و زمان با ماکروهای داینامیک (`/today`، `/shamsi`، `/تاریخ`، `/time`، `/uuid`)
+- واژه‌نامه شخصی کاربر (`user_words.txt`) برای یادگیری اصطلاحات، نام‌ها و کلمات خاص کاربر
+- پیشنهاد تکمیل کلمه نزدیک نشانگر (با واژه‌نامه بیش از ۱۳۰۰ کلمه پرکاربرد)
 - اصلاح خودکار امن و کلمات اختصاری (Snippets) شخصی‌سازی‌شده
 - نرمال‌سازی حروف عربی/فارسی و تبدیل اعداد فارسی و انگلیسی (ابزار CLI)
 - پنجره تنظیمات کامل، منوی Tray، اجرای خودکار با ویندوز و مدیریت برنامه‌های مستثنی
