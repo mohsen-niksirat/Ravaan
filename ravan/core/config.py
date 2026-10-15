@@ -59,6 +59,10 @@ class Config:
     persian_dict_enabled: bool = True
     auto_zwnj_enabled: bool = True
     shift_space_zwnj: bool = True
+    clipboard_history_enabled: bool = True
+    clipboard_history_hotkey: HotkeySpec = field(
+        default_factory=lambda: HotkeySpec(key="V", modifiers=["Alt"])
+    )
 
 
 def config_dir() -> Path:
@@ -157,6 +161,10 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         persian_dict_enabled=bool(data.get("persian_dict_enabled", True)),
         auto_zwnj_enabled=bool(data.get("auto_zwnj_enabled", True)),
         shift_space_zwnj=bool(data.get("shift_space_zwnj", True)),
+        clipboard_history_enabled=bool(data.get("clipboard_history_enabled", True)),
+        clipboard_history_hotkey=_hotkey_from_dict(
+            data.get("clipboard_history_hotkey"), HotkeySpec("V", ["Alt"])
+        ),
     )
 
 

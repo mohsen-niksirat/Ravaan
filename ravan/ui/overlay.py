@@ -31,8 +31,9 @@ class OverlayWindow:
         self._rows: list[tk.Label] = []
 
         self._candidates: list[Candidate] = []
+        self._clip_items: list[str] = []
         self._selected = 0
-        self._mode = "idle"  # idle | lang | predict
+        self._mode = "idle"  # idle | lang | predict | clipboard
         self._on_accept: Callable[[Candidate], None] | None = None
         self._fade_after: str | None = None
 
@@ -106,6 +107,7 @@ class OverlayWindow:
     def hide(self) -> None:
         self._mode = "idle"
         self._candidates = []
+        self._clip_items = []
         self._selected = 0
         self._clear_rows()
         self._lang_label.pack_forget()
@@ -216,8 +218,52 @@ class OverlayWindow:
     def predicting(self) -> bool:
         return self._mode == "predict" and bool(self._candidates)
 
+    @property
+    def clipboard_open(self) -> bool:
+        return self._mode == "clipboard" and bool(self._clip_items)
+
+    @property
+    def active_popup(self) -> bool:
+        return self.predicting or self.clipboard_open
+
+    def show_clipboard(self, items: list[str], x: int, y: int, height: int = 16) -> None:
+        if not items:
+            self.hide()
+            return
+        from ravan.core.events import CandidateKind
+
+        self._mode = "clipboard"
+        self._clip_items = list(items[:9])
+        cands: list[Candidate] = []
+        for it in self._clip_items:
+            first_line = it.splitlines()[0] if it.splitlines() else it
+            preview = first_line[:36] + ("…" if len(it) > 36 or "\n" in it else "")
+            cands.append(Candidate(text=preview, score=1.0, kind=CandidateKind.COMPLETION))
+        self._candidates = cands
+        self._selected = 0
+        self._lang_label.pack_forget()
+        self._render_candidates()
+        popup_h = 28 * len(cands) + 28
+        py = y - popup_h - 4 if y > popup_h + 8 else y + height + 4
+        self._place(x, max(0, py))
+        self._root.deiconify()
+        self._apply_noactivate()
+
+    def accept_clipboard_selected(self) -> str | None:
+        if not self.clipboard_open:
+            return None
+        item = self._clip_items[self._selected]
+        self.hide()
+        return item
+
+    def accept_clipboard_index(self, index: int) -> str | None:
+        if not self.clipboard_open or index < 0 or index >= len(self._clip_items):
+            return None
+        self._selected = index
+        return self.accept_clipboard_selected()
+
     def move_selection(self, delta: int) -> None:
-        if not self.predicting:
+        if not self.active_popup:
             return
         old_idx = self._selected
         self._selected = (self._selected + delta) % len(self._candidates)

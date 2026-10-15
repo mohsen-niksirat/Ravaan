@@ -49,6 +49,9 @@ class RavanApp:
         self.predictor = DictPredictor.from_config(self.cfg)
         self.snippets = SnippetEngine.from_config(self.cfg)
         self.journal = KeystrokeJournal()
+        from ravan.core.cliphistory import ClipboardHistory
+
+        self.clip_history = ClipboardHistory(maxlen=25)
         self.overlay = overlay if overlay is not None else OverlayWindow(self.cfg.theme)
         self.hook = KeyboardHook()
         self._ui_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
@@ -71,6 +74,7 @@ class RavanApp:
         self._current_exe: str | None = None
         self._last_focus_poll = 0.0
         self._last_lang_poll = 0.0
+        self._last_clip_poll = 0.0
         self._own_pid = os.getpid()
 
     def start(self) -> None:
@@ -94,6 +98,7 @@ class RavanApp:
                     self._drain_hook_events()
                     self._poll_focus()
                     self._poll_language()
+                    self._poll_clipboard()
                     self._maybe_predict()
                     self._maybe_timeout_popup()
                     self.overlay.tick()
@@ -197,8 +202,8 @@ class RavanApp:
     def _handle_key(self, event: HookEvent) -> None:
         vk = event.vk_code
 
-        # ── Popup navigation (must run on UI thread) ──
-        if self.overlay.predicting:
+        # ── Popup navigation (predicting or clipboard) ──
+        if self.overlay.active_popup:
             if vk == w.VK_ESCAPE:
                 self.overlay.hide()
                 set_popup_visible(False)
@@ -211,15 +216,25 @@ class RavanApp:
                 self.overlay.move_selection(1)
                 return
             if vk in (w.VK_RETURN, w.VK_TAB):
-                cand = self.overlay.accept_selected()
-                if cand:
-                    self._accept_candidate(cand)
+                if self.overlay.clipboard_open:
+                    item = self.overlay.accept_clipboard_selected()
+                    if item:
+                        self._paste_clipboard_item(item)
+                else:
+                    cand = self.overlay.accept_selected()
+                    if cand:
+                        self._accept_candidate(cand)
                 set_popup_visible(False)
                 return
             if self.cfg.quickpick_digits and ord("1") <= vk <= ord("5"):
-                cand = self.overlay.accept_index(vk - ord("1"))
-                if cand:
-                    self._accept_candidate(cand)
+                if self.overlay.clipboard_open:
+                    item = self.overlay.accept_clipboard_index(vk - ord("1"))
+                    if item:
+                        self._paste_clipboard_item(item)
+                else:
+                    cand = self.overlay.accept_index(vk - ord("1"))
+                    if cand:
+                        self._accept_candidate(cand)
                 set_popup_visible(False)
                 return
             # Any other key closes the popup and continues normal typing
@@ -227,6 +242,11 @@ class RavanApp:
             set_popup_visible(False)
 
         # Hotkeys
+        if self.cfg.clipboard_history_enabled and matches_hotkey(
+            vk, self.cfg.clipboard_history_hotkey
+        ):
+            self._show_clipboard_popup()
+            return
         if matches_hotkey(vk, self.cfg.convert_hotkey):
             now = time.monotonic()
             if now - self._last_convert_at > 0.3:
@@ -427,6 +447,40 @@ class RavanApp:
             self.overlay.show_language(
                 language_label(lang), caret.x, caret.y, caret.height
             )
+
+    def _poll_clipboard(self) -> None:
+        if not self.cfg.clipboard_history_enabled:
+            return
+        now = time.monotonic()
+        if now - self._last_clip_poll < 0.35:
+            return
+        self._last_clip_poll = now
+        from ravan.platform.clipboard import get_clipboard_text
+
+        text = get_clipboard_text()
+        if text:
+            self.clip_history.add(text)
+
+    def _show_clipboard_popup(self) -> None:
+        items = self.clip_history.items()
+        if not items:
+            self.tray.notify("Clipboard history is empty")
+            return
+        caret = get_caret_rect()
+        self.overlay.show_clipboard(items, caret.x, caret.y, caret.height)
+        set_popup_visible(True, swallow_digits=self.cfg.quickpick_digits)
+        self._popup_shown_at = time.monotonic()
+        log.info("Showing clipboard popup with %d items", len(items))
+
+    def _paste_clipboard_item(self, text: str) -> None:
+        from ravan.platform.clipboard import set_clipboard_text
+        from ravan.platform.inject import send_shortcut
+
+        self._suppress_until = time.monotonic() + 0.1
+        set_clipboard_text(text)
+        time.sleep(0.02)
+        send_shortcut([w.VK_CONTROL], ord("V"))
+        log.info("Pasted clipboard item (%d chars)", len(text))
 
     def _schedule_predict(self) -> None:
         self._last_key_time = time.monotonic()
