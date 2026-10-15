@@ -27,10 +27,18 @@ def test_normalize_zwnj_text():
     assert f"خانه{ZWNJ}ام" in normalized
 
 
+class MockOverlay:
+    def __init__(self) -> None:
+        self.predicting = False
+    def hide(self) -> None: pass
+    def destroy(self) -> None: pass
+    def tick(self) -> None: pass
+
+
 def test_app_suffix_zwnj_attachment():
     cfg = Config()
     cfg.auto_zwnj_enabled = True
-    app = RavanApp(cfg)
+    app = RavanApp(cfg, overlay=MockOverlay())
     try:
         # Simulate typing "کتاب ها "
         for ch in "کتاب ها ":

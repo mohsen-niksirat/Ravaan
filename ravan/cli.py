@@ -28,6 +28,11 @@ def main(argv: list[str] | None = None) -> int:
     p_hook.add_argument("-t", "--seconds", type=float, default=10.0)
     p_inject = sub.add_parser("inject", help="Inject text into the focused field (diagnostic)")
     p_inject.add_argument("text")
+    p_num = sub.add_parser("num", help="Convert digits between Persian and English")
+    p_num.add_argument("text")
+    p_norm = sub.add_parser("norm", help="Normalize Persian text (Arabic chars, ZWNJ, punctuation)")
+    p_norm.add_argument("text")
+    p_norm.add_argument("--digits", choices=["fa", "en", "keep"], default="keep")
 
     args = parser.parse_args(argv)
 
@@ -93,6 +98,18 @@ def main(argv: list[str] | None = None) -> int:
 
         count = inject_text(args.text)
         print(f"Injected {len(args.text)} chars into the focused field")
+        return 0
+
+    if args.cmd == "num":
+        from ravan.core.normalizer import toggle_digits
+
+        print(toggle_digits(args.text))
+        return 0
+
+    if args.cmd == "norm":
+        from ravan.core.normalizer import normalize_persian
+
+        print(normalize_persian(args.text, digits=args.digits))
         return 0
 
     return 1

@@ -43,13 +43,13 @@ def setup_logging() -> None:
 
 
 class RavanApp:
-    def __init__(self, cfg: Config | None = None) -> None:
+    def __init__(self, cfg: Config | None = None, overlay: OverlayWindow | None = None) -> None:
         self.cfg = cfg or load_config()
         self.mapper = LayoutMapper()
         self.predictor = DictPredictor.from_config(self.cfg)
         self.snippets = SnippetEngine.from_config(self.cfg)
         self.journal = KeystrokeJournal()
-        self.overlay = OverlayWindow(self.cfg.theme)
+        self.overlay = overlay if overlay is not None else OverlayWindow(self.cfg.theme)
         self.hook = KeyboardHook()
         self._ui_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.tray = TrayIcon(

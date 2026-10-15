@@ -3,10 +3,18 @@ from ravan.platform.hook import HookEvent
 from ravan.ui.app import RavanApp
 
 
+class MockOverlay:
+    def __init__(self) -> None:
+        self.predicting = False
+    def hide(self) -> None: pass
+    def destroy(self) -> None: pass
+    def tick(self) -> None: pass
+
+
 def test_app_journal_and_word_completion():
     cfg = Config()
     cfg.snippets.append(Snippet(trigger="@@", replacement="me@test.com"))
-    app = RavanApp(cfg)
+    app = RavanApp(cfg, overlay=MockOverlay())
 
     try:
         # Simulate typing 't', 'e', 'h', ' '
@@ -37,7 +45,7 @@ def test_app_journal_and_word_completion():
 
 def test_app_convert_last_word_with_trailing_space():
     cfg = Config()
-    app = RavanApp(cfg)
+    app = RavanApp(cfg, overlay=MockOverlay())
     try:
         # User typed "o,vn " (with trailing space)
         for ch in "o,vn ":
