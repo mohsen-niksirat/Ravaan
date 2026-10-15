@@ -245,21 +245,75 @@ class RavanApp:
             self._schedule_predict()
             return
 
+        # Shift+Space manual ZWNJ hotkey
+        if self.cfg.shift_space_zwnj and vk == w.VK_SPACE:
+            from ravan.platform.keys import modifiers_down
+            if modifiers_down(["shift"]):
+                from ravan.core.zwnj import ZWNJ
+                self._suppress_until = time.monotonic() + 0.05
+                replace_last_n_with(1, ZWNJ)
+                self.journal.push(ZWNJ)
+                self.overlay.hide()
+                set_popup_visible(False)
+                return
+
         ch = vk_to_unicode(vk, event.scan_code)
         if ch is None:
             return
 
         if ch.isspace() or ch in ".,;:!?\n\r\t":
             word = self.journal.last_word(allow_trailing_spaces=False)
+
+            # Auto ZWNJ for Persian prefix (e.g. می + space -> می‌)
+            if ch == " " and self.cfg.auto_zwnj_enabled:
+                from ravan.core.zwnj import ZWNJ, is_zwnj_prefix
+                if is_zwnj_prefix(word):
+                    self._suppress_until = time.monotonic() + 0.05
+                    replace_last_n_with(1, ZWNJ)
+                    self.journal.push(ZWNJ)
+                    self.overlay.hide()
+                    set_popup_visible(False)
+                    return
+
             handled = self._on_word_completed(word, delimiter=ch)
             if not handled:
                 self.journal.push(ch)
+                # Auto ZWNJ for Persian suffix (e.g. کتاب ها + space -> کتاب‌ها )
+                if ch == " " and self.cfg.auto_zwnj_enabled:
+                    self._maybe_attach_suffix_zwnj(word)
             self.overlay.hide()
             set_popup_visible(False)
             return
 
         self.journal.push(ch)
         self._schedule_predict()
+
+    def _maybe_attach_suffix_zwnj(self, suffix: str) -> bool:
+        from ravan.core.zwnj import ZWNJ, should_attach_suffix
+
+        text = self.journal.text()
+        suffix_with_spaces = f" {suffix} "
+        if not text.endswith(suffix_with_spaces):
+            return False
+        before = text[: -len(suffix_with_spaces)]
+        i = len(before) - 1
+        while i >= 0 and not before[i].isspace():
+            i -= 1
+        prev_word = before[i + 1 :]
+        if not prev_word or not should_attach_suffix(prev_word, suffix):
+            return False
+
+        delete_n = len(suffix) + 2
+        replace_text = f"{ZWNJ}{suffix} "
+        self._suppress_until = time.monotonic() + 0.05
+        replace_last_n_with(delete_n, replace_text)
+        for _ in range(delete_n):
+            if self.journal._chars:
+                self.journal._chars.pop()
+        for c in replace_text:
+            self.journal.push(c)
+        log.info("Attached suffix ZWNJ: %r + %r", prev_word, suffix)
+        return True
 
     def _on_word_completed(self, word: str, delimiter: str = "") -> bool:
         if not word:

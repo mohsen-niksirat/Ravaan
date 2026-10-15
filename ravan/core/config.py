@@ -57,6 +57,8 @@ class Config:
     theme: Theme = field(default_factory=Theme)
     english_dict_enabled: bool = True
     persian_dict_enabled: bool = True
+    auto_zwnj_enabled: bool = True
+    shift_space_zwnj: bool = True
 
 
 def config_dir() -> Path:
@@ -153,6 +155,8 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         theme=_theme_from_dict(data.get("theme")),
         english_dict_enabled=bool(data.get("english_dict_enabled", True)),
         persian_dict_enabled=bool(data.get("persian_dict_enabled", True)),
+        auto_zwnj_enabled=bool(data.get("auto_zwnj_enabled", True)),
+        shift_space_zwnj=bool(data.get("shift_space_zwnj", True)),
     )
 
 
