@@ -42,3 +42,11 @@ def test_no_duplicates():
     dict_ = Dictionary.persian()
     words = [e.word for e in dict_.entries]
     assert len(words) == len(set(words))
+
+
+def test_corpus_size():
+    en_dict = Dictionary.english()
+    fa_dict = Dictionary.persian()
+    assert len(en_dict.entries) >= 500
+    assert len(fa_dict.entries) >= 500
+

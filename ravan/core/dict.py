@@ -88,6 +88,19 @@ def osa_distance(a: str, b: str, max_dist: int | None = None) -> int:
     return prev[lb]
 
 
+def _load_asset_words(filename: str) -> list[str]:
+    from pathlib import Path
+    data_dir = Path(__file__).resolve().parent.parent / "data"
+    asset_path = data_dir / filename
+    if asset_path.is_file():
+        try:
+            lines = asset_path.read_text(encoding="utf-8").splitlines()
+            return [w.strip() for w in lines if w.strip() and not w.startswith("#")]
+        except Exception:
+            pass
+    return []
+
+
 class Dictionary:
     def __init__(self, entries: list[DictEntry], language: Language) -> None:
         self.entries = entries
@@ -100,17 +113,19 @@ class Dictionary:
 
     @classmethod
     def english(cls) -> Dictionary:
+        words = _load_asset_words("words_en.txt") or _ENGLISH_WORDS
         entries = [
             DictEntry(word=w, rank=i + 1)
-            for i, w in enumerate(_dedupe(_ENGLISH_WORDS))
+            for i, w in enumerate(_dedupe(words))
         ]
         return cls(entries, Language.ENGLISH)
 
     @classmethod
     def persian(cls) -> Dictionary:
+        words = _load_asset_words("words_fa.txt") or _PERSIAN_WORDS
         entries = [
             DictEntry(word=w, rank=i + 1)
-            for i, w in enumerate(_dedupe(_PERSIAN_WORDS))
+            for i, w in enumerate(_dedupe(words))
         ]
         return cls(entries, Language.PERSIAN)
 

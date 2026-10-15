@@ -27,6 +27,9 @@ ravan-cli = "ravan.cli:main"
 where = ["."]
 include = ["ravan*"]
 
+[tool.setuptools.package-data]
+ravan = ["data/*.txt"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
