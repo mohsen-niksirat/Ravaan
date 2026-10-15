@@ -40,6 +40,10 @@ def main(argv: list[str] | None = None) -> int:
     p_dict = sub.add_parser("dict", help="Manage user custom dictionary")
     p_dict.add_argument("action", choices=["list", "add", "remove"])
     p_dict.add_argument("word", nargs="?", default="")
+    p_words = sub.add_parser("words", help="Convert number to Persian words or format thousands")
+    p_words.add_argument("number", help="Number to convert e.g. 1250000 or ۱۲۵۰۰۰۰")
+    p_words.add_argument("--toman", action="store_true", help="Convert Rial to Toman words (divide by 10)")
+    p_words.add_argument("--sep", action="store_true", help="Format with thousands separators")
 
     args = parser.parse_args(argv)
 
@@ -181,6 +185,18 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(f"Word {args.word!r} not found in user dictionary.")
                 return 1
+
+    if args.cmd == "words":
+        from ravan.core.num2words import format_thousands, num_to_persian_words, to_toman_words
+
+        if args.sep:
+            print(format_thousands(args.number, persian_digits=True))
+            return 0
+        if args.toman:
+            print(to_toman_words(args.number))
+            return 0
+        print(num_to_persian_words(args.number))
+        return 0
 
     return 1
 

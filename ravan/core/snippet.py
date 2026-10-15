@@ -77,6 +77,29 @@ class SnippetEngine:
                 return render_template(replacement)
         if word in self._macros:
             return self._macros[word]()
+
+        # Number-to-words and formatting suffix triggers (e.g. 1250000/w, 1250000/s, 1250000/t)
+        from .normalizer import fa_to_en_digits
+        from .num2words import format_thousands, num_to_persian_words, to_toman_words
+
+        suffixes = (
+            ("/w", num_to_persian_words),
+            ("/words", num_to_persian_words),
+            ("/حروف", num_to_persian_words),
+            ("/s", lambda n: format_thousands(n, persian_digits=True)),
+            ("/sep", lambda n: format_thousands(n, persian_digits=True)),
+            ("/t", to_toman_words),
+            ("/تومان", to_toman_words),
+        )
+        for sfx, fn in suffixes:
+            if word.endswith(sfx):
+                num_part = word[: -len(sfx)]
+                clean = fa_to_en_digits(num_part).replace(",", "").replace(".", "")
+                if clean and clean.isdigit():
+                    res = fn(num_part)
+                    if res:
+                        return res
+
         return None
 
     def all(self) -> list[tuple[str, str]]:
