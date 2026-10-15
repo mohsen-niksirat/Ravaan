@@ -98,3 +98,11 @@ class LayoutMapper:
         if en is not None:
             return en
         return self.fa_to_en_word(word)
+
+    def convert_text(self, text: str) -> str:
+        """Convert arbitrary multiline text or sentences Persian ↔ English."""
+        if not text:
+            return ""
+        if any(is_persian_or_arabic(c) for c in text):
+            return "".join(self.fa_to_en.get(c, c) for c in text)
+        return "".join(self.en_to_fa.get(c, c) for c in text)

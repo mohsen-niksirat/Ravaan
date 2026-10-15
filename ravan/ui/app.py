@@ -231,7 +231,7 @@ class RavanApp:
             now = time.monotonic()
             if now - self._last_convert_at > 0.3:
                 self._last_convert_at = now
-                self._convert_last_word()
+                self._convert_selection_or_last_word()
             return
         if matches_hotkey(vk, self.cfg.lang_indicator_hotkey):
             self._show_lang_indicator()
@@ -277,6 +277,16 @@ class RavanApp:
             self._replace_word(word, cand.text, delimiter=delimiter)
             return True
         return False
+
+    def _convert_selection_or_last_word(self) -> None:
+        """Convert selected text if any exists; otherwise convert the last typed word."""
+        from ravan.platform.clipboard import try_convert_selection
+
+        self._suppress_until = time.monotonic() + 0.12
+        if try_convert_selection(self.mapper.convert_text):
+            log.info("Converted selected text layout")
+            return
+        self._convert_last_word()
 
     def _convert_last_word(self) -> None:
         word, trailing = self.journal.last_word_info(allow_trailing_spaces=True)

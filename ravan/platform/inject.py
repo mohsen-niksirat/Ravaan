@@ -77,3 +77,16 @@ def inject_backspaces(n: int) -> None:
 def replace_last_n_with(delete_n: int, new_text: str) -> None:
     inject_backspaces(delete_n)
     inject_text(new_text)
+
+
+def send_shortcut(modifiers: list[int], key_vk: int) -> None:
+    """Send a key combination (e.g. Ctrl+C or Ctrl+V)."""
+    inputs: list[w.INPUT] = []
+    for mod in modifiers:
+        inputs.append(_vk_input(mod, False))
+    inputs.append(_vk_input(key_vk, False))
+    inputs.append(_vk_input(key_vk, True))
+    for mod in reversed(modifiers):
+        inputs.append(_vk_input(mod, True))
+    arr = (w.INPUT * len(inputs))(*inputs)
+    w.user32.SendInput(len(inputs), arr, ctypes.sizeof(w.INPUT))

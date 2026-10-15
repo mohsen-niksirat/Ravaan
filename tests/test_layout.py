@@ -49,3 +49,13 @@ def test_convert_word_bidirectional_toggle():
     assert en == "o,vn"
     # Toggle back
     assert mapper.convert_word(en) == "خورد"
+
+
+def test_convert_text_sentences():
+    mapper = LayoutMapper()
+    en_sentence = "sghl hlv,c o,f hsj"
+    fa_sentence = mapper.convert_text(en_sentence)
+    assert fa_sentence == "سلام امروز خوب است"
+
+    back = mapper.convert_text(fa_sentence)
+    assert back == en_sentence
