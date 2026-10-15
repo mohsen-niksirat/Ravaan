@@ -33,6 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     p_norm = sub.add_parser("norm", help="Normalize Persian text (Arabic chars, ZWNJ, punctuation)")
     p_norm.add_argument("text")
     p_norm.add_argument("--digits", choices=["fa", "en", "keep"], default="keep")
+    p_jalali = sub.add_parser("jalali", help="Show current or converted Jalali (Shamsi) date")
+    p_jalali.add_argument("date", nargs="?", default=None, help="Gregorian date (YYYY-MM-DD) or empty for today")
 
     args = parser.parse_args(argv)
 
@@ -110,6 +112,28 @@ def main(argv: list[str] | None = None) -> int:
         from ravan.core.normalizer import normalize_persian
 
         print(normalize_persian(args.text, digits=args.digits))
+        return 0
+
+    if args.cmd == "jalali":
+        from datetime import date
+        from ravan.core.jalali import JalaliDate, current_time_str
+
+        if args.date:
+            parts = [int(p) for p in args.date.replace("/", "-").split("-")]
+            if len(parts) == 3:
+                g = date(parts[0], parts[1], parts[2])
+                j = JalaliDate.from_gregorian(g)
+            else:
+                print("Invalid date format. Use YYYY-MM-DD or YYYY/MM/DD", file=sys.stderr)
+                return 1
+        else:
+            j = JalaliDate.today()
+
+        print(f"Jalali ISO:      {j.isoformat_fa()} ({j.isoformat()})")
+        print(f"Persian text:    {j.format_persian(include_weekday=False)}")
+        print(f"With weekday:    {j.format_persian(include_weekday=True)}")
+        if not args.date:
+            print(f"Current time:    {current_time_str(persian_digits=True)} ({current_time_str(persian_digits=False)})")
         return 0
 
     return 1
