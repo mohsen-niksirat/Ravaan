@@ -18,8 +18,10 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 | M8 | Cycle text case (UPPER → lower → Title) | `Shift+F12` |
 | M9 | Inline math calculator | Type e.g. `1200*1.09=` or `۱۲*۵=` |
 | M10 | Dynamic Jalali (Shamsi) date & time expander | `/today`, `/shamsi`, `/tarikh` |
-| M11 | User custom dictionary & word learning | tray → Settings… or CLI `dict` |
-| M12 | Settings window, tray menu, startup, exclusions | tray → Settings… |
+| M11 | Number to Persian Words & Toman converter | Type `1250000/w`, `5000000/t`, `1250000/s` |
+| M12 | Keyboard layout audio feedback | tray → Settings… |
+| M13 | User custom dictionary & word learning | tray → Settings… or CLI `dict` |
+| M14 | Settings window, tray menu, startup, exclusions | tray → Settings… |
 
 ### Convert Selection or Last Word (`F12`)
 
@@ -36,6 +38,21 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 
 - Press `Ctrl+F12` to clean and normalize Persian text in selected text (standardizes 'ي' and 'ك', spacing, ZWNJ) or the last typed word.
 - Press `Shift+F12` to cycle letter case (`UPPERCASE` → `lowercase` → `Title Case`) in selected text or the last typed word.
+
+### Number to Persian Words & Toman Calculator
+
+- Type numbers with quick suffix triggers anywhere:
+  - `1250000/w ` → `یک میلیون و دویست و پنجاه هزار`
+  - `5000000/t ` → `پانصد هزار تومان` (converts Rial to Toman words)
+  - `1250000/s ` → `۱,۲۵۰,۰۰۰` (formats with thousands separators)
+- Or via CLI: `python -m ravan.cli words 1250000 --toman`
+
+### Keyboard Layout Audio Feedback
+
+- Optional subtle audio cues when switching between Persian and English layouts:
+  - Persian: warm, lower pitch (650 Hz)
+  - English: crisp, bright pitch (1100 Hz)
+- Enable in **tray → Settings… → Audio feedback on keyboard layout switch**.
 
 ### Caret Clipboard History (`Alt+V`)
 
@@ -173,6 +190,8 @@ ravan/
 - نیم‌فاصله‌گذاری هوشمند فارسی (ZWNJ): اتصال خودکار «می/نمی» و پسوندهای «ها/تر/ترین/مند/شناس» یا درج با `Shift+Space`
 - نرمال‌سازی درجا و پاکسازی متن فارسی (اصلاح «ي» و «ك»، نیم‌فاصله‌ها و علائم) با `Ctrl+F12`
 - تغییر چرخشی وضعیت حروف لاتین (UPPERCASE → lowercase → Title Case) با `Shift+F12`
+- تبدیل خودکار عدد به حروف فارسی و تومان (تایپ `1250000/w`، `5000000/t`، `1250000/s` و دستور CLI `words`)
+- بازخورد صوتی ملایم هنگام تغییر زبان صفحه‌کلید (صدای زیر برای انگلیسی و صدای بم برای فارسی)
 - تاریخچه کلیپ‌بورد در محل نشانگر (`Alt+V`) با امکان چسباندن سریع با شماره‌های ۱ تا ۵
 - ماشین‌حساب ریاضی درون‌خطی هنگام تایپ با فشردن کلید `=` (مانند `1200*1.09=` یا با اعداد فارسی `۱۲*۵=`)
 - درج تاریخ روز هجری شمسی و زمان با ماکروهای داینامیک (`/today`، `/shamsi`، `/تاریخ`، `/time`، `/uuid`)

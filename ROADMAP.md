@@ -1,6 +1,8 @@
 # Roadmap
  
 Done (v0.4):
+- Number to Persian words converter, Rial-to-Toman calculator, and thousands separator formatting (`/w`, `/t`, `/s`, CLI `words`)
+- Keyboard layout audio feedback (distinct gentle tones for Persian and English upon layout switch)
 - Dynamic snippets with Persian Jalali (Shamsi) calendar date/time expander (`/today`, `/shamsi`, `/tarikh`, `/time`, `/uuid`, `{{placeholders}}`, and CLI `jalali`)
 - In-place text transformation (case cycling with `Shift+F12` and Persian normalizer with `Ctrl+F12`)
 - Inline quick math calculator on `=` trigger (`(50+30)*2= -> 160`, supporting Persian digits `۱۲*۵= -> ۶۰`, and CLI `calc`)
