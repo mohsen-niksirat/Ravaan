@@ -1,20 +1,23 @@
 # Roadmap
-
-Done (v0.2):
+ 
+Done (v0.3):
+- Selection layout conversion (convert highlighted text in place or fall back to last word)
+- Smart Persian half-space (ZWNJ): prefix/suffix auto-attachment + `Shift+Space` hotkey
+- Caret clipboard history ring buffer popup (`Alt+V`) with quick 1–5 number paste
+- Persian / Arabic text and number normalization (CLI + core module)
+- Expanded dictionary assets (770+ English, 560+ Persian curated words)
+- Full Settings UI with toggles for new features
 - Safe autocorrect (never rewrites dictionary words)
-- Settings window (hotkeys, toggles, snippets, exclusions, startup)
 - Tray menu with prediction toggle + notifications
 - Single-instance guard, launch-at-startup (HKCU Run)
-- Per-app exclusions (excluded_apps) — now enforced
+- Per-app exclusions (excluded_apps)
 - Real UIA caret (TextPattern2/TextPattern + ancestor walk)
 - Journal reset on focus change; popup auto-timeout; hotkey repeat throttle
 
 Next:
 - Local ONNX / small LLM sentence completion behind the `Predictor` interface
 - Voice input / dictation
-- Clipboard history
-- More languages beyond FA/EN
-- Full frequency dictionaries (EN ~50k, FA ~30k) as compressed assets
+- Full frequency dictionaries (EN ~50k, FA ~30k) as compressed SQLite / trie assets
 - Per-app hotkey profiles
 - Installer (Inno Setup) + optional code signing
 - Linux port (Wayland input capture) — long term

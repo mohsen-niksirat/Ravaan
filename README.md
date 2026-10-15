@@ -9,10 +9,38 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 | Milestone | Feature | Hotkey (default) |
 |-----------|---------|------------------|
 | M1 | Language chip near caret on layout switch | `Alt+L` on demand |
-| M2 | Convert last word Persian ↔ English layout | `F12` |
-| M3 | Word prediction popup | see below |
+| M2 | Convert selection or last word Persian ↔ English layout | `F12` |
+| M3 | Word prediction popup (with expanded corpus 1300+ words) | see below |
 | M4 | Autocorrect + snippets | on word boundary |
-| M5 | Settings window, tray menu, startup, exclusions | tray → Settings… |
+| M5 | Smart Persian half-space (ZWNJ: می/نمی & ها/تر/ترین) | Auto or `Shift+Space` |
+| M6 | Clipboard history ring buffer popup | `Alt+V` |
+| M7 | Persian/Arabic text & number normalization | CLI `norm` & `num` |
+| M8 | Settings window, tray menu, startup, exclusions | tray → Settings… |
+
+### Convert Selection or Last Word (`F12`)
+
+- Select text anywhere and press `F12` to convert between Persian and English keyboard layouts in place.
+- If no text is selected, automatically converts the last word you typed.
+
+### Smart Persian Half-Space (ZWNJ / نیم‌فاصله)
+
+- Automatically converts prefixes like `می ` and `نمی ` to `می‌` and `نمی‌`.
+- Automatically attaches plural/comparative suffixes like `کتاب ها` → `کتاب‌ها`, `سریع تر` → `سریع‌تر`.
+- Press `Shift+Space` anytime to insert an explicit zero-width non-joiner (`\u200c`).
+
+### Caret Clipboard History (`Alt+V`)
+
+- Press `Alt+V` to open a quick paste popup right next to your active cursor.
+- Browse recent clipboard items with **↑ / ↓**, press **Enter** or **1–5** to instantly paste into the active window.
+
+### Persian / Arabic Normalizer & Numbers
+
+CLI utilities for cleaning and standardizing text:
+```bash
+python -m ravan.cli num 12345        # Output: ۱۲۳۴۵
+python -m ravan.cli num ۱۲۳۴۵ --to en # Output: 12345
+python -m ravan.cli norm "ي ك ٪"     # Output: "ی ک ٪" (standardizes Arabic chars & spacing)
+```
 
 ### How to pick a suggestion
 
@@ -113,14 +141,17 @@ ravan/
 
 ## فارسی
 
-**روان** یک دستیار تایپ برای ویندوز است:
+**روان** یک دستیار تایپ هوشمند و سبک برای ویندوز است:
 
-- نمایش زبان صفحه‌کلید (EN / فا) کنار نشانگر متن
-- تبدیل کلمهٔ آخر بین چیدمان فارسی و انگلیسی با `F12`
-  مثال: `o,vn` → `خورد`
-- پیشنهاد تکمیل کلمه نزدیک caret
-- اصلاح خودکار امن (فقط کلمه‌های غلط اصلاح می‌شوند) و snippetهای کاربر
-- پنجره تنظیمات، منوی tray، اجرای خودکار با ویندوز، لیست برنامه‌های مستثنی
+- نمایش زبان صفحه‌کلید (EN / فا) کنار نشانگر متن هنگام تغییر چیدمان (یا با `Alt+L`)
+- تبدیل چیدمان متن انتخاب‌شده یا آخرین کلمه تایپ شده بین فارسی و انگلیسی با `F12`
+  مثال: `o,vn` → `خورد` یا انتخاب یک پاراگراف و زدن `F12`
+- نیم‌فاصله‌گذاری هوشمند فارسی (ZWNJ): اتصال خودکار «می/نمی» و پسوندهای «ها/تر/ترین/مند/شناس» یا درج با `Shift+Space`
+- تاریخچه کلیپ‌بورد در محل نشانگر (Alt+V) با امکان چسباندن سریع با شماره‌های ۱ تا ۵
+- پیشنهاد تکمیل کلمه نزدیک نشانگر (با واژه‌نامه گسترش‌یافته بیش از ۱۳۰۰ کلمه پرکاربرد)
+- اصلاح خودکار امن و کلمات اختصاری (Snippets) شخصی‌سازی‌شده
+- نرمال‌سازی حروف عربی/فارسی و تبدیل اعداد فارسی و انگلیسی (ابزار CLI)
+- پنجره تنظیمات کامل، منوی Tray، اجرای خودکار با ویندوز و مدیریت برنامه‌های مستثنی
 
 ## Known limitations
 
