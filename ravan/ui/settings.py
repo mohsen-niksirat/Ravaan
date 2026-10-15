@@ -244,10 +244,23 @@ class SettingsWindow:
             font=("Segoe UI", 11, "bold"),
         ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 6))
         row += 1
-        self._snip_text = tk.Text(frm, width=40, height=5)
+        self._snip_text = tk.Text(frm, width=40, height=4)
         lines = [f"{s.trigger} => {s.replacement}" for s in self.cfg.snippets]
         self._snip_text.insert("1.0", "\n".join(lines))
         self._snip_text.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+        row += 2
+
+        # ── User Custom Words ──
+        from ravan.core.user_dict import load_user_words
+
+        ttk.Label(
+            frm, text="Custom words / names (one per line)",
+            font=("Segoe UI", 11, "bold"),
+        ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 6))
+        row += 1
+        self._user_words_text = tk.Text(frm, width=40, height=4)
+        self._user_words_text.insert("1.0", "\n".join(load_user_words()))
+        self._user_words_text.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
         row += 2
 
         # ── Buttons ──
@@ -348,6 +361,15 @@ class SettingsWindow:
                     "Ravan", "Could not update startup entry", parent=self._root
                 )
         cfg.launch_at_startup = self._startup_var.get()
+
+        from ravan.core.user_dict import save_user_words
+
+        user_words = [
+            ln.strip()
+            for ln in self._user_words_text.get("1.0", "end").splitlines()
+            if ln.strip() and not ln.strip().startswith("#")
+        ]
+        save_user_words(user_words)
 
         save_config(cfg)
         if self.on_saved:

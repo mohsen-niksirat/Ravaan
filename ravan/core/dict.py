@@ -103,13 +103,27 @@ def _load_asset_words(filename: str) -> list[str]:
 
 class Dictionary:
     def __init__(self, entries: list[DictEntry], language: Language) -> None:
-        self.entries = entries
+        self.entries = list(entries)
         self.language = language
         self._lower = {e.word.lower(): e for e in entries}
         # Sorted-by-length index for fast fuzzy candidate scan
         self._by_len: dict[int, list[DictEntry]] = {}
         for e in entries:
             self._by_len.setdefault(len(e.word), []).append(e)
+
+    def add_word(self, word: str, priority: bool = True) -> None:
+        """Add a dynamic word to the dictionary in-memory."""
+        clean = word.strip()
+        if not clean or clean.lower() in self._lower:
+            return
+        rank = 0 if priority else len(self.entries) + 1
+        entry = DictEntry(word=clean, rank=rank)
+        if priority:
+            self.entries.insert(0, entry)
+        else:
+            self.entries.append(entry)
+        self._lower[clean.lower()] = entry
+        self._by_len.setdefault(len(clean), []).append(entry)
 
     @classmethod
     def english(cls) -> Dictionary:

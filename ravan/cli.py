@@ -37,6 +37,9 @@ def main(argv: list[str] | None = None) -> int:
     p_jalali.add_argument("date", nargs="?", default=None, help="Gregorian date (YYYY-MM-DD) or empty for today")
     p_calc = sub.add_parser("calc", help="Evaluate a math expression (supports Persian digits)")
     p_calc.add_argument("expr", help="Mathematical expression e.g. '1200*1.09' or '۱۲*۵'")
+    p_dict = sub.add_parser("dict", help="Manage user custom dictionary")
+    p_dict.add_argument("action", choices=["list", "add", "remove"])
+    p_dict.add_argument("word", nargs="?", default="")
 
     args = parser.parse_args(argv)
 
@@ -148,6 +151,36 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print("Error: Invalid mathematical expression", file=sys.stderr)
             return 1
+
+    if args.cmd == "dict":
+        from ravan.core.user_dict import add_user_word, load_user_words, remove_user_word
+
+        if args.action == "list":
+            words = load_user_words()
+            if not words:
+                print("User custom dictionary is empty.")
+            else:
+                for w in words:
+                    print(w)
+            return 0
+        elif args.action == "add":
+            if not args.word:
+                print("Error: Specify a word to add.", file=sys.stderr)
+                return 1
+            if add_user_word(args.word):
+                print(f"Added {args.word!r} to user custom dictionary.")
+                return 0
+            return 1
+        elif args.action == "remove":
+            if not args.word:
+                print("Error: Specify a word to remove.", file=sys.stderr)
+                return 1
+            if remove_user_word(args.word):
+                print(f"Removed {args.word!r} from user custom dictionary.")
+                return 0
+            else:
+                print(f"Word {args.word!r} not found in user dictionary.")
+                return 1
 
     return 1
 

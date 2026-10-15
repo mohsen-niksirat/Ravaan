@@ -31,10 +31,20 @@ class DictPredictor(Predictor):
 
     @classmethod
     def from_config(cls, cfg: Config) -> DictPredictor:
-        return cls(
-            english=Dictionary.english() if cfg.english_dict_enabled else None,
-            persian=Dictionary.persian() if cfg.persian_dict_enabled else None,
-        )
+        from .user_dict import load_user_words
+
+        en_dict = Dictionary.english() if cfg.english_dict_enabled else None
+        fa_dict = Dictionary.persian() if cfg.persian_dict_enabled else None
+
+        for w in load_user_words():
+            if any(is_arabic_persian(c) for c in w):
+                if fa_dict is not None:
+                    fa_dict.add_word(w, priority=True)
+            else:
+                if en_dict is not None:
+                    en_dict.add_word(w, priority=True)
+
+        return cls(english=en_dict, persian=fa_dict)
 
     def _dict_for(self, word: str) -> Dictionary | None:
         if any(is_arabic_persian(c) for c in word):
