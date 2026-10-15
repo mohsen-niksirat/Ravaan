@@ -63,6 +63,12 @@ class Config:
     clipboard_history_hotkey: HotkeySpec = field(
         default_factory=lambda: HotkeySpec(key="V", modifiers=["Alt"])
     )
+    normalize_hotkey: HotkeySpec = field(
+        default_factory=lambda: HotkeySpec(key="F12", modifiers=["Ctrl"])
+    )
+    case_hotkey: HotkeySpec = field(
+        default_factory=lambda: HotkeySpec(key="F12", modifiers=["Shift"])
+    )
 
 
 def config_dir() -> Path:
@@ -164,6 +170,12 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         clipboard_history_enabled=bool(data.get("clipboard_history_enabled", True)),
         clipboard_history_hotkey=_hotkey_from_dict(
             data.get("clipboard_history_hotkey"), HotkeySpec("V", ["Alt"])
+        ),
+        normalize_hotkey=_hotkey_from_dict(
+            data.get("normalize_hotkey"), HotkeySpec("F12", ["Ctrl"])
+        ),
+        case_hotkey=_hotkey_from_dict(
+            data.get("case_hotkey"), HotkeySpec("F12", ["Shift"])
         ),
     )
 

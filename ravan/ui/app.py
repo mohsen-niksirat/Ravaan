@@ -247,6 +247,18 @@ class RavanApp:
         ):
             self._show_clipboard_popup()
             return
+        if matches_hotkey(vk, self.cfg.normalize_hotkey):
+            now = time.monotonic()
+            if now - self._last_convert_at > 0.3:
+                self._last_convert_at = now
+                self._normalize_selection_or_last_word()
+            return
+        if matches_hotkey(vk, self.cfg.case_hotkey):
+            now = time.monotonic()
+            if now - self._last_convert_at > 0.3:
+                self._last_convert_at = now
+                self._cycle_case_selection_or_last_word()
+            return
         if matches_hotkey(vk, self.cfg.convert_hotkey):
             now = time.monotonic()
             if now - self._last_convert_at > 0.3:
@@ -376,6 +388,62 @@ class RavanApp:
         replace_last_n_with(len(word) + trailing, converted + trailing_str)
         self.journal.pop_last_word_info(allow_trailing_spaces=True)
         for ch in converted + trailing_str:
+            self.journal.push(ch)
+
+    def _normalize_selection_or_last_word(self) -> None:
+        """Normalize Persian text in selection or the last typed word."""
+        from ravan.core.transform import normalize_text
+        from ravan.platform.clipboard import try_convert_selection
+
+        self._suppress_until = time.monotonic() + 0.12
+        if try_convert_selection(normalize_text):
+            log.info("Normalized selected text")
+            return
+        self._normalize_last_word()
+
+    def _normalize_last_word(self) -> None:
+        from ravan.core.transform import normalize_text
+
+        word, trailing = self.journal.last_word_info(allow_trailing_spaces=True)
+        if not word:
+            return
+        normalized = normalize_text(word)
+        if not normalized or normalized == word:
+            return
+        log.info("Normalize %r → %r (trailing: %d)", word, normalized, trailing)
+        self._suppress_until = time.monotonic() + 0.05
+        trailing_str = " " * trailing
+        replace_last_n_with(len(word) + trailing, normalized + trailing_str)
+        self.journal.pop_last_word_info(allow_trailing_spaces=True)
+        for ch in normalized + trailing_str:
+            self.journal.push(ch)
+
+    def _cycle_case_selection_or_last_word(self) -> None:
+        """Cycle case (UPPER -> lower -> Title) of selection or last typed word."""
+        from ravan.core.transform import cycle_case
+        from ravan.platform.clipboard import try_convert_selection
+
+        self._suppress_until = time.monotonic() + 0.12
+        if try_convert_selection(cycle_case):
+            log.info("Cycled case of selected text")
+            return
+        self._cycle_case_last_word()
+
+    def _cycle_case_last_word(self) -> None:
+        from ravan.core.transform import cycle_case
+
+        word, trailing = self.journal.last_word_info(allow_trailing_spaces=True)
+        if not word:
+            return
+        cased = cycle_case(word)
+        if not cased or cased == word:
+            return
+        log.info("Cycle case %r → %r (trailing: %d)", word, cased, trailing)
+        self._suppress_until = time.monotonic() + 0.05
+        trailing_str = " " * trailing
+        replace_last_n_with(len(word) + trailing, cased + trailing_str)
+        self.journal.pop_last_word_info(allow_trailing_spaces=True)
+        for ch in cased + trailing_str:
             self.journal.push(ch)
 
     def _show_lang_indicator(self) -> None:

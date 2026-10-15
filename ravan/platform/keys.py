@@ -47,17 +47,28 @@ def key_name_to_vk(name: str) -> int | None:
     return None
 
 
-def modifiers_down(modifiers: list[str]) -> bool:
-    for mod in modifiers:
-        vk = _MODIFIER_VKS.get(mod.lower())
+_ALL_MODS = ("alt", "ctrl", "shift", "win")
+
+
+def modifiers_down(modifiers: list[str], exact: bool = True) -> bool:
+    expected = {m.lower() for m in modifiers}
+    if "control" in expected:
+        expected.remove("control")
+        expected.add("ctrl")
+
+    for mod in _ALL_MODS:
+        vk = _MODIFIER_VKS.get(mod)
         if vk is None:
-            return False
-        if (w.user32.GetAsyncKeyState(vk) & 0x8000) == 0:
-            # Win key: check both left and right
-            if mod.lower() == "win":
-                if (w.user32.GetAsyncKeyState(w.VK_RWIN) & 0x8000) == 0:
-                    return False
-            else:
+            continue
+        down = bool(w.user32.GetAsyncKeyState(vk) & 0x8000)
+        if mod == "win":
+            down = down or bool(w.user32.GetAsyncKeyState(w.VK_RWIN) & 0x8000)
+
+        if exact:
+            if down != (mod in expected):
+                return False
+        else:
+            if (mod in expected) and not down:
                 return False
     return True
 
@@ -66,7 +77,8 @@ def matches_hotkey(vk: int, spec: HotkeySpec) -> bool:
     expected = key_name_to_vk(spec.key)
     if expected is None or vk != expected:
         return False
-    return modifiers_down(spec.modifiers)
+    return modifiers_down(spec.modifiers, exact=True)
+
 
 
 def vk_to_unicode(vk: int, scan_code: int) -> str | None:

@@ -108,6 +108,30 @@ class SettingsWindow:
         ttk.Label(frm, text="e.g. Alt+V", foreground="gray").grid(
             row=row, column=2, sticky="w", **pad
         )
+        row += 1
+
+        ttk.Label(frm, text="Normalize text:").grid(row=row, column=0, sticky="w", **pad)
+        self._norm_var = tk.StringVar(
+            value=hotkey_to_text(self.cfg.normalize_hotkey)
+        )
+        ttk.Entry(frm, textvariable=self._norm_var, width=22).grid(
+            row=row, column=1, sticky="w", **pad
+        )
+        ttk.Label(frm, text="e.g. Ctrl+F12", foreground="gray").grid(
+            row=row, column=2, sticky="w", **pad
+        )
+        row += 1
+
+        ttk.Label(frm, text="Cycle text case:").grid(row=row, column=0, sticky="w", **pad)
+        self._case_var = tk.StringVar(
+            value=hotkey_to_text(self.cfg.case_hotkey)
+        )
+        ttk.Entry(frm, textvariable=self._case_var, width=22).grid(
+            row=row, column=1, sticky="w", **pad
+        )
+        ttk.Label(frm, text="e.g. Shift+F12", foreground="gray").grid(
+            row=row, column=2, sticky="w", **pad
+        )
         row += 2
 
         # ── Features ──
@@ -252,6 +276,8 @@ class SettingsWindow:
         convert = text_to_hotkey(self._convert_var.get())
         lang = text_to_hotkey(self._lang_var.get())
         clip = text_to_hotkey(self._clip_var.get())
+        norm = text_to_hotkey(self._norm_var.get())
+        case = text_to_hotkey(self._case_var.get())
         if self._convert_var.get().strip() and convert is None:
             messagebox.showwarning("Ravan", "Invalid convert hotkey", parent=self._root)
             return
@@ -261,6 +287,12 @@ class SettingsWindow:
         if self._clip_var.get().strip() and clip is None:
             messagebox.showwarning("Ravan", "Invalid clipboard history hotkey", parent=self._root)
             return
+        if self._norm_var.get().strip() and norm is None:
+            messagebox.showwarning("Ravan", "Invalid normalize hotkey", parent=self._root)
+            return
+        if self._case_var.get().strip() and case is None:
+            messagebox.showwarning("Ravan", "Invalid case hotkey", parent=self._root)
+            return
 
         cfg = self.cfg
         if convert:
@@ -269,6 +301,10 @@ class SettingsWindow:
             cfg.lang_indicator_hotkey = lang
         if clip:
             cfg.clipboard_history_hotkey = clip
+        if norm:
+            cfg.normalize_hotkey = norm
+        if case:
+            cfg.case_hotkey = case
         cfg.prediction_enabled = self._prediction_var.get()
         cfg.autocorrect_enabled = self._autocorrect_var.get()
         cfg.auto_zwnj_enabled = self._zwnj_var.get()
