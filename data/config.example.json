@@ -1,0 +1,25 @@
+{
+  "convert_hotkey": { "key": "F12", "modifiers": [] },
+  "lang_indicator_hotkey": { "key": "L", "modifiers": ["Alt"] },
+  "autocorrect_enabled": true,
+  "prediction_enabled": true,
+  "quickpick_digits": true,
+  "prediction_debounce_ms": 50,
+  "prediction_max_candidates": 5,
+  "popup_timeout_ms": 4000,
+  "min_prefix_len": 2,
+  "excluded_apps": ["explorer.exe"],
+  "snippets": [
+    { "trigger": "@@", "replacement": "you@example.com" }
+  ],
+  "launch_at_startup": false,
+  "theme": {
+    "background_color": [30, 30, 30, 230],
+    "text_color": [240, 240, 240, 255],
+    "highlight_color": [70, 130, 180, 255],
+    "font_size": 14.0,
+    "corner_radius": 6.0
+  },
+  "english_dict_enabled": true,
+  "persian_dict_enabled": true
+}

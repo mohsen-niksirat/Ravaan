@@ -1,0 +1,44 @@
+Build "Ravan" (روان) — a Windows typing assistant written in Python
+==================================================================
+
+## What Ravan is
+
+A native Windows desktop app that helps users type faster and smarter in ANY application (browsers, editors, chat apps, Office). Target user: bilingual Persian/English typists who constantly struggle with keyboard language state, plus anyone wanting autocomplete/prediction while typing anywhere.
+
+Core problems it solves:
+1. When the taskbar is set to auto-hide, the user can't see the current keyboard language (FA/EN) before typing. Ravan shows a language indicator near the caret on every language switch and on demand.
+2. Wrong-language typing: the user types with the wrong layout. Ravan offers a one-hotkey conversion of the last word/selection between Persian and English keyboard layouts (like LangOver, but integrated). Example: "o,vn" → "خورد".
+3. Autocomplete / next-word prediction, shown as a popup near the caret, navigable with arrow keys (Up/Down to pick candidate), Enter/Tab to accept, Esc to dismiss, digits 1–5 quick-pick.
+4. Autocorrect (English + Persian) and text expansion snippets (e.g. "@@" → user's email).
+
+## Tech stack & architecture
+
+Language: Python 3.10+. Windows 10/11 first.
+
+Package layout:
+- `ravan.core` — config, events, layout mapping, dictionary, predictor, snippets, keystroke journal
+- `ravan.platform` — ctypes Win32: WH_KEYBOARD_LL hook, GetKeyboardLayout, caret fallbacks, SendInput
+- `ravan.ui` — Tk overlay (no-activate best-effort), pystray tray, app loop
+- `ravan.cli` — diagnostics CLI
+
+Persistence: `%APPDATA%\Ravan\config.json`
+Logging: `%APPDATA%\Ravan\logs`
+
+## Feature modules (build order)
+
+### M1 — Foundation
+Global keyboard hook + language chip near caret on layout change and Alt+L.
+
+### M2 — Language conversion
+F12 converts last typed word via journal + SendInput (backspaces + unicode inject).
+
+### M3 — Prediction popup
+Debounced dictionary completions near caret; arrow/Enter/Tab/1–5 navigation.
+
+### M4 — Autocorrect + snippets
+Passive autocorrect on word boundary; user snippets from config.
+
+### M5 — Polish
+Settings UI, startup registry, per-app exclusions, installer, larger dictionaries.
+
+Start with M1; keep each milestone runnable before moving on.
