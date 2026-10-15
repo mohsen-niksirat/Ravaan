@@ -70,6 +70,7 @@ class Config:
         default_factory=lambda: HotkeySpec(key="F12", modifiers=["Shift"])
     )
     inline_calc_enabled: bool = True
+    sound_feedback_enabled: bool = False
 
 
 def config_dir() -> Path:
@@ -179,6 +180,7 @@ def config_from_dict(data: dict[str, Any]) -> Config:
             data.get("case_hotkey"), HotkeySpec("F12", ["Shift"])
         ),
         inline_calc_enabled=bool(data.get("inline_calc_enabled", True)),
+        sound_feedback_enabled=bool(data.get("sound_feedback_enabled", False)),
     )
 
 

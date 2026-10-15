@@ -192,6 +192,12 @@ class SettingsWindow:
         ttk.Checkbutton(frm, text="Persian dictionary", variable=self._fa_dict_var).grid(
             row=row, column=0, columnspan=3, sticky="w", **pad
         )
+        row += 1
+
+        self._sound_var = tk.BooleanVar(value=self.cfg.sound_feedback_enabled)
+        ttk.Checkbutton(
+            frm, text="Audio feedback on keyboard layout switch", variable=self._sound_var
+        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
         row += 2
 
         # ── Tuning ──
@@ -333,6 +339,7 @@ class SettingsWindow:
         cfg.quickpick_digits = self._digits_var.get()
         cfg.english_dict_enabled = self._en_dict_var.get()
         cfg.persian_dict_enabled = self._fa_dict_var.get()
+        cfg.sound_feedback_enabled = self._sound_var.get()
         cfg.prediction_debounce_ms = max(0, int(self._debounce_var.get() or 0))
         cfg.prediction_max_candidates = max(1, min(9, int(self._maxcand_var.get() or 5)))
         cfg.min_prefix_len = max(1, min(6, int(self._minlen_var.get() or 2)))

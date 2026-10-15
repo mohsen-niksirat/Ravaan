@@ -533,6 +533,10 @@ class RavanApp:
             self._last_lang_hkl = lang.hkl
             if self._is_excluded():
                 return
+            if self.cfg.sound_feedback_enabled:
+                from ravan.platform.sound import play_layout_switch_sound
+
+                play_layout_switch_sound(lang.tag == "fa")
             caret = get_caret_rect()
             self.overlay.show_language(
                 language_label(lang), caret.x, caret.y, caret.height
