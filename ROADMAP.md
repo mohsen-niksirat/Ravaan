@@ -1,6 +1,7 @@
 # Roadmap
  
 Done (v0.4):
+- M17: Reliability & UX hardening (Per-Monitor V2 DPI awareness, flicker-free overlay row recycling with SWP_NOACTIVATE, interactive excluded apps detector in Settings, structured rotating file logging capped at 2MB with 3 backups, graceful UIA failure throttling per process, and Diagnostics tray window with live status & markdown report export)
 - M16: PyInstaller standalone distribution packaging (`Ravaan.exe` with bundled icon & assets, windowed no-console), GitHub Actions CI/CD release workflow on tag push, and install/uninstall documentation
 - M15: External UTF-8 dictionary loading (`word<TAB>frequency`), 12,500+ Persian frequency dataset, hierarchical ranking (custom dict > frequency > edit distance), and adaptive learning selection boost
 - Number to Persian words converter, Rial-to-Toman calculator, and thousands separator formatting (`/w`, `/t`, `/s`, CLI `words`)
@@ -23,7 +24,6 @@ Done (v0.4):
 - Journal reset on focus change; popup auto-timeout; hotkey repeat throttle
 
 Next:
-- Phase 3: Reliability & UX Hardening (DPI scaling, overlay caret tracking, structured logging & diagnostics window)
 - Phase 4: Autocorrect & Language Intelligence (bilingual awareness, typo modeling, undo hotkey)
 - Phase 5: Snippets 2.0 (multi-line snippets, JSON import/export, cursor $0 placement)
 - Phase 6: Code Quality Pass (linting pass, modular refactoring, fake Win32 tests)

@@ -12,6 +12,9 @@ log = logging.getLogger(__name__)
 UIA_TextPatternId = 10023
 UIA_TextPattern2Id = 10024
 
+_last_caret_source: str = "none"
+_uia_failed_pids: set[int] = set()
+
 
 @dataclass(frozen=True)
 class CaretRect:
@@ -21,17 +24,67 @@ class CaretRect:
     height: int
 
 
-def get_caret_rect() -> CaretRect:
+def get_last_caret_source() -> str:
+    """Return the name of the last successful caret detection source."""
+    return _last_caret_source
+
+
+def _get_active_pid() -> int:
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        hwnd = w.user32.GetForegroundWindow()
+        if not hwnd:
+            return 0
+        pid = wintypes.DWORD(0)
+        w.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        return int(pid.value)
+    except Exception:
+        return 0
+
+
+def get_caret_rect_with_source() -> tuple[CaretRect, str]:
+    """Return the caret rect and detection source ('UIA', 'GetGUIThreadInfo', or 'cursor')."""
+    global _last_caret_source
+
+    active_pid = _get_active_pid()
     rect = _try_uia_caret()
     if rect is not None:
+        if active_pid in _uia_failed_pids:
+            _uia_failed_pids.discard(active_pid)
+        _last_caret_source = "UIA"
         log.debug("Caret via UIA: %s", rect)
-        return rect
+        return rect, "UIA"
+
+    # UIA was unavailable for this active window. Log once per process ID.
+    if active_pid and active_pid not in _uia_failed_pids:
+        _uia_failed_pids.add(active_pid)
+        if len(_uia_failed_pids) > 100:
+            _uia_failed_pids.pop()
+        from ravan.platform.focus import foreground_exe
+
+        exe = foreground_exe() or "app"
+        log.info(
+            "UIA caret detection unavailable for %s (PID %d); falling back to GetGUIThreadInfo/cursor",
+            exe,
+            active_pid,
+        )
+
     rect = _try_gui_thread_info()
     if rect is not None:
+        _last_caret_source = "GetGUIThreadInfo"
         log.debug("Caret via GetGUIThreadInfo: %s", rect)
-        return rect
+        return rect, "GetGUIThreadInfo"
+
     rect = _cursor_position()
+    _last_caret_source = "cursor"
     log.debug("Caret via cursor: %s", rect)
+    return rect, "cursor"
+
+
+def get_caret_rect() -> CaretRect:
+    rect, _ = get_caret_rect_with_source()
     return rect
 
 

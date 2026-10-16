@@ -74,3 +74,16 @@ def window_title() -> str | None:
     w.user32.GetWindowTextW.restype = ctypes.c_int
     w.user32.GetWindowTextW(hwnd, buf, length + 1)
     return buf.value
+
+
+def active_window_info() -> dict[str, Any]:
+    """Return dictionary with hwnd, pid, exe, and title of current foreground window."""
+    hwnd = int(w.user32.GetForegroundWindow() or 0)
+    if not hwnd:
+        return {"hwnd": 0, "pid": 0, "exe": None, "title": None}
+    pid = wintypes.DWORD(0)
+    w.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    exe = foreground_exe()
+    title = window_title()
+    return {"hwnd": hwnd, "pid": int(pid.value), "exe": exe, "title": title}
+

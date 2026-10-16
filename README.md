@@ -150,11 +150,12 @@ pyinstaller --clean -y ravan.spec
 ### Tray menu
 
 - **Show language (Alt+L)** — show the language chip now
-- **Settings…** — hotkeys, toggles, snippets, excluded apps, startup
+- **Settings…** — hotkeys, toggles, snippets, excluded apps detector, startup
+- **Diagnostics…** — live status inspector (hook state, caret source, active app, last 50 events, copy markdown report)
 - **Word prediction** — toggle on/off (persisted)
 - **Quit**
 
-System tray icon → Quit to exit. Logs: `%APPDATA%\Ravan\logs\ravan.log`
+System tray icon → Quit to exit. Logs: `%APPDATA%\Ravan\logs\ravan.log` (capped with automatic 2MB log rotation and 3 backups).
 Config: `%APPDATA%\Ravan\config.json`
 
 ## CLI diagnostics

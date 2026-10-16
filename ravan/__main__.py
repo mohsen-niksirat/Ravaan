@@ -28,6 +28,10 @@ def main(argv: list[str] | None = None) -> int:
         print("Ravan currently supports Windows only.", file=sys.stderr)
         return 1
 
+    from ravan.platform import winapi as wapi
+
+    wapi.enable_dpi_awareness()
+
     from ravan.platform.singleinstance import SingleInstance
 
     guard = SingleInstance("Ravan")

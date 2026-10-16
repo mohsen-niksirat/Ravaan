@@ -244,7 +244,25 @@ class SettingsWindow:
         self._excl_text = tk.Text(frm, width=40, height=4)
         self._excl_text.insert("1.0", "\n".join(self.cfg.excluded_apps))
         self._excl_text.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+        row += 1
+
+        # Interactive detection & test tool
+        excl_tools = ttk.Frame(frm)
+        excl_tools.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
         row += 2
+
+        self._detected_app_var = tk.StringVar(value="Active app: —")
+        ttk.Label(excl_tools, textvariable=self._detected_app_var, foreground="#444444").pack(
+            side="left", padx=(0, 8)
+        )
+        ttk.Button(
+            excl_tools, text="Detect Active App", command=self._detect_active_app
+        ).pack(side="left", padx=3)
+        self._add_detected_btn = ttk.Button(
+            excl_tools, text="+ Add to Exclusions", command=self._add_detected_to_exclusions, state="disabled"
+        )
+        self._add_detected_btn.pack(side="left", padx=3)
+
 
         # ── Snippets ──
         ttk.Label(
@@ -288,6 +306,42 @@ class SettingsWindow:
         self._root.geometry(f"+{x}+{y}")
 
     # ── Actions ──────────────────────────────────────────────────────
+
+    def _get_current_exclusions_from_text(self) -> list[str]:
+        raw = self._excl_text.get("1.0", "end").strip()
+        return [line.strip().lower() for line in raw.splitlines() if line.strip()]
+
+    def _detect_active_app(self) -> None:
+        from ravan.core.config import is_app_excluded
+        from ravan.platform.focus import active_window_info
+
+        info = active_window_info()
+        exe = info.get("exe")
+        if not exe:
+            self._detected_app_var.set("Active app: could not detect")
+            self._add_detected_btn.config(state="disabled")
+            return
+
+        current_excls = self._get_current_exclusions_from_text()
+        status = "EXCLUDED" if is_app_excluded(exe, current_excls) else "ACTIVE"
+        self._last_detected_exe = exe
+        self._detected_app_var.set(f"{exe}  [{status}]")
+        self._add_detected_btn.config(state="normal")
+
+    def _add_detected_to_exclusions(self) -> None:
+        exe = getattr(self, "_last_detected_exe", None)
+        if not exe:
+            return
+        current = self._get_current_exclusions_from_text()
+        if exe.lower() not in current:
+            text = self._excl_text.get("1.0", "end").rstrip()
+            if text:
+                text += "\n" + exe.lower() + "\n"
+            else:
+                text = exe.lower() + "\n"
+            self._excl_text.delete("1.0", "end")
+            self._excl_text.insert("1.0", text)
+            self._detect_active_app()
 
     def _close(self) -> None:
         self._open = False

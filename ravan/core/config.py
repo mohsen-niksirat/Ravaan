@@ -72,6 +72,23 @@ class Config:
     inline_calc_enabled: bool = True
     sound_feedback_enabled: bool = False
 
+    def is_excluded(self, exe_name: str | None) -> bool:
+        return is_app_excluded(exe_name, self.excluded_apps)
+
+
+def is_app_excluded(exe_name: str | None, excluded_apps: list[str]) -> bool:
+    """Return True if exe_name matches any filename in excluded_apps (case-insensitive)."""
+    if not exe_name:
+        return False
+    name = exe_name.strip().lower()
+    for item in excluded_apps:
+        excl = item.strip().lower()
+        if not excl:
+            continue
+        if name == excl or name.endswith(excl):
+            return True
+    return False
+
 
 def config_dir() -> Path:
     appdata = Path.home() / "AppData" / "Roaming"

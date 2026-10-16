@@ -56,6 +56,8 @@ WS_EX_NOACTIVATE = 0x08000000
 WS_EX_LAYERED = 0x00080000
 WS_POPUP = 0x80000000
 HWND_TOPMOST = -1
+SWP_NOSIZE = 0x0001
+SWP_NOMOVE = 0x0002
 SWP_NOACTIVATE = 0x0010
 SWP_SHOWWINDOW = 0x0040
 SW_SHOWNOACTIVATE = 4
@@ -227,3 +229,35 @@ kernel32.GetModuleHandleW.restype = wintypes.HMODULE
 
 user32.GetSystemMetrics.argtypes = [ctypes.c_int]
 user32.GetSystemMetrics.restype = ctypes.c_int
+
+
+def enable_dpi_awareness() -> bool:
+    """Enable Per-Monitor V2 DPI awareness so coordinates and fonts scale properly across monitors."""
+    # 1. Windows 10 1703+ (Per-Monitor V2 awareness)
+    try:
+        user32.SetProcessDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+        user32.SetProcessDpiAwarenessContext.restype = wintypes.BOOL
+        # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
+        if user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4)):
+            return True
+    except Exception:
+        pass
+
+    # 2. Windows 8.1+ (Per-Monitor awareness)
+    try:
+        shcore = ctypes.WinDLL("shcore", use_last_error=True)
+        shcore.SetProcessDpiAwareness.argtypes = [ctypes.c_int]
+        shcore.SetProcessDpiAwareness.restype = ctypes.c_long
+        # PROCESS_PER_MONITOR_DPI_AWARE = 2
+        if shcore.SetProcessDpiAwareness(2) == 0:
+            return True
+    except Exception:
+        pass
+
+    # 3. Windows Vista+ fallback (System DPI aware)
+    try:
+        user32.SetProcessDPIAware.restype = wintypes.BOOL
+        return bool(user32.SetProcessDPIAware())
+    except Exception:
+        return False
+

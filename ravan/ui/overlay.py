@@ -70,24 +70,37 @@ class OverlayWindow:
     def _rgb(rgba: list[int]) -> str:
         return f"#{rgba[0]:02x}{rgba[1]:02x}{rgba[2]:02x}"
 
+    def _get_root_hwnd(self) -> int | None:
+        try:
+            import ctypes
+            from ravan.platform import winapi as wapi
+
+            hwnd = self._root.winfo_id()
+            GA_ROOT = 2
+            return int(wapi.user32.GetAncestor(hwnd, GA_ROOT) or hwnd)
+        except Exception:
+            return None
+
     def _apply_noactivate(self) -> None:
         try:
             import ctypes
+            from ravan.platform import winapi as wapi
 
-            hwnd = self._root.winfo_id()
-            user32 = ctypes.windll.user32
+            root_hwnd = self._get_root_hwnd()
+            if not root_hwnd:
+                return
             GWL_EXSTYLE = -20
             WS_EX_NOACTIVATE = 0x08000000
             WS_EX_TOOLWINDOW = 0x00000080
             WS_EX_TOPMOST = 0x00000008
-            GA_ROOT = 2
-            root_hwnd = user32.GetAncestor(hwnd, GA_ROOT) or hwnd
-            style = user32.GetWindowLongW(root_hwnd, GWL_EXSTYLE)
-            user32.SetWindowLongW(
+            style = wapi.user32.GetWindowLongW(root_hwnd, GWL_EXSTYLE)
+            wapi.user32.SetWindowLongW(
                 root_hwnd,
                 GWL_EXSTYLE,
                 style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
             )
+            # Show without activating foreground
+            wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
         except Exception:  # noqa: BLE001
             pass
 
@@ -122,8 +135,7 @@ class OverlayWindow:
 
     def _clear_rows(self) -> None:
         for row in self._rows:
-            row.destroy()
-        self._rows.clear()
+            row.pack_forget()
 
     def show_language(self, label: str, x: int, y: int, height: int = 16) -> None:
         self.hide()
@@ -181,17 +193,15 @@ class OverlayWindow:
         return text
 
     def _render_candidates(self) -> None:
-        self._clear_rows()
         bg = self._rgb(self.theme.background_color)
         fg = self._rgb(self.theme.text_color)
         hi = self._rgb(self.theme.highlight_color)
-        for i, c in enumerate(self._candidates):
-            selected = i == self._selected
-            text = self._row_text(i, c, selected)
+
+        while len(self._rows) < len(self._candidates):
             row = tk.Label(
                 self._frame,
-                text=text,
-                bg=hi if selected else bg,
+                text="",
+                bg=bg,
                 fg=fg,
                 font=("Segoe UI", int(self.theme.font_size)),
                 anchor="w",
@@ -199,8 +209,22 @@ class OverlayWindow:
                 padx=10,
                 pady=4,
             )
-            row.pack(fill="x")
             self._rows.append(row)
+
+        for i, c in enumerate(self._candidates):
+            selected = i == self._selected
+            text = self._row_text(i, c, selected)
+            row = self._rows[i]
+            row.config(
+                text=text,
+                bg=hi if selected else bg,
+                fg=fg,
+            )
+            row.pack(fill="x")
+
+        for j in range(len(self._candidates), len(self._rows)):
+            self._rows[j].pack_forget()
+
         self._hint.pack(fill="x")
 
     def _place(self, x: int, y: int) -> None:
@@ -221,6 +245,18 @@ class OverlayWindow:
                 sw = self._root.winfo_screenwidth()
                 px = max(0, min(int(x), sw - w - 8))
                 py = max(0, int(y))
+
+            root_hwnd = self._get_root_hwnd()
+            if root_hwnd:
+                wapi.user32.SetWindowPos(
+                    root_hwnd,
+                    wapi.HWND_TOPMOST,
+                    int(px),
+                    int(py),
+                    0,
+                    0,
+                    wapi.SWP_NOSIZE | wapi.SWP_NOACTIVATE | wapi.SWP_SHOWWINDOW,
+                )
         except Exception:
             sw = self._root.winfo_screenwidth()
             px = max(0, min(int(x), sw - w - 8))

@@ -22,28 +22,55 @@ from ravan.platform.keys import is_modifier, matches_hotkey, vk_to_unicode
 from ravan.platform.lang import current_language, language_label
 from ravan.platform import winapi as w
 from ravan.platform.winapi import wintypes
+from collections import deque
+from datetime import datetime
 from ravan.ui.overlay import OverlayWindow
 from ravan.ui.tray import TrayIcon
 
 log = logging.getLogger(__name__)
 
 
-def setup_logging() -> None:
+def setup_logging(level: int = logging.INFO) -> None:
+    from logging.handlers import RotatingFileHandler
+
     log_dir = config_dir() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "ravan.log"
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-        handlers=[
-            logging.FileHandler(log_file, encoding="utf-8"),
-            logging.StreamHandler(),
-        ],
+
+    root = logging.getLogger()
+    root.setLevel(level)
+
+    for h in list(root.handlers):
+        root.removeHandler(h)
+
+    # 2 MB max size, 3 backup rotations (ravan.log, ravan.log.1, ...)
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=2 * 1024 * 1024,
+        backupCount=3,
+        encoding="utf-8",
     )
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(levelname)s] [%(name)s:%(lineno)d] %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+    root.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+            datefmt="%H:%M:%S",
+        )
+    )
+    root.addHandler(stream_handler)
 
 
 class RavanApp:
     def __init__(self, cfg: Config | None = None, overlay: OverlayWindow | None = None) -> None:
+        w.enable_dpi_awareness()
         self.cfg = cfg or load_config()
         self.mapper = LayoutMapper()
         self.predictor = DictPredictor.from_config(self.cfg)
@@ -59,10 +86,13 @@ class RavanApp:
             on_quit=lambda: self._ui_queue.put(("quit", None)),
             on_show_lang=lambda: self._ui_queue.put(("show_lang", None)),
             on_settings=lambda: self._ui_queue.put(("settings", None)),
+            on_diagnostics=lambda: self._ui_queue.put(("diagnostics", None)),
             on_toggle_prediction=lambda val: self._ui_queue.put(("set_prediction", val)),
             is_prediction_enabled=lambda: self.cfg.prediction_enabled,
         )
         self._settings_window = None
+        self._diagnostics_window = None
+        self.recent_events: deque[dict[str, Any]] = deque(maxlen=50)
 
         self._last_lang_hkl: int | None = None
         self._last_key_time = 0.0
@@ -104,6 +134,8 @@ class RavanApp:
                     self.overlay.tick()
                     if self._settings_window is not None:
                         self._settings_window.tick()
+                    if self._diagnostics_window is not None:
+                        self._diagnostics_window.tick()
                 except Exception:  # noqa: BLE001
                     log.exception("Main loop iteration failed")
                 time.sleep(0.008)
@@ -125,6 +157,8 @@ class RavanApp:
                 self._show_lang_indicator()
             elif action == "settings":
                 self.open_settings()
+            elif action == "diagnostics":
+                self.open_diagnostics()
             elif action == "set_prediction":
                 self.set_prediction_enabled(bool(arg))
 
@@ -156,6 +190,60 @@ class RavanApp:
             self.cfg, on_saved=self._on_settings_saved
         )
         self._settings_window.show()
+
+    def open_diagnostics(self) -> None:
+        if self._diagnostics_window is not None and self._diagnostics_window.open:
+            return
+        from ravan.ui.diagnostics import DiagnosticsWindow
+
+        self._diagnostics_window = DiagnosticsWindow(
+            snapshot_fn=self._get_diagnostics_snapshot
+        )
+        self._diagnostics_window.show()
+
+    def _get_diagnostics_snapshot(self) -> dict[str, Any]:
+        from ravan import __version__
+        from ravan.platform.caret import get_last_caret_source, get_caret_rect
+        from ravan.platform.focus import active_window_info
+
+        info = active_window_info()
+        caret = get_caret_rect()
+        lang = current_language()
+        layout_str = (
+            f"{language_label(lang)} ({hex(lang.hkl)})" if lang else "Unknown"
+        )
+        hook_alive = bool(
+            self.hook and self.hook._thread and self.hook._thread.is_alive()
+        )
+
+        return {
+            "version": __version__,
+            "hook_active": hook_alive,
+            "foreground_exe": info.get("exe") or "None",
+            "foreground_pid": info.get("pid") or 0,
+            "window_title": info.get("title") or "None",
+            "is_excluded": self._is_excluded(),
+            "layout": layout_str,
+            "caret_source": get_last_caret_source(),
+            "caret_pos": f"(x={caret.x}, y={caret.y}, w={caret.width}, h={caret.height})",
+            "recent_events": list(self.recent_events),
+        }
+
+    def _record_event(self, action: str, vk: int = 0, char: str = "") -> None:
+        now_str = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        vk_str = f"0x{vk:02X}" if vk else ""
+        lang = current_language()
+        tag = (lang.tag if lang else "en").upper()
+        self.recent_events.append(
+            {
+                "time": now_str,
+                "vk": vk_str,
+                "char": char,
+                "layout": tag,
+                "action": action,
+            }
+        )
+
     def _on_settings_saved(self, cfg: Config) -> None:
         self.cfg = cfg
         self.predictor = DictPredictor.from_config(cfg)
@@ -201,6 +289,8 @@ class RavanApp:
 
     def _handle_key(self, event: HookEvent) -> None:
         vk = event.vk_code
+        char = vk_to_unicode(vk) or ""
+        self._record_event("Key pressed", vk=vk, char=char)
 
         # ── Popup navigation (predicting or clipboard) ──
         if self.overlay.active_popup:
@@ -513,10 +603,7 @@ class RavanApp:
             return False
 
     def _is_excluded(self) -> bool:
-        exe = self._current_exe
-        if not exe:
-            return False
-        return any(exe == e.lower() or exe.endswith(e.lower()) for e in self.cfg.excluded_apps)
+        return self.cfg.is_excluded(self._current_exe)
 
     def _poll_language(self) -> None:
         now = time.monotonic()
@@ -625,6 +712,7 @@ class RavanApp:
         if not word:
             return
         log.info("Accepted suggestion: %r → %r", word, cand.text)
+        self._record_event(f"Accepted candidate '{cand.text}'", char=cand.text)
         self.predictor.record_selection(cand.text)
         self._replace_word(word, cand.text)
 
