@@ -1,6 +1,7 @@
 # Roadmap
  
 Done (v0.4):
+- M19: Snippets 2.0 (Dedicated Snippet Editor window in Tkinter with live preview & search filter, multi-line snippet expansions, cursor-position placeholder `$0` and `{{cursor}}` via synthetic Left arrow key injection, expanded date macros for year/month/day/weekday/yesterday/tomorrow, embedded math calculation evaluation `{{calc:...}}`, JSON import/export with merge/replace, and excluded apps protection so snippet expansion is suppressed in excluded applications)
 - M18: Autocorrect & Language Intelligence (bilingual awareness via layout hook tracking so English and Persian are never mixed, Persian confusable typo normalization for `ی/ي`, `ک/ك`, `ه/ة`, `ت/ة`, log-frequency candidate probability scoring, instantaneous undo autocorrect via `Ctrl+Shift+Z` or single `Backspace`, and punctuation spacing cleanup removing pre-punctuation spaces before `.,!?:؛،؟`)
 - M17: Reliability & UX hardening (Per-Monitor V2 DPI awareness, flicker-free overlay row recycling with SWP_NOACTIVATE, interactive excluded apps detector in Settings, structured rotating file logging capped at 2MB with 3 backups, graceful UIA failure throttling per process, and Diagnostics tray window with live status & markdown report export)
 - M16: PyInstaller standalone distribution packaging (`Ravaan.exe` with bundled icon & assets, windowed no-console), GitHub Actions CI/CD release workflow on tag push, and install/uninstall documentation
@@ -25,7 +26,6 @@ Done (v0.4):
 - Journal reset on focus change; popup auto-timeout; hotkey repeat throttle
 
 Next:
-- Phase 5: Snippets 2.0 (multi-line snippets, JSON import/export, cursor $0 placement)
 - Phase 6: Code Quality Pass (linting pass, modular refactoring, fake Win32 tests)
 - Per-app hotkey profiles
 - Installer (Inno Setup) + optional code signing

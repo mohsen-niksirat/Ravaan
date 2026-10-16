@@ -86,12 +86,14 @@ class RavanApp:
             on_quit=lambda: self._ui_queue.put(("quit", None)),
             on_show_lang=lambda: self._ui_queue.put(("show_lang", None)),
             on_settings=lambda: self._ui_queue.put(("settings", None)),
+            on_snippets=lambda: self._ui_queue.put(("snippets", None)),
             on_diagnostics=lambda: self._ui_queue.put(("diagnostics", None)),
             on_toggle_prediction=lambda val: self._ui_queue.put(("set_prediction", val)),
             is_prediction_enabled=lambda: self.cfg.prediction_enabled,
         )
         self._settings_window = None
         self._diagnostics_window = None
+        self._snippet_window = None
         self.recent_events: deque[dict[str, Any]] = deque(maxlen=50)
 
         self._last_lang_hkl: int | None = None
@@ -139,6 +141,8 @@ class RavanApp:
                         self._settings_window.tick()
                     if self._diagnostics_window is not None:
                         self._diagnostics_window.tick()
+                    if self._snippet_window is not None:
+                        self._snippet_window.tick()
                 except Exception:  # noqa: BLE001
                     log.exception("Main loop iteration failed")
                 time.sleep(0.008)
@@ -160,6 +164,8 @@ class RavanApp:
                 self._show_lang_indicator()
             elif action == "settings":
                 self.open_settings()
+            elif action == "snippets":
+                self.open_snippet_editor()
             elif action == "diagnostics":
                 self.open_diagnostics()
             elif action == "set_prediction":
@@ -193,6 +199,25 @@ class RavanApp:
             self.cfg, on_saved=self._on_settings_saved
         )
         self._settings_window.show()
+
+    def open_snippet_editor(self) -> None:
+        if self._snippet_window is not None and self._snippet_window.open:
+            return
+        from ravan.ui.snippet_editor import SnippetEditorWindow
+
+        self._snippet_window = SnippetEditorWindow(
+            self.cfg.snippets, on_saved=self._on_snippets_saved
+        )
+        self._snippet_window.show()
+
+    def _on_snippets_saved(self, snippets: list[Snippet]) -> None:
+        self.cfg.snippets = snippets
+        from ravan.core.config import save_config
+
+        save_config(self.cfg)
+        self.snippets = SnippetEngine.from_config(self.cfg)
+        log.info("Saved %d snippets from editor", len(snippets))
+        self.tray.notify(f"Saved {len(snippets)} snippets")
 
     def open_diagnostics(self) -> None:
         if self._diagnostics_window is not None and self._diagnostics_window.open:
@@ -491,14 +516,18 @@ class RavanApp:
     def _on_word_completed(self, word: str, delimiter: str = "") -> bool:
         if not word:
             return False
-        expansion = self.snippets.expand(word)
-        if expansion is not None:
-            self._replace_word(word, expansion, delimiter=delimiter)
+        if self._is_excluded():
+            return False
+
+        res = self.snippets.expand_with_cursor(word)
+        if res is not None:
+            expansion, cursor_offset = res
+            self._replace_word(
+                word, expansion, delimiter=delimiter, cursor_offset=cursor_offset
+            )
             return True
 
         if not self.cfg.autocorrect_enabled:
-            return False
-        if self._is_excluded():
             return False
 
         lang_tag = self._active_layout_tag
@@ -777,12 +806,21 @@ class RavanApp:
         self.predictor.record_selection(cand.text)
         self._replace_word(word, cand.text)
 
-    def _replace_word(self, old: str, new: str, delimiter: str = "") -> None:
+    def _replace_word(
+        self,
+        old: str,
+        new: str,
+        delimiter: str = "",
+        cursor_offset: int | None = None,
+    ) -> None:
         # Brief mute so echoed / overlapping keys don't corrupt the journal
-        self._suppress_until = time.monotonic() + 0.05
+        self._suppress_until = time.monotonic() + 0.08
         delete_len = len(old) + len(delimiter)
         replace_text = new + delimiter
-        replace_last_n_with(delete_len, replace_text)
+        total_cursor_offset = None
+        if cursor_offset is not None and cursor_offset >= 0:
+            total_cursor_offset = cursor_offset + len(delimiter)
+        replace_last_n_with(delete_len, replace_text, cursor_offset=total_cursor_offset)
         self.journal.pop_last_word()
         for ch in replace_text:
             self.journal.push(ch)

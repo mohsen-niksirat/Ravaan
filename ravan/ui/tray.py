@@ -39,6 +39,7 @@ class TrayIcon:
         on_quit: Callable[[], None],
         on_show_lang: Callable[[], None] | None = None,
         on_settings: Callable[[], None] | None = None,
+        on_snippets: Callable[[], None] | None = None,
         on_diagnostics: Callable[[], None] | None = None,
         on_toggle_prediction: Callable[[bool], None] | None = None,
         is_prediction_enabled: Callable[[], bool] | None = None,
@@ -46,6 +47,7 @@ class TrayIcon:
         self._on_quit = on_quit
         self._on_show_lang = on_show_lang
         self._on_settings = on_settings
+        self._on_snippets = on_snippets
         self._on_diagnostics = on_diagnostics
         self._on_toggle_prediction = on_toggle_prediction
         self._is_prediction_enabled = is_prediction_enabled
@@ -67,6 +69,7 @@ class TrayIcon:
 
         menu = pystray.Menu(
             Item("Show language (Alt+L)", self._show_lang),
+            Item("Snippets…", self._snippets),
             Item("Settings…", self._settings),
             Item("Diagnostics…", self._diagnostics),
             Item(
@@ -104,6 +107,10 @@ class TrayIcon:
     def _show_lang(self, _icon=None, _item=None) -> None:
         if self._on_show_lang:
             self._on_show_lang()
+
+    def _snippets(self, _icon=None, _item=None) -> None:
+        if self._on_snippets:
+            self._on_snippets()
 
     def _settings(self, _icon=None, _item=None) -> None:
         if self._on_settings:

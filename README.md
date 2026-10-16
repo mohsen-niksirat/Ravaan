@@ -102,10 +102,20 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 - **Undo Autocorrect**: Made a mistake or wanted the exact typed typo? Press `Ctrl+Shift+Z` or simply tap `Backspace` immediately to instantly revert to what you typed.
 - **Punctuation Spacing**: Automatically strips accidental spaces preceding punctuation marks (`.` `,` `!` `?` `:` `;` `؛` `،` `؟`).
 
-### Snippets
+### Snippets 2.0 (Multi-line, Cursor Placement, Math & Date Macros)
 
-Edit in **tray → Settings…**, e.g. `@@ => you@example.com`.
-Type the trigger, then space/enter/punctuation → it expands.
+- **Dedicated Snippet Editor**: Access via **tray → Snippets…** or **Settings → Open Snippet Editor…** featuring a live expansion preview, search filter, and quick placeholder buttons.
+- **Multi-line Templates**: Create rich multi-line expansions (code boilerplate, email templates, addresses, standard notes).
+- **Cursor Placement (`$0` or `{{cursor}}`)**: Position the typing cursor anywhere inside the inserted template (e.g. `console.log($0);` places the caret inside the parentheses).
+- **Extended Date Macros**:
+  - `{{year}}`, `{{month}}`, `{{day}}`, `{{weekday}}`, `{{hafteh}}`, `{{gregorian}}`
+  - `{{yesterday}}`, `{{tomorrow}}`, `{{time_sec}}`, `{{timestamp}}`
+- **Embedded Math & Calculations**:
+  - `{{calc: 100 * 1.09}}` → `109`
+  - `{{math: (50 + 30) * 2}}` → `160`
+  - `{{calc: ۱۲ * ۵}}` → `۶۰` (supports Persian digits)
+- **JSON Import / Export**: Backup, restore, and share snippet libraries with 1-click JSON import (merge or replace) and export.
+- **Excluded Apps Safety**: Snippet triggers are completely disabled inside excluded applications (password managers, games, terminal emulators).
 
 ## Requirements
 

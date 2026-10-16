@@ -46,6 +46,12 @@ def inject_text(text: str) -> None:
     log.debug("Injecting text: %r", text)
     inputs: list[w.INPUT] = []
     for ch in text:
+        if ch == "\r":
+            continue
+        if ch == "\n":
+            inputs.append(_vk_input(w.VK_RETURN, False))
+            inputs.append(_vk_input(w.VK_RETURN, True))
+            continue
         code = ord(ch)
         # Surrogate pairs for non-BMP
         if code > 0xFFFF:
@@ -74,9 +80,25 @@ def inject_backspaces(n: int) -> None:
     w.user32.SendInput(len(inputs), arr, ctypes.sizeof(w.INPUT))
 
 
-def replace_last_n_with(delete_n: int, new_text: str) -> None:
+def inject_left_arrows(n: int) -> None:
+    if n <= 0:
+        return
+    log.debug("Injecting %s left arrows", n)
+    inputs: list[w.INPUT] = []
+    for _ in range(n):
+        inputs.append(_vk_input(w.VK_LEFT, False))
+        inputs.append(_vk_input(w.VK_LEFT, True))
+    arr = (w.INPUT * len(inputs))(*inputs)
+    w.user32.SendInput(len(inputs), arr, ctypes.sizeof(w.INPUT))
+
+
+def replace_last_n_with(
+    delete_n: int, new_text: str, cursor_offset: int | None = None
+) -> None:
     inject_backspaces(delete_n)
     inject_text(new_text)
+    if cursor_offset and cursor_offset > 0:
+        inject_left_arrows(cursor_offset)
 
 
 def send_shortcut(modifiers: list[int], key_vk: int) -> None:

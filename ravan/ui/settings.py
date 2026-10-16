@@ -34,6 +34,9 @@ class SettingsWindow:
         self._open = False
         self._built = False
         self._root: tk.Tk | None = None
+        self._snippet_editor = None
+        self._managed_snippets = list(self.cfg.snippets)
+        self._last_snip_text = ""
 
     @property
     def open(self) -> bool:
@@ -49,6 +52,8 @@ class SettingsWindow:
         if not self._built:
             self._build()
             self._built = True
+        if self._snippet_editor is not None and self._snippet_editor.open:
+            self._snippet_editor.tick()
         if self._root is None:
             return
         try:
@@ -283,14 +288,17 @@ class SettingsWindow:
 
 
         # ── Snippets ──
+        snip_hdr = ttk.Frame(frm)
+        snip_hdr.grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 6))
         ttk.Label(
-            frm, text="Snippets  (one per line:  trigger => replacement)",
-            font=("Segoe UI", 11, "bold"),
-        ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 6))
+            snip_hdr, text="Snippets", font=("Segoe UI", 11, "bold")
+        ).pack(side="left", padx=(0, 10))
+        ttk.Button(
+            snip_hdr, text="Open Snippet Editor…", command=self._open_snippet_editor
+        ).pack(side="left")
         row += 1
         self._snip_text = tk.Text(frm, width=40, height=4)
-        lines = [f"{s.trigger} => {s.replacement}" for s in self.cfg.snippets]
-        self._snip_text.insert("1.0", "\n".join(lines))
+        self._update_snip_display()
         self._snip_text.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
         row += 2
 
@@ -360,6 +368,30 @@ class SettingsWindow:
             self._excl_text.delete("1.0", "end")
             self._excl_text.insert("1.0", text)
             self._detect_active_app()
+
+    def _update_snip_display(self) -> None:
+        if self._snip_text is None:
+            return
+        lines = []
+        for s in self._managed_snippets:
+            preview = s.replacement.replace("\n", "\\n")
+            lines.append(f"{s.trigger} => {preview}")
+        text = "\n".join(lines)
+        self._snip_text.delete("1.0", "end")
+        self._snip_text.insert("1.0", text)
+        self._last_snip_text = text
+
+    def _open_snippet_editor(self) -> None:
+        from ravan.ui.snippet_editor import SnippetEditorWindow
+
+        def on_editor_saved(snippets: list[Snippet]) -> None:
+            self._managed_snippets = snippets
+            self._update_snip_display()
+
+        self._snippet_editor = SnippetEditorWindow(
+            self._managed_snippets, on_saved=on_editor_saved
+        )
+        self._snippet_editor.show()
 
     def _close(self) -> None:
         self._open = False
@@ -438,16 +470,20 @@ class SettingsWindow:
         ]
         cfg.excluded_apps = excl
 
-        snippets: list[Snippet] = []
-        for ln in self._snip_text.get("1.0", "end").splitlines():
-            if "=>" not in ln:
-                continue
-            trigger, _, repl = ln.partition("=>")
-            trigger = trigger.strip()
-            repl = repl.strip()
-            if trigger and repl:
-                snippets.append(Snippet(trigger=trigger, replacement=repl))
-        cfg.snippets = snippets
+        cur_snip_text = self._snip_text.get("1.0", "end").strip()
+        if cur_snip_text == self._last_snip_text.strip():
+            cfg.snippets = list(self._managed_snippets)
+        else:
+            snippets: list[Snippet] = []
+            for ln in cur_snip_text.splitlines():
+                if "=>" not in ln:
+                    continue
+                trigger, _, repl = ln.partition("=>")
+                trigger = trigger.strip()
+                repl = repl.strip().replace("\\n", "\n")
+                if trigger and repl:
+                    snippets.append(Snippet(trigger=trigger, replacement=repl))
+            cfg.snippets = snippets
 
         if self._startup_var.get() != is_startup_enabled():
             if not set_startup(self._startup_var.get()):
