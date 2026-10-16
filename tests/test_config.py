@@ -1,4 +1,4 @@
-from ravan.core.config import Snippet, text_to_hotkey, hotkey_to_text
+from ravan.core.config import Snippet, hotkey_to_text, text_to_hotkey
 
 
 def test_hotkey_roundtrip():

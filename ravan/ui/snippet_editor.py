@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import copy
 import tkinter as tk
+from collections.abc import Callable
 from tkinter import filedialog, messagebox, ttk
-from typing import Callable
 
 from ravan.core.config import Snippet
 from ravan.core.snippet import (
@@ -14,6 +14,16 @@ from ravan.core.snippet import (
     snippets_from_json,
     snippets_to_json,
 )
+
+_PLACEHOLDERS = [
+    ("+ $0 (Cursor)", "$0"),
+    ("+ {{shamsi}}", "{{shamsi}}"),
+    ("+ {{tarikh}}", "{{tarikh}}"),
+    ("+ {{time}}", "{{time}}"),
+    ("+ {{weekday}}", "{{weekday}}"),
+    ("+ {{uuid}}", "{{uuid}}"),
+    ("+ {{calc:...}}", "{{calc: 100 * 1.09}}"),
+]
 
 
 class SnippetEditorWindow:
@@ -69,7 +79,6 @@ class SnippetEditorWindow:
         main_frm = ttk.Frame(self._root, padding=10)
         main_frm.pack(fill="both", expand=True)
 
-        # Paned container: Left = List & Search, Right = Multi-line editor
         paned = ttk.PanedWindow(main_frm, orient="horizontal")
         paned.pack(fill="both", expand=True, pady=(0, 10))
 
@@ -107,7 +116,6 @@ class SnippetEditorWindow:
         self._tree.column("preview", width=200, stretch=True)
         self._tree.bind("<<TreeviewSelect>>", self._on_tree_select)
 
-        # Left action buttons
         list_btns = ttk.Frame(left_frm)
         list_btns.pack(fill="x", pady=(6, 0))
         ttk.Button(list_btns, text="+ New", command=self._add_snippet).pack(
@@ -124,7 +132,6 @@ class SnippetEditorWindow:
         right_frm = ttk.Frame(paned, padding=5)
         paned.add(right_frm, weight=2)
 
-        # Trigger field
         trig_frm = ttk.Frame(right_frm)
         trig_frm.pack(fill="x", pady=(0, 6))
         ttk.Label(trig_frm, text="Trigger word:", font=("Segoe UI", 9, "bold")).pack(
@@ -139,7 +146,6 @@ class SnippetEditorWindow:
             trig_frm, text="e.g. @@, /sig, fn", foreground="gray"
         ).pack(side="left", padx=8)
 
-        # Replacement multi-line editor
         ttk.Label(
             right_frm,
             text="Replacement template (supports multiple lines & placeholders):",
@@ -164,7 +170,6 @@ class SnippetEditorWindow:
         # Placeholder Quick Insertion Toolbar
         helper_box = ttk.LabelFrame(right_frm, text="Insert Placeholders", padding=6)
         helper_box.pack(fill="x", pady=(6, 6))
-
         h_btns = ttk.Frame(helper_box)
         h_btns.pack(fill="x")
 
@@ -174,29 +179,11 @@ class SnippetEditorWindow:
                 self._text_editor.focus_set()
                 self._on_editor_modified()
 
-        ttk.Button(
-            h_btns, text="+ $0 (Cursor)", command=lambda: add_ph("$0")
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            h_btns, text="+ {{shamsi}}", command=lambda: add_ph("{{shamsi}}")
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            h_btns, text="+ {{tarikh}}", command=lambda: add_ph("{{tarikh}}")
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            h_btns, text="+ {{time}}", command=lambda: add_ph("{{time}}")
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            h_btns, text="+ {{weekday}}", command=lambda: add_ph("{{weekday}}")
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            h_btns, text="+ {{uuid}}", command=lambda: add_ph("{{uuid}}")
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            h_btns, text="+ {{calc:...}}", command=lambda: add_ph("{{calc: 100 * 1.09}}")
-        ).pack(side="left", padx=2)
+        for label, val in _PLACEHOLDERS:
+            ttk.Button(h_btns, text=label, command=lambda v=val: add_ph(v)).pack(
+                side="left", padx=2
+            )
 
-        # Live expansion preview box
         preview_box = ttk.LabelFrame(right_frm, text="Live Output Preview", padding=6)
         preview_box.pack(fill="x", pady=(0, 6))
         self._preview_text = tk.Text(
@@ -210,7 +197,6 @@ class SnippetEditorWindow:
         )
         self._preview_text.pack(fill="x", expand=True)
 
-        # Apply to list button
         ttk.Button(
             right_frm, text="Apply Changes to Selected", command=self._save_current_to_list
         ).pack(anchor="e")
@@ -262,11 +248,7 @@ class SnippetEditorWindow:
                 first_line = first_line[:37] + "..."
             self._tree.insert("", "end", iid=str(idx), values=(s.trigger, first_line))
 
-    def _select_index(self, idx: int) -> None:
-        if self._tree is None or not (0 <= idx < len(self.snippets)):
-            return
-        self._selected_index = idx
-        self._tree.selection_set(str(idx))
+    def _load_snippet_to_editor(self, idx: int) -> None:
         s = self.snippets[idx]
         if self._trigger_var is not None:
             self._trigger_var.set(s.trigger)
@@ -275,21 +257,21 @@ class SnippetEditorWindow:
             self._text_editor.insert("1.0", s.replacement)
         self._update_preview()
 
-    def _on_tree_select(self, _event: Any) -> None:
+    def _select_index(self, idx: int) -> None:
+        if self._tree is None or not (0 <= idx < len(self.snippets)):
+            return
+        self._selected_index = idx
+        self._tree.selection_set(str(idx))
+        self._load_snippet_to_editor(idx)
+
+    def _on_tree_select(self, _event: object = None) -> None:
         if self._tree is None:
             return
         selected = self._tree.selection()
         if not selected:
             return
-        idx = int(selected[0])
-        self._selected_index = idx
-        s = self.snippets[idx]
-        if self._trigger_var is not None:
-            self._trigger_var.set(s.trigger)
-        if self._text_editor is not None:
-            self._text_editor.delete("1.0", tk.END)
-            self._text_editor.insert("1.0", s.replacement)
-        self._update_preview()
+        self._selected_index = int(selected[0])
+        self._load_snippet_to_editor(self._selected_index)
 
     def _on_editor_modified(self) -> None:
         self._update_preview()
@@ -367,7 +349,7 @@ class SnippetEditorWindow:
         if not file_path:
             return
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
             imported = snippets_from_json(content)
             if not imported:
@@ -385,7 +367,6 @@ class SnippetEditorWindow:
             if ans is None:
                 return
             if ans is True:
-                # Merge by trigger
                 by_trig = {s.trigger: s for s in self.snippets}
                 for s in imported:
                     by_trig[s.trigger] = s
@@ -401,7 +382,6 @@ class SnippetEditorWindow:
             messagebox.showerror("Import Error", f"Failed to import snippets:\n{ex}", parent=self._root)
 
     def _export_json(self) -> None:
-        # Commit any in-flight edit first
         if self._selected_index is not None and self._trigger_var and self._text_editor:
             trig = self._trigger_var.get().strip()
             if trig:
@@ -425,7 +405,6 @@ class SnippetEditorWindow:
             messagebox.showerror("Export Error", f"Failed to export snippets:\n{ex}", parent=self._root)
 
     def _save_all_and_close(self) -> None:
-        # Commit current editor if filled
         if self._selected_index is not None and self._trigger_var and self._text_editor:
             trig = self._trigger_var.get().strip()
             if trig:

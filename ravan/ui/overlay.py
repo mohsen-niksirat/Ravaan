@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Callable
+from collections.abc import Callable
 
 from ravan.core.config import Theme
 from ravan.core.events import Candidate
@@ -72,7 +72,6 @@ class OverlayWindow:
 
     def _get_root_hwnd(self) -> int | None:
         try:
-            import ctypes
             from ravan.platform import winapi as wapi
 
             hwnd = self._root.winfo_id()
@@ -83,7 +82,6 @@ class OverlayWindow:
 
     def _apply_noactivate(self) -> None:
         try:
-            import ctypes
             from ravan.platform import winapi as wapi
 
             root_hwnd = self._get_root_hwnd()

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Union
 
 
 class CandidateKind(Enum):
@@ -80,14 +79,14 @@ class DismissPopup:
     pass
 
 
-RavanEvent = Union[
-    CharTyped,
-    VKeyDown,
-    LanguageChanged,
-    FocusChanged,
-    ConvertHotkeyPressed,
-    LangIndicatorHotkeyPressed,
-    CaretMoved,
-    PredictResult,
-    DismissPopup,
-]
+RavanEvent = (
+    CharTyped
+    | VKeyDown
+    | LanguageChanged
+    | FocusChanged
+    | ConvertHotkeyPressed
+    | LangIndicatorHotkeyPressed
+    | CaretMoved
+    | PredictResult
+    | DismissPopup
+)

@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import tkinter as tk
+from collections.abc import Callable
 from tkinter import messagebox, ttk
-from typing import Callable
 
 from ravan.core.config import (
     Config,
     Snippet,
-    hotkey_to_text,
     save_config,
     text_to_hotkey,
 )
@@ -77,243 +76,20 @@ class SettingsWindow:
 
         row = 0
 
-        # ── Hotkeys ──
-        ttk.Label(frm, text="Hotkeys", font=("Segoe UI", 11, "bold")).grid(
-            row=row, column=0, columnspan=3, sticky="w", pady=(0, 6)
+        from ravan.ui.settings_builder import (
+            build_exclusions_section,
+            build_features_section,
+            build_hotkeys_section,
+            build_snippets_and_dict_section,
+            build_tuning_section,
         )
-        row += 1
 
-        ttk.Label(frm, text="Convert last word:").grid(row=row, column=0, sticky="w", **pad)
-        self._convert_var = tk.StringVar(value=hotkey_to_text(self.cfg.convert_hotkey))
-        ttk.Entry(frm, textvariable=self._convert_var, width=22).grid(
-            row=row, column=1, sticky="w", **pad
-        )
-        ttk.Label(frm, text="e.g. F12  or  Ctrl+Shift+C", foreground="gray").grid(
-            row=row, column=2, sticky="w", **pad
-        )
-        row += 1
+        row = build_hotkeys_section(self, frm, row, pad)
 
-        ttk.Label(frm, text="Show language chip:").grid(row=row, column=0, sticky="w", **pad)
-        self._lang_var = tk.StringVar(
-            value=hotkey_to_text(self.cfg.lang_indicator_hotkey)
-        )
-        ttk.Entry(frm, textvariable=self._lang_var, width=22).grid(
-            row=row, column=1, sticky="w", **pad
-        )
-        ttk.Label(frm, text="e.g. Alt+L", foreground="gray").grid(
-            row=row, column=2, sticky="w", **pad
-        )
-        row += 1
-
-        ttk.Label(frm, text="Clipboard history:").grid(row=row, column=0, sticky="w", **pad)
-        self._clip_var = tk.StringVar(
-            value=hotkey_to_text(self.cfg.clipboard_history_hotkey)
-        )
-        ttk.Entry(frm, textvariable=self._clip_var, width=22).grid(
-            row=row, column=1, sticky="w", **pad
-        )
-        ttk.Label(frm, text="e.g. Alt+V", foreground="gray").grid(
-            row=row, column=2, sticky="w", **pad
-        )
-        row += 1
-
-        ttk.Label(frm, text="Normalize text:").grid(row=row, column=0, sticky="w", **pad)
-        self._norm_var = tk.StringVar(
-            value=hotkey_to_text(self.cfg.normalize_hotkey)
-        )
-        ttk.Entry(frm, textvariable=self._norm_var, width=22).grid(
-            row=row, column=1, sticky="w", **pad
-        )
-        ttk.Label(frm, text="e.g. Ctrl+F12", foreground="gray").grid(
-            row=row, column=2, sticky="w", **pad
-        )
-        row += 1
-
-        ttk.Label(frm, text="Cycle text case:").grid(row=row, column=0, sticky="w", **pad)
-        self._case_var = tk.StringVar(
-            value=hotkey_to_text(self.cfg.case_hotkey)
-        )
-        ttk.Entry(frm, textvariable=self._case_var, width=22).grid(
-            row=row, column=1, sticky="w", **pad
-        )
-        ttk.Label(frm, text="e.g. Shift+F12", foreground="gray").grid(
-            row=row, column=2, sticky="w", **pad
-        )
-        row += 1
-
-        ttk.Label(frm, text="Undo autocorrect:").grid(row=row, column=0, sticky="w", **pad)
-        self._undo_var = tk.StringVar(
-            value=hotkey_to_text(self.cfg.undo_autocorrect_hotkey)
-        )
-        ttk.Entry(frm, textvariable=self._undo_var, width=22).grid(
-            row=row, column=1, sticky="w", **pad
-        )
-        ttk.Label(frm, text="e.g. Ctrl+Shift+Z (or Backspace)", foreground="gray").grid(
-            row=row, column=2, sticky="w", **pad
-        )
-        row += 2
-
-        # ── Features ──
-        ttk.Label(frm, text="Features", font=("Segoe UI", 11, "bold")).grid(
-            row=row, column=0, columnspan=3, sticky="w", pady=(0, 6)
-        )
-        row += 1
-
-        self._prediction_var = tk.BooleanVar(value=self.cfg.prediction_enabled)
-        ttk.Checkbutton(
-            frm, text="Word prediction popup", variable=self._prediction_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 1
-
-        self._autocorrect_var = tk.BooleanVar(value=self.cfg.autocorrect_enabled)
-        ttk.Checkbutton(
-            frm, text="Passive autocorrect on word boundary", variable=self._autocorrect_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 1
-
-        self._zwnj_var = tk.BooleanVar(value=self.cfg.auto_zwnj_enabled)
-        ttk.Checkbutton(
-            frm, text="Smart Persian half-space (ZWNJ: می/نمی & ها/تر/ترین)", variable=self._zwnj_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 1
-
-        self._shift_space_var = tk.BooleanVar(value=self.cfg.shift_space_zwnj)
-        ttk.Checkbutton(
-            frm, text="Shift+Space injects half-space (ZWNJ)", variable=self._shift_space_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 1
-
-        self._cliphist_var = tk.BooleanVar(value=self.cfg.clipboard_history_enabled)
-        ttk.Checkbutton(
-            frm, text="Clipboard history ring buffer (Alt+V)", variable=self._cliphist_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 1
-
-        self._calc_var = tk.BooleanVar(value=self.cfg.inline_calc_enabled)
-        ttk.Checkbutton(
-            frm, text="Inline math calculator on '=' (e.g. 1200*1.09=)", variable=self._calc_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 1
-
-        self._digits_var = tk.BooleanVar(value=self.cfg.quickpick_digits)
-        ttk.Checkbutton(
-            frm, text="Digits 1–5 quick-pick in popup", variable=self._digits_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 1
-
-        self._en_dict_var = tk.BooleanVar(value=self.cfg.english_dict_enabled)
-        ttk.Checkbutton(frm, text="English dictionary", variable=self._en_dict_var).grid(
-            row=row, column=0, columnspan=3, sticky="w", **pad
-        )
-        row += 1
-
-        self._fa_dict_var = tk.BooleanVar(value=self.cfg.persian_dict_enabled)
-        ttk.Checkbutton(frm, text="Persian dictionary", variable=self._fa_dict_var).grid(
-            row=row, column=0, columnspan=3, sticky="w", **pad
-        )
-        row += 1
-
-        self._sound_var = tk.BooleanVar(value=self.cfg.sound_feedback_enabled)
-        ttk.Checkbutton(
-            frm, text="Audio feedback on keyboard layout switch", variable=self._sound_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 1
-
-        self._punct_spacing_var = tk.BooleanVar(value=self.cfg.fix_punctuation_spacing)
-        ttk.Checkbutton(
-            frm, text="Fix Persian spacing before punctuation (e.g. کتاب . -> کتاب.)", variable=self._punct_spacing_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 2
-
-        # ── Tuning ──
-        ttk.Label(frm, text="Tuning", font=("Segoe UI", 11, "bold")).grid(
-            row=row, column=0, columnspan=3, sticky="w", pady=(0, 6)
-        )
-        row += 1
-
-        ttk.Label(frm, text="Debounce (ms):").grid(row=row, column=0, sticky="w", **pad)
-        self._debounce_var = tk.IntVar(value=self.cfg.prediction_debounce_ms)
-        ttk.Spinbox(
-            frm, from_=0, to=500, increment=10, textvariable=self._debounce_var, width=8
-        ).grid(row=row, column=1, sticky="w", **pad)
-        row += 1
-
-        ttk.Label(frm, text="Max candidates:").grid(row=row, column=0, sticky="w", **pad)
-        self._maxcand_var = tk.IntVar(value=self.cfg.prediction_max_candidates)
-        ttk.Spinbox(
-            frm, from_=1, to=9, textvariable=self._maxcand_var, width=8
-        ).grid(row=row, column=1, sticky="w", **pad)
-        row += 1
-
-        ttk.Label(frm, text="Min prefix length:").grid(row=row, column=0, sticky="w", **pad)
-        self._minlen_var = tk.IntVar(value=self.cfg.min_prefix_len)
-        ttk.Spinbox(frm, from_=1, to=6, textvariable=self._minlen_var, width=8).grid(
-            row=row, column=1, sticky="w", **pad
-        )
-        row += 2
-
-        # ── Startup ──
-        self._startup_var = tk.BooleanVar(value=is_startup_enabled())
-        ttk.Checkbutton(
-            frm, text="Launch at Windows startup", variable=self._startup_var
-        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 2
-
-        # ── Excluded apps ──
-        ttk.Label(frm, text="Excluded apps (one per line)", font=("Segoe UI", 11, "bold")).grid(
-            row=row, column=0, columnspan=3, sticky="w", pady=(0, 6)
-        )
-        row += 1
-        self._excl_text = tk.Text(frm, width=40, height=4)
-        self._excl_text.insert("1.0", "\n".join(self.cfg.excluded_apps))
-        self._excl_text.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 1
-
-        # Interactive detection & test tool
-        excl_tools = ttk.Frame(frm)
-        excl_tools.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 2
-
-        self._detected_app_var = tk.StringVar(value="Active app: —")
-        ttk.Label(excl_tools, textvariable=self._detected_app_var, foreground="#444444").pack(
-            side="left", padx=(0, 8)
-        )
-        ttk.Button(
-            excl_tools, text="Detect Active App", command=self._detect_active_app
-        ).pack(side="left", padx=3)
-        self._add_detected_btn = ttk.Button(
-            excl_tools, text="+ Add to Exclusions", command=self._add_detected_to_exclusions, state="disabled"
-        )
-        self._add_detected_btn.pack(side="left", padx=3)
-
-
-        # ── Snippets ──
-        snip_hdr = ttk.Frame(frm)
-        snip_hdr.grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 6))
-        ttk.Label(
-            snip_hdr, text="Snippets", font=("Segoe UI", 11, "bold")
-        ).pack(side="left", padx=(0, 10))
-        ttk.Button(
-            snip_hdr, text="Open Snippet Editor…", command=self._open_snippet_editor
-        ).pack(side="left")
-        row += 1
-        self._snip_text = tk.Text(frm, width=40, height=4)
-        self._update_snip_display()
-        self._snip_text.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 2
-
-        # ── User Custom Words ──
-        from ravan.core.user_dict import load_user_words
-
-        ttk.Label(
-            frm, text="Custom words / names (one per line)",
-            font=("Segoe UI", 11, "bold"),
-        ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 6))
-        row += 1
-        self._user_words_text = tk.Text(frm, width=40, height=4)
-        self._user_words_text.insert("1.0", "\n".join(load_user_words()))
-        self._user_words_text.grid(row=row, column=0, columnspan=3, sticky="w", **pad)
-        row += 2
+        row = build_features_section(self, frm, row, pad)
+        row = build_tuning_section(self, frm, row, pad)
+        row = build_exclusions_section(self, frm, row, pad)
+        row = build_snippets_and_dict_section(self, frm, row, pad)
 
         # ── Buttons ──
         btns = ttk.Frame(frm)

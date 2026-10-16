@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from .config import Config
-from .dict import Dictionary
+from .dict import DictEntry, Dictionary
 from .events import Candidate, CandidateKind
 
 
@@ -25,7 +25,7 @@ class Predictor(ABC):
 
     def record_selection(self, word: str) -> None:
         """Record a user-accepted candidate to boost future predictions."""
-        pass
+        del word  # Optional hook for subclasses to override
 
 
 class DictPredictor(Predictor):

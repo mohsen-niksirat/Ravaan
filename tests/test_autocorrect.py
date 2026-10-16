@@ -101,7 +101,7 @@ def test_frequency_weighted_autocorrect():
 
 
 def test_undo_autocorrect_flow():
-    app = RavanApp()
+    app = RavanApp(overlay=MagicMock())
     # Simulate an autocorrect having taken place: user typed "teh", got "the "
     app._last_autocorrect = ("teh", "the", time.monotonic(), " ")
 

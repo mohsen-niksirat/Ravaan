@@ -107,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "inject":
         from ravan.platform.inject import inject_text
 
-        count = inject_text(args.text)
+        inject_text(args.text)
         print(f"Injected {len(args.text)} chars into the focused field")
         return 0
 
@@ -125,6 +125,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "jalali":
         from datetime import date
+
         from ravan.core.jalali import JalaliDate, current_time_str
 
         if args.date:

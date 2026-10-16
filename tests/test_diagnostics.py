@@ -22,7 +22,7 @@ def test_setup_logging_rotating_handler():
 
 
 def test_app_event_ring_buffer_cap():
-    app = RavanApp()
+    app = RavanApp(overlay=MagicMock())
     for i in range(70):
         app._record_event(f"Action {i}", vk=0x41 + (i % 26), char=chr(65 + (i % 26)))
 
@@ -33,7 +33,7 @@ def test_app_event_ring_buffer_cap():
 
 
 def test_diagnostics_snapshot_structure():
-    app = RavanApp()
+    app = RavanApp(overlay=MagicMock())
     app._record_event("Test diagnostic event", vk=0x7B, char="")
     snap = app._get_diagnostics_snapshot()
 

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
 import logging
 import time
+from ctypes import wintypes
 
 from ravan.platform import winapi as w
 from ravan.platform.inject import send_shortcut

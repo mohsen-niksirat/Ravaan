@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import logging
 from ctypes import wintypes
+from typing import Any
 
 from . import winapi as w
 

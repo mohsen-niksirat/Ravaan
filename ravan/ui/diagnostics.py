@@ -5,9 +5,10 @@ from __future__ import annotations
 import platform
 import sys
 import tkinter as tk
+from collections.abc import Callable
 from datetime import datetime
 from tkinter import messagebox, ttk
-from typing import Any, Callable
+from typing import Any
 
 from ravan import __version__
 
@@ -55,7 +56,6 @@ class DiagnosticsWindow:
         self._root.minsize(620, 420)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
 
-        pad = {"padx": 10, "pady": 4}
         main_frm = ttk.Frame(self._root, padding=10)
         main_frm.pack(fill="both", expand=True)
 
@@ -143,7 +143,7 @@ class DiagnosticsWindow:
             return
         try:
             data = self.snapshot_fn()
-        except Exception as e:
+        except Exception:
             return
 
         # Update summary labels

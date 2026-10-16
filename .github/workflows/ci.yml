@@ -30,6 +30,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[dev]
 
+      - name: Lint with ruff
+        run: ruff check .
+
       - name: Run Windows test suite
         if: runner.os == 'Windows'
         run: pytest

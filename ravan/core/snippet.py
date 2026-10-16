@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
-from typing import Callable
 
 from .config import Config, Snippet
 from .jalali import JalaliDate, current_time_str

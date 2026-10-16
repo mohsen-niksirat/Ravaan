@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 def is_persian_or_arabic(c: str) -> bool:
     code = ord(c)
     return (

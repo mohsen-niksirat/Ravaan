@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Callable
+from collections.abc import Callable
 
 log = logging.getLogger(__name__)
 
 
 def _make_icon_image():
     from pathlib import Path
+
     from PIL import Image
 
     icon_path = Path(__file__).resolve().parent.parent / "data" / "icon.ico"

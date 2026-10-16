@@ -1,5 +1,5 @@
-from ravan.core.zwnj import ZWNJ, is_zwnj_prefix, normalize_zwnj, should_attach_suffix
 from ravan.core.config import Config
+from ravan.core.zwnj import ZWNJ, is_zwnj_prefix, normalize_zwnj, should_attach_suffix
 from ravan.ui.app import RavanApp
 
 

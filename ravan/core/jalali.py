@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Tuple
 
 from ravan.core.normalizer import en_to_fa_digits
 
@@ -38,7 +37,7 @@ PERSIAN_WEEKDAYS = [
 ]
 
 
-def gregorian_to_jalali(gy: int, gm: int, gd: int) -> Tuple[int, int, int]:
+def gregorian_to_jalali(gy: int, gm: int, gd: int) -> tuple[int, int, int]:
     """Convert Gregorian (year, month, day) to Jalali (year, month, day)."""
     g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
     if gy > 1600:
@@ -73,7 +72,7 @@ def gregorian_to_jalali(gy: int, gm: int, gd: int) -> Tuple[int, int, int]:
     return jy, jm, jd
 
 
-def jalali_to_gregorian(jy: int, jm: int, jd: int) -> Tuple[int, int, int]:
+def jalali_to_gregorian(jy: int, jm: int, jd: int) -> tuple[int, int, int]:
     """Convert Jalali (year, month, day) to Gregorian (year, month, day)."""
     if jy > 979:
         gy = 1600

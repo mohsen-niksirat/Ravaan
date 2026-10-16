@@ -21,8 +21,12 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 | M11 | Number to Persian Words & Toman converter | Type `1250000/w`, `5000000/t`, `1250000/s` |
 | M12 | Keyboard layout audio feedback | tray → Settings… |
 | M13 | User custom dictionary & word learning | tray → Settings… or CLI `dict` |
-| M14 | Settings window, tray menu, startup, exclusions | tray → Settings… |
 | M15 | External UTF-8 dictionary (12,500+ words) & adaptive boost | automatic learning |
+| M16 | Standalone PyInstaller build (`Ravaan.exe`) & GitHub Actions | downloadable release asset |
+| M17 | Diagnostics window, rotating logs & DPI awareness | tray → Diagnostics… |
+| M18 | Bilingual autocorrect & instant undo | `Ctrl+Shift+Z` / `Backspace` |
+| M19 | Snippets 2.0 (GUI editor, multi-line, cursor placeholder `$0`) | tray → Snippet Editor… |
+| M20 | Code Quality (Modular refactoring, Ruff linting, Win32 mock tests) | `pytest` & `ruff check` |
 
 ### Convert Selection or Last Word (`F12`)
 

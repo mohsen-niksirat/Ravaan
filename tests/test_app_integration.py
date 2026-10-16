@@ -1,5 +1,4 @@
 from ravan.core.config import Config, Snippet
-from ravan.platform.hook import HookEvent
 from ravan.ui.app import RavanApp
 
 

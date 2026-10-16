@@ -6,8 +6,6 @@ supports Rial/Toman currency suffixes, and thousands separators.
 
 from __future__ import annotations
 
-from typing import Union
-
 from ravan.core.normalizer import en_to_fa_digits, fa_to_en_digits
 
 ONES = ["", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "نه"]
@@ -59,7 +57,7 @@ def _three_digits_to_words(n: int) -> list[str]:
     return parts
 
 
-def num_to_persian_words(num: Union[int, float, str]) -> str:
+def num_to_persian_words(num: int | float | str) -> str:
     """Convert a number to its Persian words representation."""
     if isinstance(num, str):
         num_str = fa_to_en_digits(num).replace(",", "").strip()
@@ -110,7 +108,7 @@ def num_to_persian_words(num: Union[int, float, str]) -> str:
     return " و ".join(parts)
 
 
-def format_thousands(num: Union[int, float, str], persian_digits: bool = True) -> str:
+def format_thousands(num: int | float | str, persian_digits: bool = True) -> str:
     """Format a number with thousands separators (e.g. 1250000 -> ۱,۲۵۰,۰۰۰)."""
     if isinstance(num, str):
         num_str = fa_to_en_digits(num).replace(",", "").strip()
@@ -130,7 +128,7 @@ def format_thousands(num: Union[int, float, str], persian_digits: bool = True) -
     return en_to_fa_digits(s) if persian_digits else s
 
 
-def to_toman_words(rial_num: Union[int, str]) -> str:
+def to_toman_words(rial_num: int | str) -> str:
     """Convert Rial amount to Toman words (divides by 10)."""
     if isinstance(rial_num, str):
         num_str = fa_to_en_digits(rial_num).replace(",", "").strip()

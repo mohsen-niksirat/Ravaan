@@ -1,4 +1,3 @@
-import json
 from ravan.core.config import Config, Snippet
 from ravan.core.jalali import JalaliDate
 from ravan.core.snippet import (
