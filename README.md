@@ -94,11 +94,13 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
    - **1 … 5** — jump-insert that row
    - **Esc** — close without inserting
 
-### Autocorrect (safe mode)
+### Autocorrect (Safe Mode & Language Intelligence)
 
-Autocorrect only fires when the typed word is **not** already a dictionary word,
-the candidate is 1–2 edits away (Damerau-Levenshtein, so `teh → the` works),
-and the candidate is far more frequent. It never rewrites valid words.
+- **Safe Guard**: Autocorrect only fires when the typed word is **not** already a valid dictionary word.
+- **Bilingual Awareness**: Strictly tracks the active layout hook so Persian and English words are never cross-corrected or mangled.
+- **Persian Confusable Typos**: Automatically resolves Arabic/Persian confusable keys (`ي/ی`, `ك/ک`, `ة/ه`, `ة/ت`) with dictionary validation.
+- **Undo Autocorrect**: Made a mistake or wanted the exact typed typo? Press `Ctrl+Shift+Z` or simply tap `Backspace` immediately to instantly revert to what you typed.
+- **Punctuation Spacing**: Automatically strips accidental spaces preceding punctuation marks (`.` `,` `!` `?` `:` `;` `؛` `،` `؟`).
 
 ### Snippets
 

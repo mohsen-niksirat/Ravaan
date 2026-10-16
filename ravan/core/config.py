@@ -71,6 +71,10 @@ class Config:
     )
     inline_calc_enabled: bool = True
     sound_feedback_enabled: bool = False
+    undo_autocorrect_hotkey: HotkeySpec = field(
+        default_factory=lambda: HotkeySpec(key="Z", modifiers=["Ctrl", "Shift"])
+    )
+    fix_punctuation_spacing: bool = True
 
     def is_excluded(self, exe_name: str | None) -> bool:
         return is_app_excluded(exe_name, self.excluded_apps)
@@ -198,6 +202,10 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         ),
         inline_calc_enabled=bool(data.get("inline_calc_enabled", True)),
         sound_feedback_enabled=bool(data.get("sound_feedback_enabled", False)),
+        undo_autocorrect_hotkey=_hotkey_from_dict(
+            data.get("undo_autocorrect_hotkey"), HotkeySpec("Z", ["Ctrl", "Shift"])
+        ),
+        fix_punctuation_spacing=bool(data.get("fix_punctuation_spacing", True)),
     )
 
 

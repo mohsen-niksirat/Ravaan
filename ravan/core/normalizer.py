@@ -77,6 +77,39 @@ def normalize_arabic_chars(text: str) -> str:
     )
 
 
+PERSIAN_TYPO_MAP = str.maketrans(
+    {
+        "ك": "ک",
+        "ي": "ی",
+        "ى": "ی",
+        "ة": "ه",
+        "ھ": "ه",
+        "ہ": "ه",
+        "ؤ": "و",
+        "إ": "ا",
+        "أ": "ا",
+        "ء": "",
+        "ـ": "",
+    }
+)
+
+
+def normalize_persian_typos(word: str) -> list[str]:
+    """Return list of candidate corrections for common Persian typing and confusable letter errors."""
+    if not word:
+        return []
+    variants: list[str] = []
+    cand1 = word.translate(PERSIAN_TYPO_MAP)
+    if cand1 != word:
+        variants.append(cand1)
+    if "ة" in word:
+        cand2 = word.replace("ة", "ت").translate(PERSIAN_TYPO_MAP)
+        if cand2 != word and cand2 not in variants:
+            variants.append(cand2)
+    return variants
+
+
+
 def normalize_punctuation_spacing(text: str) -> str:
     """Fix spacing around Persian punctuation marks."""
     # Remove spaces before punctuation: "سلام !" -> "سلام!"

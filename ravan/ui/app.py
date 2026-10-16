@@ -95,6 +95,7 @@ class RavanApp:
         self.recent_events: deque[dict[str, Any]] = deque(maxlen=50)
 
         self._last_lang_hkl: int | None = None
+        self._active_layout_tag: str | None = None
         self._last_key_time = 0.0
         self._pending_predict = False
         self._running = False
@@ -105,6 +106,7 @@ class RavanApp:
         self._last_focus_poll = 0.0
         self._last_lang_poll = 0.0
         self._last_clip_poll = 0.0
+        self._last_autocorrect: tuple[str, str, float, str] | None = None
         self._own_pid = os.getpid()
 
     def start(self) -> None:
@@ -121,6 +123,7 @@ class RavanApp:
         lang = current_language()
         if lang:
             self._last_lang_hkl = lang.hkl
+            self._active_layout_tag = lang.tag
         try:
             while self._running:
                 try:
@@ -337,6 +340,9 @@ class RavanApp:
         ):
             self._show_clipboard_popup()
             return
+        if matches_hotkey(vk, self.cfg.undo_autocorrect_hotkey):
+            if self._undo_last_autocorrect():
+                return
         if matches_hotkey(vk, self.cfg.normalize_hotkey):
             now = time.monotonic()
             if now - self._last_convert_at > 0.3:
@@ -363,9 +369,16 @@ class RavanApp:
             return
 
         if vk == w.VK_BACK:
+            if self._last_autocorrect is not None:
+                orig, corrected, t_done, delim = self._last_autocorrect
+                if time.monotonic() - t_done < 4.0:
+                    if self._undo_last_autocorrect():
+                        return
+            self._last_autocorrect = None
             self.journal.push("\b")
             self._schedule_predict()
             return
+
 
         # Shift+Space manual ZWNJ hotkey
         if self.cfg.shift_space_zwnj and vk == w.VK_SPACE:
@@ -404,6 +417,22 @@ class RavanApp:
                     set_popup_visible(False)
                     log.info("Inline calc: %r= → %r", expr, res)
                     return
+
+        # Clean trailing space error before punctuation in Persian typing (e.g. "کتاب ." -> "کتاب.")
+        if self.cfg.fix_punctuation_spacing and ch in ".,!?:؛،؟)":
+            lang = current_language()
+            if lang and lang.tag == "fa":
+                text_buf = self.journal.text()
+                if len(text_buf) >= 2 and text_buf[-1] == " " and text_buf[-2] not in (" ", "\n"):
+                    self._suppress_until = time.monotonic() + 0.05
+                    replace_last_n_with(1, "")
+                    if self.journal._chars:
+                        self.journal._chars.pop()
+                    self._record_event(f"Fixed spacing before punctuation '{ch}'")
+
+        if self._last_autocorrect is not None:
+            if time.monotonic() - self._last_autocorrect[2] > 4.0 or ch.isalnum():
+                self._last_autocorrect = None
 
         if ch.isspace() or ch in ".,;:!?\n\r\t":
             word = self.journal.last_word(allow_trailing_spaces=False)
@@ -469,12 +498,43 @@ class RavanApp:
 
         if not self.cfg.autocorrect_enabled:
             return False
-        cand = self.predictor.correct(word)
+        if self._is_excluded():
+            return False
+
+        lang_tag = self._active_layout_tag
+        cand = self.predictor.correct(word, lang=lang_tag)
         if cand is not None and cand.text != word:
-            log.info("Autocorrect %r → %r", word, cand.text)
+            log.info("Autocorrect %r → %r (lang: %s)", word, cand.text, lang_tag)
+            self._last_autocorrect = (word, cand.text, time.monotonic(), delimiter)
+            self._record_event(f"Autocorrect '{word}' -> '{cand.text}'", char=cand.text)
             self._replace_word(word, cand.text, delimiter=delimiter)
             return True
         return False
+
+    def _undo_last_autocorrect(self) -> bool:
+        if self._last_autocorrect is None:
+            return False
+        orig, corrected, t_done, delim = self._last_autocorrect
+        self._last_autocorrect = None
+        if time.monotonic() - t_done > 10.0:
+            return False
+
+        delete_len = len(corrected) + len(delim)
+        replace_text = orig + delim
+        self._suppress_until = time.monotonic() + 0.08
+        replace_last_n_with(delete_len, replace_text)
+
+        for _ in range(delete_len):
+            if self.journal._chars:
+                self.journal._chars.pop()
+        for ch in replace_text:
+            self.journal.push(ch)
+
+        log.info("Undid autocorrect: reverted %r back to %r", corrected, orig)
+        self._record_event(f"Undid autocorrect: reverted '{corrected}' -> '{orig}'")
+        self.tray.notify(f"Reverted to '{orig}'")
+        return True
+
 
     def _convert_selection_or_last_word(self) -> None:
         """Convert selected text if any exists; otherwise convert the last typed word."""
@@ -613,6 +673,7 @@ class RavanApp:
         lang = current_language()
         if lang is None:
             return
+        self._active_layout_tag = lang.tag
         if self._last_lang_hkl is None:
             self._last_lang_hkl = lang.hkl
             return

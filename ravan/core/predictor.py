@@ -56,10 +56,15 @@ class DictPredictor(Predictor):
 
         return cls(english=en_dict, persian=fa_dict)
 
-    def _dict_for(self, word: str) -> Dictionary | None:
+    def _dict_for(self, word: str, lang: str | None = None) -> Dictionary | None:
+        if lang == "fa":
+            return self.persian
+        elif lang == "en":
+            return self.english
         if any(is_arabic_persian(c) for c in word):
             return self.persian
         return self.english
+
 
     def predict(self, prefix: str, context: str, limit: int) -> list[Candidate]:
         del context  # reserved for n-gram / LLM predictors
@@ -119,39 +124,87 @@ class DictPredictor(Predictor):
                 unique.append(c)
         return unique[:limit]
 
-    def correct(self, word: str) -> Candidate | None:
+    def correct(self, word: str, lang: str | None = None) -> Candidate | None:
         """Return a safe autocorrect candidate for a completed word, or None.
 
-        Safe means:
-        - the typed word is NOT in the dictionary,
-        - the typed word is NOT a valid prefix of any dictionary word
-          (otherwise the user is probably still typing and will pick a completion),
-        - the candidate is close (edit distance 1 for short words),
-        - the candidate is far more frequent than the typed word.
+        Safe and intelligent autocorrect:
+        - Bilingual awareness: only autocorrect in active language (never mix).
+        - Persian-specific typos: similar-looking letters (ه/ة, ي/ی, ك/ک, etc.).
+        - Exact dictionary words are never modified.
+        - Plausible in-progress prefixes are not mangled.
+        - Per-word probability ranking based on frequency, edit distance, and adaptive learning.
         """
         if len(word) < 3 or not word.isalpha():
             return None
-        dict_ = self._dict_for(word)
+
+        # Bilingual check: never mix languages
+        if lang == "fa" and not any(is_arabic_persian(c) for c in word):
+            return None
+        if lang == "en" and any(is_arabic_persian(c) for c in word):
+            return None
+
+        dict_ = self._dict_for(word, lang=lang)
         if dict_ is None:
             return None
-        # Exact word → nothing to fix
+
+        # Exact word → already correct
         if dict_.contains(word):
             return None
-        # Still typing a plausible short word (a completion exists within a
-        # couple characters)? Don't auto-mangle it — let the popup serve it.
-        limit_len = len(word) + 2
-        if any(len(e.word) <= limit_len for e in dict_.completions(word, 8)):
-            return None
+
+        # 1. Persian confusable typo normalization (highest confidence)
+        if any(is_arabic_persian(c) for c in word):
+            from .normalizer import normalize_persian_typos
+
+            for variant in normalize_persian_typos(word):
+                if dict_.contains(variant):
+                    entry = dict_._lower[variant.lower()]
+                    boost = self._selection_counts.get(variant.lower(), 0)
+                    score = 1000.0 + (1.0 / (entry.rank + 1.0)) + boost
+                    return Candidate(
+                        text=entry.word,
+                        score=score,
+                        kind=CandidateKind.AUTOCORRECT,
+                    )
+
+        # 2. Still typing a plausible prefix of a short word? Don't auto-mangle
+        if len(word) >= 3:
+            limit_len = len(word) + 2
+            if any(len(e.word) <= limit_len for e in dict_.completions(word, 8)):
+                return None
+
+        # 3. Fuzzy matches with frequency probability
         max_dist = 1 if len(word) <= 4 else 2
-        matches = dict_.fuzzy_matches(word, max_dist, 3)
+        matches = dict_.fuzzy_matches(word, max_dist, 8)
         if not matches:
             return None
-        entry, dist = matches[0]
-        # Require a large frequency advantage to avoid random swaps
-        if entry.rank > 500 and dist > 1:
+
+        import math
+
+        scored: list[tuple[float, DictEntry, int]] = []
+        for entry, dist in matches:
+            boost = self._selection_counts.get(entry.word.lower(), 0)
+            if entry.rank == 0:
+                prob = 1000.0 + boost
+            else:
+                freq = entry.frequency if entry.frequency > 0 else max(1, 15000 - entry.rank * 2)
+                log_freq = math.log10(freq + 10)
+                dist_penalty = 1.0 if dist == 1 else 3.5
+                prob = (log_freq / dist_penalty) + (boost * 0.5)
+
+                if dist > 1 and entry.rank > 2000:
+                    continue
+
+            scored.append((prob, entry, dist))
+
+        if not scored:
             return None
+
+        scored.sort(key=lambda t: t[0], reverse=True)
+        best_prob, best_entry, best_dist = scored[0]
+
         return Candidate(
-            text=entry.word,
-            score=1.0 / (entry.rank + 1.0) / (dist + 1.0),
+            text=best_entry.word,
+            score=best_prob,
             kind=CandidateKind.AUTOCORRECT,
         )
+

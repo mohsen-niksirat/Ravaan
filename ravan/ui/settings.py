@@ -134,6 +134,18 @@ class SettingsWindow:
         ttk.Label(frm, text="e.g. Shift+F12", foreground="gray").grid(
             row=row, column=2, sticky="w", **pad
         )
+        row += 1
+
+        ttk.Label(frm, text="Undo autocorrect:").grid(row=row, column=0, sticky="w", **pad)
+        self._undo_var = tk.StringVar(
+            value=hotkey_to_text(self.cfg.undo_autocorrect_hotkey)
+        )
+        ttk.Entry(frm, textvariable=self._undo_var, width=22).grid(
+            row=row, column=1, sticky="w", **pad
+        )
+        ttk.Label(frm, text="e.g. Ctrl+Shift+Z (or Backspace)", foreground="gray").grid(
+            row=row, column=2, sticky="w", **pad
+        )
         row += 2
 
         # ── Features ──
@@ -199,6 +211,12 @@ class SettingsWindow:
         self._sound_var = tk.BooleanVar(value=self.cfg.sound_feedback_enabled)
         ttk.Checkbutton(
             frm, text="Audio feedback on keyboard layout switch", variable=self._sound_var
+        ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+        row += 1
+
+        self._punct_spacing_var = tk.BooleanVar(value=self.cfg.fix_punctuation_spacing)
+        ttk.Checkbutton(
+            frm, text="Fix Persian spacing before punctuation (e.g. کتاب . -> کتاب.)", variable=self._punct_spacing_var
         ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
         row += 2
 
@@ -359,6 +377,7 @@ class SettingsWindow:
         clip = text_to_hotkey(self._clip_var.get())
         norm = text_to_hotkey(self._norm_var.get())
         case = text_to_hotkey(self._case_var.get())
+        undo = text_to_hotkey(self._undo_var.get())
         if self._convert_var.get().strip() and convert is None:
             messagebox.showwarning("Ravan", "Invalid convert hotkey", parent=self._root)
             return
@@ -374,6 +393,9 @@ class SettingsWindow:
         if self._case_var.get().strip() and case is None:
             messagebox.showwarning("Ravan", "Invalid case hotkey", parent=self._root)
             return
+        if self._undo_var.get().strip() and undo is None:
+            messagebox.showwarning("Ravan", "Invalid undo autocorrect hotkey", parent=self._root)
+            return
 
         cfg = self.cfg
         if convert:
@@ -386,8 +408,11 @@ class SettingsWindow:
             cfg.normalize_hotkey = norm
         if case:
             cfg.case_hotkey = case
+        if undo:
+            cfg.undo_autocorrect_hotkey = undo
         cfg.prediction_enabled = self._prediction_var.get()
         cfg.autocorrect_enabled = self._autocorrect_var.get()
+        cfg.fix_punctuation_spacing = self._punct_spacing_var.get()
         cfg.auto_zwnj_enabled = self._zwnj_var.get()
         cfg.shift_space_zwnj = self._shift_space_var.get()
         cfg.clipboard_history_enabled = self._cliphist_var.get()
