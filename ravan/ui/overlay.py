@@ -185,10 +185,12 @@ class OverlayWindow:
     def _row_text(self, index: int, candidate: Candidate, selected: bool) -> str:
         prefix = f"{index + 1}  "
         mark = "▶ " if selected else "   "
-        text = f"{mark}{prefix}{candidate.text}"
-        if candidate.kind.name == "AUTOCORRECT":
-            text += "  ≈"
-        return text
+        tag = ""
+        if candidate.kind.name == "NEXT_WORD":
+            tag = "  [بعدی]"
+        elif candidate.kind.name == "AUTOCORRECT":
+            tag = "  ≈"
+        return f"{mark}{prefix}{candidate.text}{tag}"
 
     def _render_candidates(self) -> None:
         bg = self._rgb(self.theme.background_color)
@@ -217,6 +219,10 @@ class OverlayWindow:
                 text=text,
                 bg=hi if selected else bg,
                 fg=fg,
+                font=(
+                    "Segoe UI Semibold" if selected else "Segoe UI",
+                    int(self.theme.font_size),
+                ),
             )
             row.pack(fill="x")
 
@@ -325,11 +331,13 @@ class OverlayWindow:
                 self._rows[old_idx].config(
                     bg=bg,
                     text=self._row_text(old_idx, self._candidates[old_idx], False),
+                    font=("Segoe UI", int(self.theme.font_size)),
                 )
             if 0 <= self._selected < len(self._rows):
                 self._rows[self._selected].config(
                     bg=hi,
                     text=self._row_text(self._selected, self._candidates[self._selected], True),
+                    font=("Segoe UI Semibold", int(self.theme.font_size)),
                 )
         else:
             self._render_candidates()

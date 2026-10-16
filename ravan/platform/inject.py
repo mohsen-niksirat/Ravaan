@@ -95,10 +95,35 @@ def inject_left_arrows(n: int) -> None:
 def replace_last_n_with(
     delete_n: int, new_text: str, cursor_offset: int | None = None
 ) -> None:
-    inject_backspaces(delete_n)
-    inject_text(new_text)
+    inputs: list[w.INPUT] = []
+    for _ in range(max(0, delete_n)):
+        inputs.append(_vk_input(w.VK_BACK, False))
+        inputs.append(_vk_input(w.VK_BACK, True))
+    for ch in new_text:
+        if ch == "\r":
+            continue
+        if ch == "\n":
+            inputs.append(_vk_input(w.VK_RETURN, False))
+            inputs.append(_vk_input(w.VK_RETURN, True))
+            continue
+        code = ord(ch)
+        if code > 0xFFFF:
+            code -= 0x10000
+            high = 0xD800 + (code >> 10)
+            low = 0xDC00 + (code & 0x3FF)
+            for unit in (high, low):
+                inputs.append(_unicode_input(unit, False))
+                inputs.append(_unicode_input(unit, True))
+        else:
+            inputs.append(_unicode_input(code, False))
+            inputs.append(_unicode_input(code, True))
     if cursor_offset and cursor_offset > 0:
-        inject_left_arrows(cursor_offset)
+        for _ in range(cursor_offset):
+            inputs.append(_vk_input(w.VK_LEFT, False))
+            inputs.append(_vk_input(w.VK_LEFT, True))
+    if inputs:
+        arr = (w.INPUT * len(inputs))(*inputs)
+        w.user32.SendInput(len(inputs), arr, ctypes.sizeof(w.INPUT))
 
 
 def send_shortcut(modifiers: list[int], key_vk: int) -> None:

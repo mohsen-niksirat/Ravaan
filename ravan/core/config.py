@@ -50,7 +50,8 @@ class Config:
     prediction_debounce_ms: int = 50
     prediction_max_candidates: int = 5
     popup_timeout_ms: int = 4000
-    min_prefix_len: int = 2
+    min_prefix_len: int = 1
+    next_word_prediction: bool = True
     excluded_apps: list[str] = field(default_factory=lambda: list(DEFAULT_EXCLUDED_APPS))
     snippets: list[Snippet] = field(default_factory=list)
     launch_at_startup: bool = False
@@ -181,7 +182,8 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         prediction_debounce_ms=_bounded_int(data, "prediction_debounce_ms", 50, 0, 5000),
         prediction_max_candidates=_bounded_int(data, "prediction_max_candidates", 5, 1, 20),
         popup_timeout_ms=_bounded_int(data, "popup_timeout_ms", 4000, 0, 120000),
-        min_prefix_len=_bounded_int(data, "min_prefix_len", 2, 1, 64),
+        min_prefix_len=_bounded_int(data, "min_prefix_len", 1, 1, 64),
+        next_word_prediction=bool(data.get("next_word_prediction", True)),
         excluded_apps=[str(x).strip().lower() for x in excluded if str(x).strip()],
         snippets=snippets,
         launch_at_startup=bool(data.get("launch_at_startup", False)),

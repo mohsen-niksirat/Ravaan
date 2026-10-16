@@ -109,13 +109,39 @@ class AppPollingMixin:
             return
         self._pending_predict = False
         prefix = self.journal.last_word()
+        context_word = (
+            self.journal.previous_word()
+            if hasattr(self.journal, "previous_word")
+            else ""
+        )
+
         if len(prefix) < self.cfg.min_prefix_len:
+            if self.cfg.next_word_prediction and context_word and prefix == "":
+                cands = self.predictor.predict(
+                    "", context_word, self.cfg.prediction_max_candidates
+                )
+                if cands:
+                    caret = get_caret_rect()
+                    self.overlay.show_predictions(
+                        cands, caret.x, caret.y, caret.height
+                    )
+                    set_popup_visible(
+                        True, swallow_digits=self.cfg.quickpick_digits
+                    )
+                    self._popup_shown_at = time.monotonic()
+                    log.info(
+                        "Showing %d next-word suggestions for context %r",
+                        len(cands),
+                        context_word,
+                    )
+                    return
             if self.overlay.predicting:
                 self.overlay.hide()
                 set_popup_visible(False)
             return
+
         cands = self.predictor.predict(
-            prefix, "", self.cfg.prediction_max_candidates
+            prefix, context_word, self.cfg.prediction_max_candidates
         )
         if not cands:
             if self.overlay.predicting:

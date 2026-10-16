@@ -67,3 +67,13 @@ class KeystrokeJournal:
             if self._chars:
                 self._chars.pop()
         return word, trailing
+
+    def previous_word(self) -> str:
+        """Return the completed word immediately before the current typing position."""
+        text = self.text()
+        words = text.split()
+        if not words:
+            return ""
+        if text and not text[-1].isspace():
+            return words[-2] if len(words) >= 2 else ""
+        return words[-1]

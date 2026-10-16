@@ -27,6 +27,7 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 | M18 | Bilingual autocorrect & instant undo | `Ctrl+Shift+Z` / `Backspace` |
 | M19 | Snippets 2.0 (GUI editor, multi-line, cursor placeholder `$0`) | tray → Snippet Editor… |
 | M20 | Code Quality (Modular refactoring, Ruff linting, Win32 mock tests) | `pytest` & `ruff check` |
+| M21 | Continuous Android-Style Prediction, Sentence Prediction & Adaptive Learning | `Space` / `Tab` / `Enter` / `1–5` |
 
 ### Convert Selection or Last Word (`F12`)
 
@@ -88,15 +89,18 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
   ```
 - Words in your custom dictionary immediately appear in word prediction completions!
 
-### How to pick a suggestion
+### Continuous Android-Style Prediction & Adaptive Learning
 
-1. Type at least **2 letters** in Notepad (or any text field), e.g. `pro`
-2. A popup appears near the caret with numbered candidates
-3. Choose one:
+1. **Immediate & Continuous Prediction**: Starts from the **1st letter** you type and stays active continuously without premature closing until you finalize the word with `Space` or punctuation.
+2. **Android-Style Preview**: The top candidate is clearly highlighted with accented background and bold text.
+3. **Sentence & Next-Word Prediction**: After completing a word and typing `Space`, Ravaan predicts plausible next words (`[بعدی]`) based on common Persian bigrams (`سلام` → `عزیز`, `با` → `احترام`, etc.) to let you compose full sentences effortlessly.
+4. **Typing Style Learning Engine**: Ravaan silently learns the vocabulary and two-word transitions you use most frequently, automatically ranking your personal favorite words at the top.
+5. **Atomic Injection**: Text replacements and backspaces occur in a single unified OS hardware batch, guaranteeing zero keystroke collisions even during ultra-fast typing.
+6. **Choosing a candidate**:
    - **↑ / ↓** — move highlight
-   - **Enter** or **Tab** — insert the highlighted word
-   - **1 … 5** — jump-insert that row
-   - **Esc** — close without inserting
+   - **Enter** or **Tab** — insert the highlighted suggestion
+   - **1 … 5** — jump-insert that candidate row
+   - **Esc** — dismiss without inserting
 
 ### Autocorrect (Safe Mode & Language Intelligence)
 

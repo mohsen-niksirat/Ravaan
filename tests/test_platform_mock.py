@@ -216,13 +216,12 @@ def test_inject_left_arrows():
 
 
 def test_replace_last_n_with():
-    with patch.object(inject, "inject_backspaces") as mock_back, \
-         patch.object(inject, "inject_text") as mock_text, \
-         patch.object(inject, "inject_left_arrows") as mock_arrows:
+    with patch.object(w.user32, "SendInput") as mock_send:
         inject.replace_last_n_with(4, "نوین", cursor_offset=1)
-        mock_back.assert_called_once_with(4)
-        mock_text.assert_called_once_with("نوین")
-        mock_arrows.assert_called_once_with(1)
+        assert mock_send.called
+        call_args = mock_send.call_args[0]
+        # 4 backspaces * 2 + 4 chars * 2 + 1 left arrow * 2 = 18 inputs in a single atomic batch
+        assert call_args[0] == 18
 
 
 def test_send_shortcut():

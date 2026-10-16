@@ -41,3 +41,22 @@ def test_last_word_multiple_trailing_spaces():
     assert trailing == 3
     j.pop_last_word_info(allow_trailing_spaces=True)
     assert j.text() == "first "
+
+
+def test_previous_word():
+    j = KeystrokeJournal()
+    assert j.previous_word() == ""
+
+    for ch in "salam":
+        j.push(ch)
+    assert j.previous_word() == ""
+
+    j.push(" ")
+    assert j.previous_word() == "salam"
+
+    for ch in "khoob":
+        j.push(ch)
+    assert j.previous_word() == "salam"
+
+    j.push(" ")
+    assert j.previous_word() == "khoob"

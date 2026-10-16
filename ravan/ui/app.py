@@ -263,23 +263,46 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
             return False
 
         lang_tag = self._active_layout_tag
+        prev_word = (
+            self.journal.previous_word()
+            if hasattr(self.journal, "previous_word")
+            else None
+        )
         cand = self.predictor.correct(word, lang=lang_tag)
         if cand is not None and cand.text != word:
             log.info("Autocorrect %r → %r (lang: %s)", word, cand.text, lang_tag)
             self._last_autocorrect = (word, cand.text, time.monotonic(), delimiter)
             self._record_event(f"Autocorrect '{word}' -> '{cand.text}'", char=cand.text)
             self._replace_word(word, cand.text, delimiter=delimiter)
+            self.predictor.record_selection(cand.text, context=prev_word)
             return True
+
+        if word:
+            self.predictor.record_selection(word, context=prev_word)
         return False
 
     def _accept_candidate(self, cand: Candidate) -> None:
+        from ravan.core.events import CandidateKind
+
         word = self.journal.last_word()
-        if not word:
-            return
-        log.info("Accepted suggestion: %r → %r", word, cand.text)
+        prev_word = (
+            self.journal.previous_word()
+            if hasattr(self.journal, "previous_word")
+            else None
+        )
+        log.info("Accepted suggestion: %r → %r (kind=%s)", word, cand.text, cand.kind)
         self._record_event(f"Accepted candidate '{cand.text}'", char=cand.text)
-        self.predictor.record_selection(cand.text)
-        self._replace_word(word, cand.text)
+        self.predictor.record_selection(cand.text, context=prev_word)
+
+        if cand.kind == CandidateKind.NEXT_WORD or not word:
+            self._suppress_until = time.monotonic() + 0.08
+            replace_last_n_with(0, cand.text)
+            for ch in cand.text:
+                self.journal.push(ch)
+            self.overlay.hide()
+            set_popup_visible(False)
+        else:
+            self._replace_word(word, cand.text)
 
     def _replace_word(
         self,

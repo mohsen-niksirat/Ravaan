@@ -42,12 +42,11 @@ class KeyHandlerMixin:
         char = vk_to_unicode(vk, event.scan_code) or ""
         self._record_event("Key pressed", vk=vk, char=char)
 
-        # ── Popup navigation (predicting or clipboard) ──
-        if self.overlay.active_popup:
+        # ── Clipboard popup navigation ──
+        if self.overlay.clipboard_open:
             if vk == w.VK_ESCAPE:
                 self.overlay.hide()
                 set_popup_visible(False)
-                log.info("Popup dismissed")
                 return
             if vk == w.VK_UP:
                 self.overlay.move_selection(-1)
@@ -56,30 +55,47 @@ class KeyHandlerMixin:
                 self.overlay.move_selection(1)
                 return
             if vk in (w.VK_RETURN, w.VK_TAB):
-                if self.overlay.clipboard_open:
-                    item = self.overlay.accept_clipboard_selected()
-                    if item:
-                        self._paste_clipboard_item(item)
-                else:
-                    cand = self.overlay.accept_selected()
-                    if cand:
-                        self._accept_candidate(cand)
+                item = self.overlay.accept_clipboard_selected()
+                if item:
+                    self._paste_clipboard_item(item)
                 set_popup_visible(False)
                 return
             if self.cfg.quickpick_digits and ord("1") <= vk <= ord("5"):
-                if self.overlay.clipboard_open:
-                    item = self.overlay.accept_clipboard_index(vk - ord("1"))
-                    if item:
-                        self._paste_clipboard_item(item)
-                else:
-                    cand = self.overlay.accept_index(vk - ord("1"))
-                    if cand:
-                        self._accept_candidate(cand)
+                item = self.overlay.accept_clipboard_index(vk - ord("1"))
+                if item:
+                    self._paste_clipboard_item(item)
                 set_popup_visible(False)
                 return
-            # Any other key closes the popup and continues normal typing
+            # Non-nav key closes clipboard popup
             self.overlay.hide()
             set_popup_visible(False)
+
+        # ── Prediction popup navigation ──
+        elif self.overlay.predicting:
+            if vk == w.VK_ESCAPE:
+                self.overlay.hide()
+                set_popup_visible(False)
+                log.info("Prediction popup dismissed by Esc")
+                return
+            if vk == w.VK_UP:
+                self.overlay.move_selection(-1)
+                return
+            if vk == w.VK_DOWN:
+                self.overlay.move_selection(1)
+                return
+            if vk in (w.VK_RETURN, w.VK_TAB):
+                cand = self.overlay.accept_selected()
+                if cand:
+                    self._accept_candidate(cand)
+                set_popup_visible(False)
+                return
+            if self.cfg.quickpick_digits and ord("1") <= vk <= ord("5"):
+                cand = self.overlay.accept_index(vk - ord("1"))
+                if cand:
+                    self._accept_candidate(cand)
+                set_popup_visible(False)
+                return
+            # Note: Regular character keys fall through to typing, keeping prediction continuous!
 
         # Hotkeys
         if self.cfg.clipboard_history_enabled and matches_hotkey(
@@ -131,8 +147,7 @@ class KeyHandlerMixin:
             from ravan.core.zwnj import ZWNJ
             from ravan.platform.keys import modifiers_down
 
-            mods = modifiers_down()
-            if "Shift" in mods and "Ctrl" not in mods and "Alt" not in mods:
+            if modifiers_down(["shift"], exact=True):
                 self._suppress_until = time.monotonic() + 0.05
                 replace_last_n_with(0, ZWNJ)
                 self.journal.push(ZWNJ)
@@ -204,6 +219,8 @@ class KeyHandlerMixin:
                     self._maybe_attach_suffix_zwnj(word)
             self.overlay.hide()
             set_popup_visible(False)
+            if self.cfg.next_word_prediction and ch == " ":
+                self._schedule_predict()
             return
 
         self.journal.push(ch)

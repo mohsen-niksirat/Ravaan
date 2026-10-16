@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from .config import Config
 from .dict import DictEntry, Dictionary
 from .events import Candidate, CandidateKind
+from .learning import UserLearningEngine
 
 
 def is_arabic_persian(c: str) -> bool:
@@ -23,21 +24,35 @@ class Predictor(ABC):
     def predict(self, prefix: str, context: str, limit: int) -> list[Candidate]:
         raise NotImplementedError
 
-    def record_selection(self, word: str) -> None:
+    def record_selection(self, word: str, context: str | None = None) -> None:
         """Record a user-accepted candidate to boost future predictions."""
-        del word  # Optional hook for subclasses to override
+        del word, context  # Optional hook for subclasses to override
 
 
 class DictPredictor(Predictor):
-    def __init__(self, english: Dictionary | None, persian: Dictionary | None) -> None:
+    def __init__(
+        self,
+        english: Dictionary | None,
+        persian: Dictionary | None,
+        learning_engine: UserLearningEngine | None = None,
+    ) -> None:
         self.english = english
         self.persian = persian
+        self.learning = (
+            learning_engine
+            if learning_engine is not None
+            else UserLearningEngine(auto_load=False)
+        )
         self._selection_counts: dict[str, int] = {}
 
-    def record_selection(self, word: str) -> None:
+    def record_selection(self, word: str, context: str | None = None) -> None:
         key = word.strip().lower()
         if key:
             self._selection_counts[key] = self._selection_counts.get(key, 0) + 1
+            self.learning.learn_word(word)
+            if context:
+                self.learning.learn_transition(context, word)
+            self.learning.save()
 
     @classmethod
     def from_config(cls, cfg: Config) -> DictPredictor:
@@ -54,7 +69,8 @@ class DictPredictor(Predictor):
                 if en_dict is not None:
                     en_dict.add_word(w, priority=True)
 
-        return cls(english=en_dict, persian=fa_dict)
+        learning = UserLearningEngine(auto_load=True)
+        return cls(english=en_dict, persian=fa_dict, learning_engine=learning)
 
     def _dict_for(self, word: str, lang: str | None = None) -> Dictionary | None:
         if lang == "fa":
@@ -67,19 +83,52 @@ class DictPredictor(Predictor):
 
 
     def predict(self, prefix: str, context: str, limit: int) -> list[Candidate]:
-        del context  # reserved for n-gram / LLM predictors
         if not prefix:
-            return []
+            if not context:
+                return []
+            next_words = self.learning.predict_next_words(context, limit)
+            return [
+                Candidate(
+                    text=w,
+                    score=100.0 - i,
+                    kind=CandidateKind.NEXT_WORD,
+                )
+                for i, w in enumerate(next_words)
+            ]
 
         dict_ = self._dict_for(prefix)
         if dict_ is None:
             return []
 
         candidates: list[Candidate] = []
+        seen_texts: set[str] = set()
+
+        # 1. Learned completions from user typing history (highest priority)
+        learned_matches = self.learning.top_learned_completions(prefix, limit)
+        for w in learned_matches:
+            if w.lower() != prefix.lower():
+                candidates.append(
+                    Candidate(
+                        text=w,
+                        score=2000.0 + self.learning.get_word_boost(w),
+                        kind=CandidateKind.COMPLETION,
+                    )
+                )
+                seen_texts.add(w)
+
+        # 2. Dictionary completions
         scan_limit = max(limit * 3, 20)
         for entry in dict_.completions(prefix, scan_limit):
-            if entry.word.lower() != prefix.lower():
-                boost = self._selection_counts.get(entry.word.lower(), 0)
+            if entry.word.lower() != prefix.lower() and entry.word not in seen_texts:
+                boost = (
+                    self._selection_counts.get(entry.word.lower(), 0)
+                    + self.learning.get_word_boost(entry.word)
+                )
+                # Boost if it matches a context transition
+                if context and context in self.learning.transitions:
+                    if entry.word in self.learning.transitions[context]:
+                        boost += 50.0
+
                 # Ranking hierarchy: Custom Dict (rank=0) > Frequency (with adaptive boost)
                 if entry.rank == 0:
                     score = 1000.0 + boost
@@ -94,6 +143,7 @@ class DictPredictor(Predictor):
                         kind=CandidateKind.COMPLETION,
                     )
                 )
+                seen_texts.add(entry.word)
 
         # Completions are the user's intent → always preferred over fuzzy matches
         candidates.sort(key=lambda c: c.score, reverse=True)
@@ -103,6 +153,8 @@ class DictPredictor(Predictor):
             fuzzy = dict_.fuzzy_matches(prefix, 2, limit - len(completions))
             prefix_rank = dict_.rank_of(prefix)
             for entry, dist in fuzzy:
+                if entry.word in seen_texts:
+                    continue
                 # Never suggest a word already in the dictionary unless much more frequent
                 if prefix_rank is not None and entry.rank >= prefix_rank:
                     continue
@@ -115,14 +167,9 @@ class DictPredictor(Predictor):
                         kind=CandidateKind.AUTOCORRECT,
                     )
                 )
+                seen_texts.add(entry.word)
 
-        seen: set[str] = set()
-        unique: list[Candidate] = []
-        for c in completions:
-            if c.text not in seen:
-                seen.add(c.text)
-                unique.append(c)
-        return unique[:limit]
+        return completions[:limit]
 
     def correct(self, word: str, lang: str | None = None) -> Candidate | None:
         """Return a safe autocorrect candidate for a completed word, or None.
