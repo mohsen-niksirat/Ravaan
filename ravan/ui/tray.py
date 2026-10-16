@@ -10,7 +10,17 @@ log = logging.getLogger(__name__)
 
 
 def _make_icon_image():
-    from PIL import Image, ImageDraw, ImageFont
+    from pathlib import Path
+    from PIL import Image
+
+    icon_path = Path(__file__).resolve().parent.parent / "data" / "icon.ico"
+    if icon_path.is_file():
+        try:
+            return Image.open(icon_path)
+        except Exception:
+            pass
+
+    from PIL import ImageDraw, ImageFont
 
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)

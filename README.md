@@ -110,36 +110,42 @@ Type the trigger, then space/enter/punctuation → it expands.
 - Windows 10/11
 - Python 3.10+
 
-## Install
+## Installation & Quick Start
+
+### 1. Standalone Executable (Recommended for users, no Python required)
+
+1. Download **`Ravaan.exe`** from [GitHub Releases](https://github.com/mohsen-niksirat/Ravaan/releases).
+2. Double-click `Ravaan.exe` to run. A steelblue icon (ر) appears in your Windows system tray.
+3. (Optional) In system tray → **Settings…**, check **Launch at Windows startup**.
+
+### 2. From Source (Developers)
 
 ```bash
+git clone https://github.com/mohsen-niksirat/Ravaan.git
 cd Ravaan
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-## Run
+**Run from source:**
+- Double-click `run_ravan.bat` (launches windowless via `pythonw`), or run `python -m ravan`.
 
-**Easiest:** double-click `run_ravan.bat` (no console window).
+### 3. Build Executable Locally
 
-**Command Prompt (cmd):**
-```bat
-cd /d "C:\Users\MOHSEN\Desktop\Github Projects\Ravaan"
-set PYTHONPATH=%CD%
-python -m ravan
+```bash
+pip install pyinstaller
+pyinstaller --clean -y ravan.spec
+# Executable is generated at: dist/Ravaan.exe
 ```
 
-**PowerShell:**
-```powershell
-cd "C:\Users\MOHSEN\Desktop\Github Projects\Ravaan"
-$env:PYTHONPATH = "$PWD"
-python -m ravan
-```
+## Uninstallation
 
-If the package is already installed (`pip install -e .`), just `python -m ravan`.
-
-Single-instance enforced — running it twice just exits the second copy.
+1. Right-click the Ravan tray icon and click **Quit**.
+2. If startup launch was enabled, disable it in Settings before quitting (or remove the `Ravan` entry from Windows Startup apps).
+3. (Optional) Remove user settings, custom words, and logs:
+   Delete `%APPDATA%\Ravan` (`C:\Users\<Username>\AppData\Roaming\Ravan`).
+4. Delete `Ravaan.exe` or your cloned repository directory.
 
 ### Tray menu
 

@@ -1,6 +1,7 @@
 # Roadmap
  
 Done (v0.4):
+- M16: PyInstaller standalone distribution packaging (`Ravaan.exe` with bundled icon & assets, windowed no-console), GitHub Actions CI/CD release workflow on tag push, and install/uninstall documentation
 - M15: External UTF-8 dictionary loading (`word<TAB>frequency`), 12,500+ Persian frequency dataset, hierarchical ranking (custom dict > frequency > edit distance), and adaptive learning selection boost
 - Number to Persian words converter, Rial-to-Toman calculator, and thousands separator formatting (`/w`, `/t`, `/s`, CLI `words`)
 - Keyboard layout audio feedback (distinct gentle tones for Persian and English upon layout switch)
@@ -22,7 +23,6 @@ Done (v0.4):
 - Journal reset on focus change; popup auto-timeout; hotkey repeat throttle
 
 Next:
-- Phase 2: Distribution & First Release (PyInstaller single-file exe, GitHub Actions release workflow)
 - Phase 3: Reliability & UX Hardening (DPI scaling, overlay caret tracking, structured logging & diagnostics window)
 - Phase 4: Autocorrect & Language Intelligence (bilingual awareness, typo modeling, undo hotkey)
 - Phase 5: Snippets 2.0 (multi-line snippets, JSON import/export, cursor $0 placement)
