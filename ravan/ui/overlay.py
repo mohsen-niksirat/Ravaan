@@ -206,9 +206,26 @@ class OverlayWindow:
     def _place(self, x: int, y: int) -> None:
         self._root.update_idletasks()
         w = self._root.winfo_reqwidth()
-        sw = self._root.winfo_screenwidth()
-        px = max(0, min(int(x), sw - w - 8))
-        self._root.geometry(f"+{px}+{int(y)}")
+        h = self._root.winfo_reqheight()
+        try:
+            from ravan.platform import winapi as wapi
+
+            vx = int(wapi.user32.GetSystemMetrics(wapi.SM_XVIRTUALSCREEN))
+            vy = int(wapi.user32.GetSystemMetrics(wapi.SM_YVIRTUALSCREEN))
+            vw = int(wapi.user32.GetSystemMetrics(wapi.SM_CXVIRTUALSCREEN))
+            vh = int(wapi.user32.GetSystemMetrics(wapi.SM_CYVIRTUALSCREEN))
+            if vw > 0 and vh > 0:
+                px = max(vx, min(int(x), vx + vw - w - 8))
+                py = max(vy, min(int(y), vy + vh - h - 8))
+            else:
+                sw = self._root.winfo_screenwidth()
+                px = max(0, min(int(x), sw - w - 8))
+                py = max(0, int(y))
+        except Exception:
+            sw = self._root.winfo_screenwidth()
+            px = max(0, min(int(x), sw - w - 8))
+            py = max(0, int(y))
+        self._root.geometry(f"+{px}+{py}")
 
     @property
     def visible(self) -> bool:

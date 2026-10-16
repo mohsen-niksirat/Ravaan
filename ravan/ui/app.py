@@ -625,6 +625,7 @@ class RavanApp:
         if not word:
             return
         log.info("Accepted suggestion: %r → %r", word, cand.text)
+        self.predictor.record_selection(cand.text)
         self._replace_word(word, cand.text)
 
     def _replace_word(self, old: str, new: str, delimiter: str = "") -> None:

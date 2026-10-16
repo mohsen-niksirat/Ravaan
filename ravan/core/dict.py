@@ -14,7 +14,8 @@ class Language(Enum):
 @dataclass(frozen=True)
 class DictEntry:
     word: str
-    rank: int  # 1 = most common
+    rank: int  # 1 = most common, 0 = top priority custom word
+    frequency: int = 0
 
 
 def levenshtein(a: str, b: str, max_dist: int | None = None) -> int:
@@ -88,17 +89,79 @@ def osa_distance(a: str, b: str, max_dist: int | None = None) -> int:
     return prev[lb]
 
 
-def _load_asset_words(filename: str) -> list[str]:
+def load_dictionary_entries(filename_or_path: str) -> list[DictEntry]:
+    """Load words and optional frequencies from an external UTF-8 file.
+
+    Format per line:
+      word
+      OR
+      word<TAB>frequency
+    """
     from pathlib import Path
-    data_dir = Path(__file__).resolve().parent.parent / "data"
-    asset_path = data_dir / filename
-    if asset_path.is_file():
-        try:
-            lines = asset_path.read_text(encoding="utf-8").splitlines()
-            return [w.strip() for w in lines if w.strip() and not w.startswith("#")]
-        except Exception:
-            pass
-    return []
+
+    path = Path(filename_or_path)
+    if not path.is_file():
+        # Search ravan/data
+        data_dir = Path(__file__).resolve().parent.parent / "data"
+        candidate = data_dir / filename_or_path
+        if candidate.is_file():
+            path = candidate
+        else:
+            # Search repository root data/
+            repo_data = Path(__file__).resolve().parent.parent.parent / "data"
+            candidate = repo_data / filename_or_path
+            if candidate.is_file():
+                path = candidate
+            else:
+                return []
+
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except Exception:
+        return []
+
+    raw_items: list[tuple[str, int | None, int]] = []
+    seen: set[str] = set()
+
+    for idx, line in enumerate(lines):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "\t" in line:
+            parts = line.split("\t", 1)
+            word = parts[0].strip()
+            try:
+                freq: int | None = int(parts[1].strip())
+            except ValueError:
+                freq = None
+        else:
+            parts = line.split()
+            if len(parts) >= 2 and parts[-1].isdigit():
+                word = " ".join(parts[:-1]).strip()
+                freq = int(parts[-1])
+            else:
+                word = line
+                freq = None
+
+        if not word:
+            continue
+        key = word.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        raw_items.append((word, freq, idx))
+
+    has_frequency = any(f is not None for _, f, _ in raw_items)
+    if has_frequency:
+        raw_items.sort(
+            key=lambda it: (it[1] is not None, it[1] if it[1] is not None else 0, -it[2]),
+            reverse=True,
+        )
+
+    return [
+        DictEntry(word=w, rank=rank, frequency=freq if freq is not None else 0)
+        for rank, (w, freq, _) in enumerate(raw_items, 1)
+    ]
 
 
 class Dictionary:
@@ -114,33 +177,48 @@ class Dictionary:
     def add_word(self, word: str, priority: bool = True) -> None:
         """Add a dynamic word to the dictionary in-memory."""
         clean = word.strip()
-        if not clean or clean.lower() in self._lower:
+        if not clean:
             return
+        key = clean.lower()
+        if key in self._lower:
+            if priority and self._lower[key].rank != 0:
+                old = self._lower[key]
+                new_entry = DictEntry(word=clean, rank=0, frequency=max(old.frequency, 10000000))
+                self._lower[key] = new_entry
+                try:
+                    self.entries.remove(old)
+                except ValueError:
+                    pass
+                self.entries.insert(0, new_entry)
+            return
+
         rank = 0 if priority else len(self.entries) + 1
-        entry = DictEntry(word=clean, rank=rank)
+        entry = DictEntry(word=clean, rank=rank, frequency=10000000 if priority else 1)
         if priority:
             self.entries.insert(0, entry)
         else:
             self.entries.append(entry)
-        self._lower[clean.lower()] = entry
+        self._lower[key] = entry
         self._by_len.setdefault(len(clean), []).append(entry)
 
     @classmethod
     def english(cls) -> Dictionary:
-        words = _load_asset_words("words_en.txt") or _ENGLISH_WORDS
-        entries = [
-            DictEntry(word=w, rank=i + 1)
-            for i, w in enumerate(_dedupe(words))
-        ]
+        entries = load_dictionary_entries("words_en.txt")
+        if not entries:
+            entries = [
+                DictEntry(word=w, rank=i + 1)
+                for i, w in enumerate(_dedupe(_ENGLISH_WORDS))
+            ]
         return cls(entries, Language.ENGLISH)
 
     @classmethod
     def persian(cls) -> Dictionary:
-        words = _load_asset_words("words_fa.txt") or _PERSIAN_WORDS
-        entries = [
-            DictEntry(word=w, rank=i + 1)
-            for i, w in enumerate(_dedupe(words))
-        ]
+        entries = load_dictionary_entries("words_fa.txt")
+        if not entries:
+            entries = [
+                DictEntry(word=w, rank=i + 1)
+                for i, w in enumerate(_dedupe(_PERSIAN_WORDS))
+            ]
         return cls(entries, Language.PERSIAN)
 
     def completions(self, prefix: str, limit: int) -> list[DictEntry]:

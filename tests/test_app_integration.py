@@ -6,6 +6,8 @@ from ravan.ui.app import RavanApp
 class MockOverlay:
     def __init__(self) -> None:
         self.predicting = False
+        self.clipboard_open = False
+        self.active_popup = False
     def hide(self) -> None: pass
     def destroy(self) -> None: pass
     def tick(self) -> None: pass

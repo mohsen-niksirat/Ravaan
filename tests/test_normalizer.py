@@ -35,6 +35,10 @@ def test_punctuation_spacing():
     fixed = normalize_punctuation_spacing(raw)
     assert fixed == "سلام، حال شما چطور است؟ من خوبم!"
 
+    # Ensure times and decimal numbers are not broken into "10: 30" or "3. 14"
+    time_raw = "ساعت 10:30 و عدد 3.14 و فارسی ۱۰:۳۰ و ۳.۱۴ است."
+    assert normalize_punctuation_spacing(time_raw) == time_raw
+
 
 def test_full_normalize_persian():
     raw = "من مي روم ، كتاب ها را ببينم !"

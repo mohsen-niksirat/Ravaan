@@ -23,11 +23,21 @@ class Predictor(ABC):
     def predict(self, prefix: str, context: str, limit: int) -> list[Candidate]:
         raise NotImplementedError
 
+    def record_selection(self, word: str) -> None:
+        """Record a user-accepted candidate to boost future predictions."""
+        pass
+
 
 class DictPredictor(Predictor):
     def __init__(self, english: Dictionary | None, persian: Dictionary | None) -> None:
         self.english = english
         self.persian = persian
+        self._selection_counts: dict[str, int] = {}
+
+    def record_selection(self, word: str) -> None:
+        key = word.strip().lower()
+        if key:
+            self._selection_counts[key] = self._selection_counts.get(key, 0) + 1
 
     @classmethod
     def from_config(cls, cfg: Config) -> DictPredictor:
@@ -61,27 +71,39 @@ class DictPredictor(Predictor):
             return []
 
         candidates: list[Candidate] = []
-        for entry in dict_.completions(prefix, limit):
+        scan_limit = max(limit * 3, 20)
+        for entry in dict_.completions(prefix, scan_limit):
             if entry.word.lower() != prefix.lower():
+                boost = self._selection_counts.get(entry.word.lower(), 0)
+                # Ranking hierarchy: Custom Dict (rank=0) > Frequency (with adaptive boost)
+                if entry.rank == 0:
+                    score = 1000.0 + boost
+                else:
+                    base_freq = 1.0 / (entry.rank + 1.0)
+                    score = base_freq * (1.0 + boost * 2.0) + (boost * 0.1)
+
                 candidates.append(
                     Candidate(
                         text=entry.word,
-                        score=1.0 / (entry.rank + 1.0),
+                        score=score,
                         kind=CandidateKind.COMPLETION,
                     )
                 )
+
         # Completions are the user's intent → always preferred over fuzzy matches
         candidates.sort(key=lambda c: c.score, reverse=True)
+        completions = candidates[:limit]
 
-        if len(candidates) < limit:
-            fuzzy = dict_.fuzzy_matches(prefix, 2, limit - len(candidates))
+        if len(completions) < limit:
+            fuzzy = dict_.fuzzy_matches(prefix, 2, limit - len(completions))
             prefix_rank = dict_.rank_of(prefix)
             for entry, dist in fuzzy:
                 # Never suggest a word already in the dictionary unless much more frequent
                 if prefix_rank is not None and entry.rank >= prefix_rank:
                     continue
-                score = (1.0 / (entry.rank + 1.0)) * (1.0 / (dist + 1.0))
-                candidates.append(
+                # Fuzzy matches are penalised by edit distance so they rank strictly below completions
+                score = (1.0 / (entry.rank + 1.0)) * (1.0 / (dist * 10.0 + 1.0))
+                completions.append(
                     Candidate(
                         text=entry.word,
                         score=score,
@@ -91,7 +113,7 @@ class DictPredictor(Predictor):
 
         seen: set[str] = set()
         unique: list[Candidate] = []
-        for c in candidates:
+        for c in completions:
             if c.text not in seen:
                 seen.add(c.text)
                 unique.append(c)

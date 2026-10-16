@@ -32,7 +32,11 @@ ARABIC_TO_PERSIAN_CHARS = str.maketrans(
 _CONSECUTIVE_SPACES = re.compile(r"[ \t]+")
 # Punctuation spacing: no space before punctuation, 1 space after if followed by a word
 _PUNCT_BEFORE_SPACE = re.compile(r"\s+([،؛!?:.؟])")
-_PUNCT_AFTER_SPACE = re.compile(r"([،؛!?:.؟])([^\s،؛!?:.؟»\)])")
+_PERSIAN_PUNCT_AFTER = re.compile(r"([،؛؟])([^\s،؛!?:.؟»\)])")
+_EXCLAMATION_AFTER = re.compile(r"(!+)([^\s،؛!?:.؟»\)])")
+_COLON_DOT_AFTER = re.compile(
+    r"(?<![0-9۰-۹])([.:])(?![0-9۰-۹\s،؛!?:.؟»\)])([^\s،؛!?:.؟»\)])"
+)
 
 
 def en_to_fa_digits(text: str) -> str:
@@ -78,7 +82,9 @@ def normalize_punctuation_spacing(text: str) -> str:
     # Remove spaces before punctuation: "سلام !" -> "سلام!"
     cleaned = _PUNCT_BEFORE_SPACE.sub(r"\1", text)
     # Ensure space after punctuation: "سلام!خوبی" -> "سلام! خوبی"
-    cleaned = _PUNCT_AFTER_SPACE.sub(r"\1 \2", cleaned)
+    cleaned = _PERSIAN_PUNCT_AFTER.sub(r"\1 \2", cleaned)
+    cleaned = _EXCLAMATION_AFTER.sub(r"\1 \2", cleaned)
+    cleaned = _COLON_DOT_AFTER.sub(r"\1 \2", cleaned)
     # Collapse multiple spaces into single space
     cleaned = _CONSECUTIVE_SPACES.sub(" ", cleaned)
     return cleaned

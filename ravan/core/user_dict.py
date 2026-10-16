@@ -28,7 +28,7 @@ def load_user_words(path: Path | None = None) -> list[str]:
                 words.append(w)
         return words
     except Exception as e:
-        log.warning("Failed to load user words from %s: %e", p, e)
+        log.warning("Failed to load user words from %s: %s", p, e)
         return []
 
 
@@ -47,7 +47,7 @@ def save_user_words(words: list[str], path: Path | None = None) -> bool:
         p.write_text(content, encoding="utf-8")
         return True
     except Exception as e:
-        log.error("Failed to save user words to %s: %e", p, e)
+        log.error("Failed to save user words to %s: %s", p, e)
         return False
 
 

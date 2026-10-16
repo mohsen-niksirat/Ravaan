@@ -98,6 +98,8 @@ class SettingsWindow:
         ttk.Label(frm, text="e.g. Alt+L", foreground="gray").grid(
             row=row, column=2, sticky="w", **pad
         )
+        row += 1
+
         ttk.Label(frm, text="Clipboard history:").grid(row=row, column=0, sticky="w", **pad)
         self._clip_var = tk.StringVar(
             value=hotkey_to_text(self.cfg.clipboard_history_hotkey)
@@ -339,10 +341,16 @@ class SettingsWindow:
         cfg.quickpick_digits = self._digits_var.get()
         cfg.english_dict_enabled = self._en_dict_var.get()
         cfg.persian_dict_enabled = self._fa_dict_var.get()
-        cfg.sound_feedback_enabled = self._sound_var.get()
-        cfg.prediction_debounce_ms = max(0, int(self._debounce_var.get() or 0))
-        cfg.prediction_max_candidates = max(1, min(9, int(self._maxcand_var.get() or 5)))
-        cfg.min_prefix_len = max(1, min(6, int(self._minlen_var.get() or 2)))
+        def _safe_int(var: tk.IntVar, default: int, min_val: int, max_val: int) -> int:
+            try:
+                val = int(var.get())
+                return max(min_val, min(max_val, val))
+            except (tk.TclError, ValueError, TypeError):
+                return default
+
+        cfg.prediction_debounce_ms = _safe_int(self._debounce_var, 50, 0, 5000)
+        cfg.prediction_max_candidates = _safe_int(self._maxcand_var, 5, 1, 9)
+        cfg.min_prefix_len = _safe_int(self._minlen_var, 2, 1, 6)
 
         excl = [
             ln.strip().lower()

@@ -22,6 +22,7 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 | M12 | Keyboard layout audio feedback | tray → Settings… |
 | M13 | User custom dictionary & word learning | tray → Settings… or CLI `dict` |
 | M14 | Settings window, tray menu, startup, exclusions | tray → Settings… |
+| M15 | External UTF-8 dictionary (12,500+ words) & adaptive boost | automatic learning |
 
 ### Convert Selection or Last Word (`F12`)
 
@@ -153,13 +154,23 @@ Config: `%APPDATA%\Ravan\config.json`
 ## CLI diagnostics
 
 ```bash
-python -m ravan.cli lang          # current keyboard language
-python -m ravan.cli caret         # caret / cursor position
-python -m ravan.cli convert hjvfd # convert a word EN↔FA layout
+python -m ravan.cli lang                # current keyboard language
+python -m ravan.cli caret               # caret / cursor position
+python -m ravan.cli convert hjvfd       # convert a word EN↔FA layout
 python -m ravan.cli convert "o,vn"
-python -m ravan.cli predict pro   # show prediction candidates
-python -m ravan.cli inject "hello از روان"  # inject text into the focused field (diagnostic)
-python -m ravan.cli hook -t 5     # print raw captured hook events
+python -m ravan.cli predict pro         # show prediction candidates
+python -m ravan.cli inject "hello روان" # inject text into the focused field (diagnostic)
+python -m ravan.cli hook -t 5           # print raw captured hook events
+python -m ravan.cli calc "1200*1.09"    # calculate math expression (supports Persian digits)
+python -m ravan.cli words 1250000       # convert number to Persian words
+python -m ravan.cli words 5000000 --toman  # convert Rial to Toman words
+python -m ravan.cli words 1250000 --sep    # format with thousands separators
+python -m ravan.cli jalali              # print current Jalali (Shamsi) date & time
+python -m ravan.cli norm "متن عربي"     # normalize Persian text, ZWNJ, and punctuation
+python -m ravan.cli num "09123456789"   # toggle digits Persian ↔ English
+python -m ravan.cli dict list           # list user custom words
+python -m ravan.cli dict add "fastapi"  # add custom word to prediction engine
+python -m ravan.cli dict remove "word"  # remove custom word
 ```
 
 > Each `python -m ravan` instance is single-instance-guarded (named mutex). Restarting

@@ -48,5 +48,34 @@ def test_corpus_size():
     en_dict = Dictionary.english()
     fa_dict = Dictionary.persian()
     assert len(en_dict.entries) >= 500
-    assert len(fa_dict.entries) >= 500
+    assert len(fa_dict.entries) >= 10000
+
+
+def test_load_dictionary_entries_with_frequency(tmp_path):
+    from ravan.core.dict import load_dictionary_entries
+
+    f = tmp_path / "test_words.txt"
+    f.write_text(
+        "# Comment line\n"
+        "apple\t50\n"
+        "banana\t1000\n"
+        "cherry\t300\n"
+        "date\n",
+        encoding="utf-8",
+    )
+    entries = load_dictionary_entries(str(f))
+    assert len(entries) == 4
+    # banana should be ranked #1 due to highest frequency (1000)
+    assert entries[0].word == "banana"
+    assert entries[0].rank == 1
+    # cherry should be ranked #2 (300)
+    assert entries[1].word == "cherry"
+    assert entries[1].rank == 2
+    # apple should be ranked #3 (50)
+    assert entries[2].word == "apple"
+    assert entries[2].rank == 3
+    # date without frequency should follow
+    assert entries[3].word == "date"
+    assert entries[3].rank == 4
+
 

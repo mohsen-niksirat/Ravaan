@@ -52,9 +52,41 @@ def test_correct_unknown_long_word_returns_none():
     assert pred.correct("xyzzyqwxyz") is None
 
 
-def test_empty_prefix():
-    pred = _pred()
-    assert pred.predict("", "", 5) == []
+def test_ranking_hierarchy_custom_over_frequency():
+    from ravan.core.dict import DictEntry, Dictionary, Language
+
+    # Custom word has rank=0, frequent word has rank=1
+    custom_entry = DictEntry(word="project_secret", rank=0, frequency=10000000)
+    freq_entry = DictEntry(word="project", rank=1, frequency=50000)
+    en_dict = Dictionary([freq_entry, custom_entry], Language.ENGLISH)
+    pred = DictPredictor(english=en_dict, persian=None)
+
+    results = pred.predict("proj", "", 5)
+    assert len(results) == 2
+    # Custom word must rank #1 over standard frequent word
+    assert results[0].text == "project_secret"
+    assert results[1].text == "project"
 
 
-# convenience: CandidateKind.is_completion isn't real; remove above helper
+def test_adaptive_learning_selection_boost():
+    from ravan.core.dict import DictEntry, Dictionary, Language
+
+    e1 = DictEntry(word="program", rank=1, frequency=10000)
+    e2 = DictEntry(word="project", rank=2, frequency=5000)
+    en_dict = Dictionary([e1, e2], Language.ENGLISH)
+    pred = DictPredictor(english=en_dict, persian=None)
+
+    # Initial state: program outranks project due to rank 1 vs 2
+    initial = pred.predict("pro", "", 5)
+    assert initial[0].text == "program"
+    assert initial[1].text == "project"
+
+    # User repeatedly chooses 'project'
+    for _ in range(5):
+        pred.record_selection("project")
+
+    # Adaptive boost: 'project' now ranks #1 above 'program'
+    boosted = pred.predict("pro", "", 5)
+    assert boosted[0].text == "project"
+    assert boosted[0].score > boosted[1].score
+

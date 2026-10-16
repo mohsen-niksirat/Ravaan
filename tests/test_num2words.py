@@ -43,6 +43,7 @@ def test_format_thousands():
 def test_to_toman_words():
     assert to_toman_words(1250000) == "یکصد و بیست و پنج هزار تومان"
     assert to_toman_words("5000000") == "پانصد هزار تومان"
+    assert to_toman_words(1250005) == "یکصد و بیست و پنج هزار تومان و ۵ ریال"
 
 
 def test_snippet_number_suffix_expansion():

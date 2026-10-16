@@ -63,6 +63,11 @@ SW_HIDE = 0
 
 LOCALE_SNAME = 0x0000005C
 
+SM_XVIRTUALSCREEN = 76
+SM_YVIRTUALSCREEN = 77
+SM_CXVIRTUALSCREEN = 78
+SM_CYVIRTUALSCREEN = 79
+
 ULONG_PTR = ctypes.c_size_t
 
 
@@ -219,3 +224,6 @@ user32.GetAsyncKeyState.restype = wintypes.SHORT
 kernel32.GetCurrentThreadId.restype = wintypes.DWORD
 kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
 kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+
+user32.GetSystemMetrics.argtypes = [ctypes.c_int]
+user32.GetSystemMetrics.restype = ctypes.c_int

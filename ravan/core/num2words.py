@@ -145,5 +145,6 @@ def to_toman_words(rial_num: Union[int, str]) -> str:
     remainder = val % 10
     words = num_to_persian_words(toman)
     if remainder > 0:
-        words += f" و {remainder} ریال"
+        remainder_fa = en_to_fa_digits(str(remainder))
+        return f"{words} تومان و {remainder_fa} ریال"
     return f"{words} تومان"

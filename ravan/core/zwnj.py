@@ -7,13 +7,27 @@ import re
 ZWNJ = "\u200c"
 
 _PREFIXES = {"می", "نمی", "بی"}
-_GENERAL_SUFFIXES = {"ها", "های", "هایی", "تر", "ترین"}
-_HEH_SUFFIXES = {"ام", "ات", "اش", "مان", "تان", "شان", "ای"}
+_GENERAL_SUFFIXES = {
+    "ها",
+    "های",
+    "هایی",
+    "هایم",
+    "هایت",
+    "هایش",
+    "هایمان",
+    "هایتان",
+    "هایشان",
+    "تر",
+    "ترین",
+}
+_HEH_SUFFIXES = {"ام", "ات", "اش", "مان", "تان", "شان", "ای", "ی"}
 
 # Regex patterns for batch text normalization
 _PREFIX_PATTERN = re.compile(r"\b(ن?می|بی)\s+([آ-ی])")
-_SUFFIX_PATTERN = re.compile(r"([آ-ی]+)\s+(ها|های|هایی|تر|ترین)\b")
-_HEH_SUFFIX_PATTERN = re.compile(r"([آ-ی]+[هة])\s+(ام|ات|اش|مان|تان|شان|ای)\b")
+_SUFFIX_PATTERN = re.compile(
+    r"([آ-ی]+)\s+(ها|های|هایی|هایم|هایت|هایش|هایمان|هایتان|هایشان|تر|ترین)\b"
+)
+_HEH_SUFFIX_PATTERN = re.compile(r"([آ-ی]+[هة])\s+(ام|ات|اش|مان|تان|شان|ای|ی)\b")
 
 
 def is_zwnj_prefix(word: str) -> bool:
