@@ -57,3 +57,22 @@ def test_app_convert_last_word_with_trailing_space():
         assert app.journal.text() == "خورد "
     finally:
         app.stop()
+
+
+def test_snippet_excluded_in_app():
+    cfg = Config()
+    cfg.excluded_apps = ["secret.exe", "keepass.exe"]
+    cfg.snippets.append(Snippet(trigger="@@", replacement="me@test.com"))
+    app = RavanApp(cfg, overlay=MockOverlay())
+    try:
+        # In active app: should expand
+        app._current_exe = "notepad.exe"
+        handled = app._on_word_completed("@@", delimiter=" ")
+        assert handled is True
+
+        # In excluded app: must NOT expand
+        app._current_exe = "keepass.exe"
+        handled_excluded = app._on_word_completed("@@", delimiter=" ")
+        assert handled_excluded is False
+    finally:
+        app.stop()

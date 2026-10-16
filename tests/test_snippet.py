@@ -171,28 +171,3 @@ def test_snippets_json_import_export():
     assert "\n" in imported[1].replacement
     assert imported[2].trigger == "fa"
     assert "متن فارسی" in imported[2].replacement
-
-
-def test_snippet_excluded_in_app():
-    from ravan.ui.app import RavanApp
-
-    class MockOverlay:
-        def hide(self):
-            pass
-        def is_open(self):
-            return False
-
-    cfg = Config()
-    cfg.excluded_apps = ["secret.exe", "keepass.exe"]
-    cfg.snippets.append(Snippet(trigger="@@", replacement="me@test.com"))
-    app = RavanApp(cfg, overlay=MockOverlay())
-
-    # In active app: should expand
-    app._current_exe = "notepad.exe"
-    handled = app._on_word_completed("@@", delimiter=" ")
-    assert handled is True
-
-    # In excluded app: must NOT expand
-    app._current_exe = "keepass.exe"
-    handled_excluded = app._on_word_completed("@@", delimiter=" ")
-    assert handled_excluded is False
