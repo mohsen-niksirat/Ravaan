@@ -81,7 +81,7 @@ def matches_hotkey(vk: int, spec: HotkeySpec) -> bool:
 
 
 
-def vk_to_unicode(vk: int, scan_code: int) -> str | None:
+def vk_to_unicode(vk: int, scan_code: int = 0) -> str | None:
     """Translate a VK to a Unicode character using the foreground keyboard layout."""
     if vk in (
         w.VK_SHIFT,

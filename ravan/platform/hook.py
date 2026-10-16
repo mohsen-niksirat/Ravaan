@@ -61,6 +61,12 @@ class KeyboardHook:
     def events(self) -> queue.Queue[HookEvent]:
         return self._queue
 
+    def poll(self) -> HookEvent | None:
+        try:
+            return self._queue.get_nowait()
+        except queue.Empty:
+            return None
+
     def start(self) -> None:
         if self._running:
             return

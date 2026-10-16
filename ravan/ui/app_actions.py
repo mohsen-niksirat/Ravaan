@@ -17,30 +17,6 @@ log = logging.getLogger(__name__)
 class AppActionsMixin:
     """Mixin containing user action implementations for RavanApp."""
 
-    def _undo_last_autocorrect(self: Any) -> bool:
-        if self._last_autocorrect is None:
-            return False
-        orig, corrected, t_done, delim = self._last_autocorrect
-        self._last_autocorrect = None
-        if time.monotonic() - t_done > 10.0:
-            return False
-
-        delete_len = len(corrected) + len(delim)
-        replace_text = orig + delim
-        self._suppress_until = time.monotonic() + 0.08
-        replace_last_n_with(delete_len, replace_text)
-
-        for _ in range(delete_len):
-            if self.journal._chars:
-                self.journal._chars.pop()
-        for ch in replace_text:
-            self.journal.push(ch)
-
-        log.info("Undid autocorrect: reverted %r back to %r", corrected, orig)
-        self._record_event(f"Undid autocorrect: reverted '{corrected}' -> '{orig}'")
-        self.tray.notify(f"Reverted to '{orig}'")
-        return True
-
     def _convert_selection_or_last_word(self: Any) -> None:
         """Convert selected text if any exists; otherwise convert the last typed word."""
         from ravan.platform.clipboard import try_convert_selection

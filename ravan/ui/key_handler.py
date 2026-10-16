@@ -19,10 +19,18 @@ class KeyHandlerMixin:
     """Mixin containing keystroke processing and trigger dispatch for RavanApp."""
 
     def _drain_hook_events(self: Any) -> None:
+        if self._is_foreground_self():
+            while True:
+                event = self.hook.poll()
+                if event is None:
+                    break
+            return
         while True:
             event = self.hook.poll()
             if event is None:
                 break
+            if not event.is_key_down:
+                continue
             if event.flags & LLKHF_INJECTED:
                 continue
             if time.monotonic() < self._suppress_until:
@@ -31,7 +39,7 @@ class KeyHandlerMixin:
 
     def _handle_key(self: Any, event: HookEvent) -> None:
         vk = event.vk_code
-        char = vk_to_unicode(vk) or ""
+        char = vk_to_unicode(vk, event.scan_code) or ""
         self._record_event("Key pressed", vk=vk, char=char)
 
         # ── Popup navigation (predicting or clipboard) ──
@@ -133,7 +141,7 @@ class KeyHandlerMixin:
                 return
 
         # Regular typing: get unicode char
-        ch = vk_to_unicode(vk)
+        ch = vk_to_unicode(vk, event.scan_code)
         if not ch:
             return
 

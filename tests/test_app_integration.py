@@ -76,3 +76,27 @@ def test_snippet_excluded_in_app():
         assert handled_excluded is False
     finally:
         app.stop()
+
+
+def test_app_drain_hook_events():
+    from ravan.platform.hook import HookEvent
+
+    cfg = Config()
+    app = RavanApp(cfg, overlay=MockOverlay())
+    try:
+        # Key down event: 'a' (vk=0x41)
+        event_down = HookEvent(vk_code=0x41, flags=0, scan_code=0, is_key_down=True)
+        app.hook.events.put(event_down)
+        app._drain_hook_events()
+        assert app.journal.text() in ("a", "ش")
+
+        # Key up event: should be ignored, journal unchanged
+        event_up = HookEvent(vk_code=0x41, flags=0, scan_code=0, is_key_down=False)
+        app.hook.events.put(event_up)
+        app._drain_hook_events()
+        assert app.journal.text() in ("a", "ش")
+
+        # Hook queue poll should return None when empty
+        assert app.hook.poll() is None
+    finally:
+        app.stop()
