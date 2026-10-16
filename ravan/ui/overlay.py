@@ -176,9 +176,35 @@ class OverlayWindow:
         self._on_accept = on_accept
         self._lang_label.pack_forget()
         self._render_candidates()
-        popup_h = 28 * len(candidates) + 28
-        py = y - popup_h - 4 if y > popup_h + 8 else y + height + 4
-        self._place(x, max(0, py))
+
+        self._root.update_idletasks()
+        popup_w = max(self._root.winfo_reqwidth(), 180)
+        popup_h = max(self._root.winfo_reqheight(), 28 * len(candidates) + 28)
+        eff_h = max(height, 22)
+
+        screen_h = 1080
+        try:
+            from ravan.platform import winapi as wapi
+
+            screen_h = int(wapi.user32.GetSystemMetrics(wapi.SM_CYSCREEN)) or 1080
+        except Exception:
+            screen_h = self._root.winfo_screenheight() or 1080
+
+        if y + eff_h + popup_h + 12 < screen_h:
+            py = y + eff_h + 8
+        else:
+            py = max(8, y - popup_h - 8)
+
+        from ravan.core.predictor import is_arabic_persian
+
+        is_rtl = any(
+            is_arabic_persian(c)
+            for cand in candidates
+            for c in cand.text[:2]
+        )
+        px = x - popup_w + 35 if is_rtl else x
+
+        self._place(px, py)
         self._root.deiconify()
         self._apply_noactivate()
 
@@ -299,10 +325,23 @@ class OverlayWindow:
         self._candidates = cands
         self._selected = 0
         self._lang_label.pack_forget()
-        self._render_candidates()
-        popup_h = 28 * len(cands) + 28
-        py = y - popup_h - 4 if y > popup_h + 8 else y + height + 4
-        self._place(x, max(0, py))
+        self._root.update_idletasks()
+        popup_h = max(self._root.winfo_reqheight(), 28 * len(cands) + 28)
+        eff_h = max(height, 22)
+        screen_h = 1080
+        try:
+            from ravan.platform import winapi as wapi
+
+            screen_h = int(wapi.user32.GetSystemMetrics(wapi.SM_CYSCREEN)) or 1080
+        except Exception:
+            screen_h = self._root.winfo_screenheight() or 1080
+
+        if y + eff_h + popup_h + 12 < screen_h:
+            py = y + eff_h + 8
+        else:
+            py = max(8, y - popup_h - 8)
+
+        self._place(x, py)
         self._root.deiconify()
         self._apply_noactivate()
 

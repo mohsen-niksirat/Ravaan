@@ -31,6 +31,10 @@ def test_overlay_row_text_formatting():
     row_auto = OverlayWindow._row_text(None, 2, c_auto, selected=False)
     assert row_auto == "   3  خورد  ≈"
 
+    c_next = Candidate(text="عزیز", score=0.9, kind=CandidateKind.NEXT_WORD)
+    row_next = OverlayWindow._row_text(None, 0, c_next, selected=True)
+    assert row_next == "▶ 1  عزیز  [بعدی]"
+
 
 def test_snippet_editor_isolation():
     initial_snippets = [Snippet(trigger="@@", replacement="test@test.com")]
@@ -63,15 +67,28 @@ def test_snippet_editor_save_dispatches_callback():
     assert saved_snippets[1].trigger == "bye"
 
 
-def test_settings_window_state():
+def test_settings_window_build_and_state():
+    import tkinter as tk
+
     cfg = Config()
     saved = []
-    sw = SettingsWindow(cfg, on_saved=lambda c: saved.append(c))
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        sw = SettingsWindow(cfg, on_saved=lambda c: saved.append(c))
+        assert sw.open is False
+        sw.show()
+        assert sw.open is True
+        assert len(sw._managed_snippets) == len(cfg.snippets)
 
-    assert sw.open is False
-    sw.show()
-    assert sw.open is True
-    assert len(sw._managed_snippets) == len(cfg.snippets)
+        # Verify build does not fail or raise
+        sw._build()
+        assert sw._root is not None
+        sw._close()
+        assert sw._root is None
+        assert sw.open is False
+    finally:
+        root.destroy()
 
 
 def test_diagnostics_window_state():

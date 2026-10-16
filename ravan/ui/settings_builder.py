@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Any
 
-from ravan.platform.keys import hotkey_to_text
+from ravan.core.config import hotkey_to_text
 
 
 def build_hotkeys_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, Any]) -> int:

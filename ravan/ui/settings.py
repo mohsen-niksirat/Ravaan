@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from collections.abc import Callable
 from tkinter import messagebox, ttk
@@ -13,6 +14,8 @@ from ravan.core.config import (
     text_to_hotkey,
 )
 from ravan.platform.startup import is_startup_enabled, set_startup
+
+log = logging.getLogger(__name__)
 
 
 class SettingsWindow:
@@ -32,7 +35,7 @@ class SettingsWindow:
         self.on_saved = on_saved
         self._open = False
         self._built = False
-        self._root: tk.Tk | None = None
+        self._root: tk.Toplevel | None = None
         self._snippet_editor = None
         self._managed_snippets = list(self.cfg.snippets)
         self._last_snip_text = ""
@@ -49,8 +52,19 @@ class SettingsWindow:
         if not self._open:
             return
         if not self._built:
-            self._build()
             self._built = True
+            try:
+                self._build()
+            except Exception as exc:  # noqa: BLE001
+                self._open = False
+                if self._root is not None:
+                    try:
+                        self._root.destroy()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    self._root = None
+                log.exception("SettingsWindow build failed: %s", exc)
+                return
         if self._snippet_editor is not None and self._snippet_editor.open:
             self._snippet_editor.tick()
         if self._root is None:
@@ -65,16 +79,28 @@ class SettingsWindow:
 
     def _build(self) -> None:
         self._root = tk.Toplevel()
+        self._root.withdraw()
         self._root.title("Ravan — Settings")
         self._root.attributes("-topmost", True)
         self._root.resizable(False, False)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
 
         pad = {"padx": 10, "pady": 4}
-        frm = ttk.Frame(self._root, padding=12)
+        frm = ttk.Frame(self._root, padding=10)
         frm.pack(fill="both", expand=True)
 
-        row = 0
+        nb = ttk.Notebook(frm)
+        nb.pack(fill="both", expand=True, pady=(0, 10))
+
+        tab_hotkeys = ttk.Frame(nb, padding=10)
+        tab_features = ttk.Frame(nb, padding=10)
+        tab_tuning = ttk.Frame(nb, padding=10)
+        tab_words = ttk.Frame(nb, padding=10)
+
+        nb.add(tab_hotkeys, text="Hotkeys")
+        nb.add(tab_features, text="Features")
+        nb.add(tab_tuning, text="Tuning & Exclusions")
+        nb.add(tab_words, text="Words & Snippets")
 
         from ravan.ui.settings_builder import (
             build_exclusions_section,
@@ -84,27 +110,33 @@ class SettingsWindow:
             build_tuning_section,
         )
 
-        row = build_hotkeys_section(self, frm, row, pad)
-
-        row = build_features_section(self, frm, row, pad)
-        row = build_tuning_section(self, frm, row, pad)
-        row = build_exclusions_section(self, frm, row, pad)
-        row = build_snippets_and_dict_section(self, frm, row, pad)
+        build_hotkeys_section(self, tab_hotkeys, 0, pad)
+        build_features_section(self, tab_features, 0, pad)
+        r = build_tuning_section(self, tab_tuning, 0, pad)
+        build_exclusions_section(self, tab_tuning, r, pad)
+        build_snippets_and_dict_section(self, tab_words, 0, pad)
 
         # ── Buttons ──
         btns = ttk.Frame(frm)
-        btns.grid(row=row, column=0, columnspan=3, sticky="e", pady=(8, 0))
-        ttk.Button(btns, text="Cancel", command=self._close).pack(side="left", padx=4)
-        ttk.Button(btns, text="Save", command=self._save).pack(side="left", padx=4)
+        btns.pack(fill="x", pady=(4, 0))
+        ttk.Button(btns, text="Cancel", command=self._close).pack(side="right", padx=4)
+        ttk.Button(btns, text="Save", command=self._save).pack(side="right", padx=4)
 
         self._root.update_idletasks()
         self._center()
+        self._root.deiconify()
+        self._root.focus_set()
 
     def _center(self) -> None:
-        w = self._root.winfo_width()
-        h = self._root.winfo_height()
-        x = (self._root.winfo_screenwidth() - w) // 2
-        y = (self._root.winfo_screenheight() - h) // 3
+        if self._root is None:
+            return
+        self._root.update_idletasks()
+        w = self._root.winfo_reqwidth()
+        h = self._root.winfo_reqheight()
+        sw = self._root.winfo_screenwidth()
+        sh = self._root.winfo_screenheight()
+        x = max(20, (sw - w) // 2)
+        y = max(20, (sh - h) // 3)
         self._root.geometry(f"+{x}+{y}")
 
     # ── Actions ──────────────────────────────────────────────────────
