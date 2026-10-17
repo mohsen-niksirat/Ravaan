@@ -40,6 +40,15 @@ def test_app_journal_and_word_completion():
         handled = app._on_word_completed(word, delimiter=" ")
         assert handled is True
         assert app.journal.text() == "me@test.com "
+
+        # Test Persian comma '،' delimiter triggers completion
+        app.journal.clear()
+        for ch in "@@":
+            app.journal.push(ch)
+        word = app.journal.last_word(allow_trailing_spaces=False)
+        handled = app._on_word_completed(word, delimiter="،")
+        assert handled is True
+        assert app.journal.text() == "me@test.com،"
     finally:
         app.stop()
 

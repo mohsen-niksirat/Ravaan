@@ -196,7 +196,7 @@ class KeyHandlerMixin:
             if time.monotonic() - self._last_autocorrect[2] > 4.0 or ch.isalnum():
                 self._last_autocorrect = None
 
-        if ch.isspace() or ch in ".,;:!?\n\r\t":
+        if ch.isspace() or ch in ".,;:!?\n\r\t،؛؟":
             word = self.journal.last_word(allow_trailing_spaces=False)
 
             # Auto ZWNJ for Persian prefix (e.g. می + space -> می‌)

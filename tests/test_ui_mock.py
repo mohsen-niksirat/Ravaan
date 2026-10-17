@@ -109,3 +109,16 @@ def test_diagnostics_window_state():
     diag.show()
     assert diag.open is True
     assert diag.snapshot_fn()["version"] == "0.4.0"
+
+
+def test_overlay_show_clipboard_renders_rows():
+    ov = OverlayWindow()
+    try:
+        ov.show_clipboard(["first item", "second item"], 100, 100)
+        assert ov.clipboard_open is True
+        assert len(ov._candidates) == 2
+        assert len(ov._rows) >= 2
+        assert ov._rows[0].cget("text") == "▶ 1  first item"
+        assert ov._rows[1].cget("text") == "   2  second item"
+    finally:
+        ov.destroy()

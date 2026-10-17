@@ -325,6 +325,7 @@ class OverlayWindow:
         self._candidates = cands
         self._selected = 0
         self._lang_label.pack_forget()
+        self._render_candidates()
         self._root.update_idletasks()
         popup_h = max(self._root.winfo_reqheight(), 28 * len(cands) + 28)
         eff_h = max(height, 22)

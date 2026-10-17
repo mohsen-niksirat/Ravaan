@@ -14,6 +14,8 @@ VALUE_NAME = "Ravan"
 
 def _command() -> str:
     exe = sys.executable
+    if getattr(sys, "frozen", False):
+        return f'"{exe}"'
     # pythonw.exe avoids a console window at startup
     if exe.lower().endswith("python.exe"):
         pyw = exe[:-10] + "pythonw.exe"

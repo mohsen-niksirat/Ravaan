@@ -133,6 +133,21 @@ def test_startup_command_contains_ravan():
     assert "-m ravan" in cmd
 
 
+def test_startup_command_frozen_executable():
+    import sys
+    with patch.object(sys, "frozen", True, create=True), \
+         patch.object(sys, "executable", r"C:\Program Files\Ravan\Ravaan.exe"):
+        cmd = startup._command()
+        assert cmd == r'"C:\Program Files\Ravan\Ravaan.exe"'
+        assert "-m ravan" not in cmd
+
+
+def test_winapi_screen_metrics_constants():
+    assert w.SM_CXSCREEN == 0
+    assert w.SM_CYSCREEN == 1
+    assert w.SM_XVIRTUALSCREEN == 76
+
+
 def test_startup_is_enabled_false_on_missing_key():
     import winreg
     with patch.object(winreg, "OpenKey", side_effect=FileNotFoundError):
