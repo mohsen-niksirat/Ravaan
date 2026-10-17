@@ -16,7 +16,8 @@ log = logging.getLogger(__name__)
 class StatsPopupWindow:
     """Non-activating, auto-dismissing floating popup for selected text metrics."""
 
-    def __init__(self) -> None:
+    def __init__(self, parent: tk.Tk | tk.Toplevel | None = None) -> None:
+        self._parent = parent
         self._root: tk.Toplevel | None = None
         self._dismiss_job: str | None = None
 
@@ -35,7 +36,8 @@ class StatsPopupWindow:
         accent = "#8ab4f8" if is_dark else "#1a73e8"
         border = "#3c4043" if is_dark else "#dadce0"
 
-        win = tk.Tk()
+        parent = self._parent or tk._default_root
+        win = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
         self._root = win
         win.withdraw()
         win.title("Text Stats — Ravaan")

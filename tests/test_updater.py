@@ -83,3 +83,35 @@ def test_lazy_loading_dict_predictor():
 
     # Accessing again returns cached instance
     assert pred.english is en
+
+
+def test_check_for_updates_404_no_releases():
+    import urllib.error
+
+    http_404 = urllib.error.HTTPError(
+        url="https://api.github.com/repos/mohsen-niksirat/Ravaan/releases/latest",
+        code=404,
+        msg="Not Found",
+        hdrs=None,  # type: ignore[arg-type]
+        fp=None,
+    )
+    with patch("urllib.request.urlopen", side_effect=http_404):
+        res = check_for_updates(current_ver="0.5.0")
+        assert res["has_update"] is False
+        assert res["error"] is None
+        assert "No published releases" in res["release_notes"]
+
+
+def test_check_for_updates_empty_tag():
+    fake_body = json.dumps({"tag_name": ""}).encode("utf-8")
+    mock_resp = MagicMock()
+    mock_resp.status = 200
+    mock_resp.read.return_value = fake_body
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        res = check_for_updates(current_ver="0.5.0")
+        assert res["has_update"] is False
+        assert res["error"] is None
+        assert "No published releases" in res["release_notes"]
+

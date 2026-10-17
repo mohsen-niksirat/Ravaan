@@ -149,7 +149,7 @@ def active_window_info() -> dict[str, Any]:
     pid = wintypes.DWORD(0)
     w.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
     exe = foreground_exe()
-    title = window_title()
+    title = window_title(hwnd)
     cls_name = window_class_name(hwnd)
     return {
         "hwnd": hwnd,

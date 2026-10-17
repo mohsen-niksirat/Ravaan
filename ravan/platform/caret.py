@@ -36,9 +36,10 @@ def get_last_caret_source() -> str:
 
 def reset_caret_cache() -> None:
     """Reset cached caret position and UIA cooldown."""
-    global _cached_caret, _last_caret_source
+    global _cached_caret, _last_caret_source, _cached_uia_automation
     _cached_caret = None
     _last_caret_source = "none"
+    _cached_uia_automation = None
     _uia_failed_until.clear()
 
 
@@ -175,6 +176,7 @@ def _try_uia_caret() -> CaretRect | None:
             current = parent
         return None
     except Exception:  # noqa: BLE001 — UIA is best-effort
+        _cached_uia_automation = None
         return None
 
 
@@ -222,26 +224,27 @@ def _try_gui_thread_info() -> CaretRect | None:
     if thread_id != own_tid:
         attached = bool(w.user32.AttachThreadInput(own_tid, thread_id, True))
 
-    info = w.GUITHREADINFO()
-    info.cbSize = ctypes.sizeof(w.GUITHREADINFO)
-    result = None
-    if w.user32.GetGUIThreadInfo(thread_id, ctypes.byref(info)):
-        caret = info.rcCaret
-        hwnd_caret = info.hwndCaret
-        if hwnd_caret:
-            pt = w.POINT(caret.left, caret.top)
-            w.user32.ClientToScreen(hwnd_caret, ctypes.byref(pt))
-            width = caret.right - caret.left
-            height = caret.bottom - caret.top
-            if height <= 0:
-                height = 16
-            if width <= 0:
-                width = 2
-            result = CaretRect(x=pt.x, y=pt.y, width=width, height=height)
-
-    if attached:
-        w.user32.AttachThreadInput(own_tid, thread_id, False)
-    return result
+    try:
+        info = w.GUITHREADINFO()
+        info.cbSize = ctypes.sizeof(w.GUITHREADINFO)
+        result = None
+        if w.user32.GetGUIThreadInfo(thread_id, ctypes.byref(info)):
+            caret = info.rcCaret
+            hwnd_caret = info.hwndCaret
+            if hwnd_caret:
+                pt = w.POINT(caret.left, caret.top)
+                w.user32.ClientToScreen(hwnd_caret, ctypes.byref(pt))
+                width = caret.right - caret.left
+                height = caret.bottom - caret.top
+                if height <= 0:
+                    height = 16
+                if width <= 0:
+                    width = 2
+                result = CaretRect(x=pt.x, y=pt.y, width=width, height=height)
+        return result
+    finally:
+        if attached:
+            w.user32.AttachThreadInput(own_tid, thread_id, False)
 
 
 def _cursor_position() -> CaretRect:

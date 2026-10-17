@@ -224,6 +224,6 @@ class AppActionsMixin:
         stats = calculate_text_stats(target_text)
         caret = get_caret_rect()
         if not hasattr(self, "_stats_popup") or self._stats_popup is None:
-            self._stats_popup = StatsPopupWindow()
+            self._stats_popup = StatsPopupWindow(parent=getattr(self.overlay, "_root", None))
         self._stats_popup.show(stats, x=caret.x, y=caret.y + caret.height + 6)
 

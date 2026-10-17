@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 
@@ -42,6 +43,7 @@ class DictPredictor(Predictor):
         lazy_fa_loader: Callable[[], Dictionary | None] | None = None,
         lazy_learning_loader: Callable[[], UserLearningEngine] | None = None,
     ) -> None:
+        self._lock = threading.Lock()
         self._english = english
         self._persian = persian
         self._learning = learning_engine
@@ -58,41 +60,50 @@ class DictPredictor(Predictor):
     @property
     def english(self) -> Dictionary | None:
         if self._english is None and self._lazy_en_loader is not None:
-            self._english = self._lazy_en_loader()
-            self._lazy_en_loader = None
+            with self._lock:
+                if self._english is None and self._lazy_en_loader is not None:
+                    self._english = self._lazy_en_loader()
+                    self._lazy_en_loader = None
         return self._english
 
     @english.setter
     def english(self, value: Dictionary | None) -> None:
-        self._english = value
-        self._lazy_en_loader = None
+        with self._lock:
+            self._english = value
+            self._lazy_en_loader = None
 
     @property
     def persian(self) -> Dictionary | None:
         if self._persian is None and self._lazy_fa_loader is not None:
-            self._persian = self._lazy_fa_loader()
-            self._lazy_fa_loader = None
+            with self._lock:
+                if self._persian is None and self._lazy_fa_loader is not None:
+                    self._persian = self._lazy_fa_loader()
+                    self._lazy_fa_loader = None
         return self._persian
 
     @persian.setter
     def persian(self, value: Dictionary | None) -> None:
-        self._persian = value
-        self._lazy_fa_loader = None
+        with self._lock:
+            self._persian = value
+            self._lazy_fa_loader = None
 
     @property
     def learning(self) -> UserLearningEngine:
         if self._learning is None:
-            if self._lazy_learning_loader is not None:
-                self._learning = self._lazy_learning_loader()
-                self._lazy_learning_loader = None
-            else:
-                self._learning = UserLearningEngine(auto_load=False)
+            with self._lock:
+                if self._learning is None:
+                    if self._lazy_learning_loader is not None:
+                        self._learning = self._lazy_learning_loader()
+                        self._lazy_learning_loader = None
+                    else:
+                        self._learning = UserLearningEngine(auto_load=False)
         return self._learning
 
     @learning.setter
     def learning(self, value: UserLearningEngine) -> None:
-        self._learning = value
-        self._lazy_learning_loader = None
+        with self._lock:
+            self._learning = value
+            self._lazy_learning_loader = None
 
     def suppress_session_word(self, word: str) -> None:
         """Suppress autocorrection for this word for the rest of the running session."""

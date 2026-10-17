@@ -62,6 +62,26 @@ def check_for_updates(
                     "error": f"HTTP {response.status}",
                 }
             data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as err:
+        if err.code == 404:
+            log.info("No releases found on GitHub for %s", REPO_NAME)
+            return {
+                "has_update": False,
+                "current_version": current_ver,
+                "latest_version": current_ver,
+                "release_url": f"https://github.com/{REPO_NAME}/releases",
+                "release_notes": "No published releases found yet.",
+                "error": None,
+            }
+        log.warning("Could not reach update server: %s", err)
+        return {
+            "has_update": False,
+            "current_version": current_ver,
+            "latest_version": current_ver,
+            "release_url": f"https://github.com/{REPO_NAME}/releases",
+            "release_notes": "",
+            "error": f"HTTP {err.code}: {err.reason}",
+        }
     except urllib.error.URLError as err:
         log.warning("Could not reach update server: %s", err)
         return {
@@ -84,6 +104,16 @@ def check_for_updates(
         }
 
     tag = str(data.get("tag_name", "")).strip()
+    if not tag:
+        return {
+            "has_update": False,
+            "current_version": current_ver,
+            "latest_version": current_ver,
+            "release_url": f"https://github.com/{REPO_NAME}/releases",
+            "release_notes": "No published releases found yet.",
+            "error": None,
+        }
+
     html_url = str(data.get("html_url", f"https://github.com/{REPO_NAME}/releases"))
     body = str(data.get("body", "")).strip()
 

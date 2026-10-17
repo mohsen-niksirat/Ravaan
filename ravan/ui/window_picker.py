@@ -41,6 +41,7 @@ class WindowPickerWindow:
         win.geometry("560x420")
         win.minsize(450, 320)
         win.transient(self._parent)
+        win.protocol("WM_DELETE_WINDOW", self._close)
 
         pad = {"padx": 10, "pady": 6}
 

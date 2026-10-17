@@ -6,10 +6,11 @@ import sys
 block_cipher = None
 
 repo_dir = Path(SPECPATH).resolve()
+data_dir = repo_dir / "ravan" / "data"
 data_files = [
-    (str(repo_dir / "ravan" / "data" / "words_en.txt"), "ravan/data"),
-    (str(repo_dir / "ravan" / "data" / "words_fa.txt"), "ravan/data"),
-    (str(repo_dir / "ravan" / "data" / "icon.ico"), "ravan/data"),
+    (str(p), str(Path("ravan/data") / p.relative_to(data_dir).parent))
+    for p in data_dir.rglob("*")
+    if p.is_file()
 ]
 
 hidden_imports = [
