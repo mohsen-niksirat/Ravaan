@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 
 from .config import Config
 from .dict import DictEntry, Dictionary
@@ -32,25 +33,66 @@ class Predictor(ABC):
 class DictPredictor(Predictor):
     def __init__(
         self,
-        english: Dictionary | None,
-        persian: Dictionary | None,
+        english: Dictionary | None = None,
+        persian: Dictionary | None = None,
         learning_engine: UserLearningEngine | None = None,
         ignored_words: set[str] | list[str] | None = None,
         autocorrect_mode: str = "safe",
+        lazy_en_loader: Callable[[], Dictionary | None] | None = None,
+        lazy_fa_loader: Callable[[], Dictionary | None] | None = None,
+        lazy_learning_loader: Callable[[], UserLearningEngine] | None = None,
     ) -> None:
-        self.english = english
-        self.persian = persian
-        self.learning = (
-            learning_engine
-            if learning_engine is not None
-            else UserLearningEngine(auto_load=False)
-        )
+        self._english = english
+        self._persian = persian
+        self._learning = learning_engine
+        self._lazy_en_loader = lazy_en_loader
+        self._lazy_fa_loader = lazy_fa_loader
+        self._lazy_learning_loader = lazy_learning_loader
         self.ignored_words = {
             w.strip().lower() for w in (ignored_words or []) if w and w.strip()
         }
         self.session_suppressed: set[str] = set()
         self.autocorrect_mode = autocorrect_mode.strip().lower()
         self._selection_counts: dict[str, int] = {}
+
+    @property
+    def english(self) -> Dictionary | None:
+        if self._english is None and self._lazy_en_loader is not None:
+            self._english = self._lazy_en_loader()
+            self._lazy_en_loader = None
+        return self._english
+
+    @english.setter
+    def english(self, value: Dictionary | None) -> None:
+        self._english = value
+        self._lazy_en_loader = None
+
+    @property
+    def persian(self) -> Dictionary | None:
+        if self._persian is None and self._lazy_fa_loader is not None:
+            self._persian = self._lazy_fa_loader()
+            self._lazy_fa_loader = None
+        return self._persian
+
+    @persian.setter
+    def persian(self, value: Dictionary | None) -> None:
+        self._persian = value
+        self._lazy_fa_loader = None
+
+    @property
+    def learning(self) -> UserLearningEngine:
+        if self._learning is None:
+            if self._lazy_learning_loader is not None:
+                self._learning = self._lazy_learning_loader()
+                self._lazy_learning_loader = None
+            else:
+                self._learning = UserLearningEngine(auto_load=False)
+        return self._learning
+
+    @learning.setter
+    def learning(self, value: UserLearningEngine) -> None:
+        self._learning = value
+        self._lazy_learning_loader = None
 
     def suppress_session_word(self, word: str) -> None:
         """Suppress autocorrection for this word for the rest of the running session."""
@@ -75,25 +117,38 @@ class DictPredictor(Predictor):
     def from_config(cls, cfg: Config) -> DictPredictor:
         from .user_dict import load_user_words
 
-        en_dict = Dictionary.english() if cfg.english_dict_enabled else None
-        fa_dict = Dictionary.persian() if cfg.persian_dict_enabled else None
+        def _load_en() -> Dictionary | None:
+            if not cfg.english_dict_enabled:
+                return None
+            d = Dictionary.english()
+            for w in load_user_words():
+                if not any(is_arabic_persian(c) for c in w):
+                    d.add_word(w, priority=True)
+            return d
 
-        for w in load_user_words():
-            if any(is_arabic_persian(c) for c in w):
-                if fa_dict is not None:
-                    fa_dict.add_word(w, priority=True)
-            else:
-                if en_dict is not None:
-                    en_dict.add_word(w, priority=True)
+        def _load_fa() -> Dictionary | None:
+            if not cfg.persian_dict_enabled:
+                return None
+            d = Dictionary.persian()
+            for w in load_user_words():
+                if any(is_arabic_persian(c) for c in w):
+                    d.add_word(w, priority=True)
+            return d
 
-        learning = UserLearningEngine(auto_load=True)
+        def _load_learning() -> UserLearningEngine:
+            return UserLearningEngine(auto_load=True)
+
         return cls(
-            english=en_dict,
-            persian=fa_dict,
-            learning_engine=learning,
+            english=None,
+            persian=None,
+            learning_engine=None,
             ignored_words=cfg.ignored_words,
             autocorrect_mode=cfg.autocorrect_mode if cfg.autocorrect_enabled else "off",
+            lazy_en_loader=_load_en,
+            lazy_fa_loader=_load_fa,
+            lazy_learning_loader=_load_learning,
         )
+
 
     def _dict_for(self, word: str, lang: str | None = None) -> Dictionary | None:
         if lang == "fa":

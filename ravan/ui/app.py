@@ -78,6 +78,7 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         self._own_pid = os.getpid()
 
     def start(self) -> None:
+        t0 = time.perf_counter()
         setup_logging()
         from ravan.ui.log_setup import install_crash_handler
 
@@ -99,7 +100,10 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
             self._active_layout_tag = lang.tag
         if not self.cfg.has_seen_onboarding:
             self._show_onboarding()
+        startup_ms = (time.perf_counter() - t0) * 1000
+        log.info("RavanApp startup completed in %.1f ms", startup_ms)
         try:
+
             while self._running:
                 try:
                     self._drain_ui_actions()

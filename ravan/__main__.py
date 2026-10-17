@@ -16,6 +16,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print version and exit",
     )
+    parser.add_argument(
+        "--check-updates",
+        action="store_true",
+        help="Check for newer versions on GitHub and exit",
+    )
     args = parser.parse_args(argv)
 
     if args.version:
@@ -23,6 +28,21 @@ def main(argv: list[str] | None = None) -> int:
 
         print(__version__)
         return 0
+
+    if args.check_updates:
+        from ravan.core.updater import check_for_updates
+
+        res = check_for_updates()
+        if res.get("error"):
+            print(f"Error checking updates: {res['error']}", file=sys.stderr)
+            return 1
+        if res["has_update"]:
+            print(f"Update available: v{res['latest_version']} (current: v{res['current_version']})")
+            print(f"Download: {res['release_url']}")
+        else:
+            print(f"Ravaan is up to date (version {res['current_version']}).")
+        return 0
+
 
     if sys.platform != "win32":
         print("Ravan currently supports Windows only.", file=sys.stderr)

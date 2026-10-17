@@ -76,6 +76,7 @@ class TrayIcon:
             Item("Settings…", self._settings),
             Item("Diagnostics…", self._diagnostics),
             Item("Open logs folder", lambda: open_logs_folder()),
+            Item("Check for updates…", self._check_updates),
             Item(
                 "Word prediction",
                 self._toggle_prediction,
@@ -84,6 +85,7 @@ class TrayIcon:
             pystray.Menu.SEPARATOR,
             Item("Quit", self._quit),
         )
+
         self._icon = pystray.Icon("Ravan", _make_icon_image(), "Ravan", menu)
         self._thread = threading.Thread(
             target=self._icon.run, name="ravan-tray", daemon=True
@@ -130,3 +132,34 @@ class TrayIcon:
                 self._is_prediction_enabled() if self._is_prediction_enabled else True
             )
             self._on_toggle_prediction(not current)
+
+    def _check_updates(self, _icon=None, _item=None) -> None:
+        def _bg():
+            import webbrowser
+
+            from ravan.core.updater import check_for_updates
+
+            res = check_for_updates()
+            if self._icon is not None:
+                if res.get("error"):
+                    self._icon.notify(
+                        f"Could not check for updates: {res['error']}",
+                        "Ravaan Update Check",
+                    )
+                elif res["has_update"]:
+                    self._icon.notify(
+                        f"A new version is available: v{res['latest_version']}!\nOpening release page...",
+                        "Ravaan Update Available",
+                    )
+                    try:
+                        webbrowser.open(res["release_url"])
+                    except Exception:
+                        pass
+                else:
+                    self._icon.notify(
+                        f"Ravaan is up to date (version {res['current_version']}).",
+                        "Ravaan Update Check",
+                    )
+
+        threading.Thread(target=_bg, name="ravan-update-check", daemon=True).start()
+
