@@ -15,7 +15,14 @@ class OverlayWindow:
     """Always-on-top overlay that never steals focus (best-effort)."""
 
     def __init__(self, theme: Theme | None = None) -> None:
-        self.theme = theme or Theme()
+        if theme is None:
+            try:
+                from ravan.platform.winapi import is_windows_dark_mode
+
+                theme = Theme.dark() if is_windows_dark_mode() else Theme.light()
+            except Exception:
+                theme = Theme()
+        self.theme = theme
         self._root = tk.Tk()
         self._root.withdraw()
         self._root.title("Ravan")
@@ -24,6 +31,12 @@ class OverlayWindow:
         try:
             self._root.attributes("-alpha", 0.94)
         except tk.TclError:
+            pass
+        try:
+            from ravan.platform.winapi import get_system_dpi
+
+            self._root.tk.call("tk", "scaling", get_system_dpi() / 72.0)
+        except Exception:
             pass
 
         self._apply_theme()
@@ -43,7 +56,10 @@ class OverlayWindow:
     def _apply_theme(self) -> None:
         bg = self._rgb(self.theme.background_color)
         fg = self._rgb(self.theme.text_color)
-        self._frame = tk.Frame(self._root, bg=bg, bd=0, highlightthickness=0)
+        border = "#3c4043" if sum(self.theme.background_color[:3]) < 380 else "#dadce0"
+        self._frame = tk.Frame(
+            self._root, bg=bg, bd=1, highlightthickness=1, highlightbackground=border
+        )
         self._frame.pack(fill="both", expand=True)
 
         self._hint = tk.Label(
@@ -82,23 +98,20 @@ class OverlayWindow:
 
     def _apply_noactivate(self) -> None:
         try:
+            import ctypes
+
             from ravan.platform import winapi as wapi
 
             root_hwnd = self._get_root_hwnd()
             if not root_hwnd:
                 return
-            GWL_EXSTYLE = -20
-            WS_EX_NOACTIVATE = 0x08000000
-            WS_EX_TOOLWINDOW = 0x00000080
-            WS_EX_TOPMOST = 0x00000008
-            style = wapi.user32.GetWindowLongW(root_hwnd, GWL_EXSTYLE)
-            wapi.user32.SetWindowLongW(
-                root_hwnd,
-                GWL_EXSTYLE,
-                style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
-            )
-            # Show without activating foreground
+            style = wapi.user32.GetWindowLongW(root_hwnd, -20)
+            wapi.user32.SetWindowLongW(root_hwnd, -20, style | 0x08000088)
             wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
+            wcp = ctypes.c_int(2)  # Native DWM rounded corners
+            ctypes.WinDLL("dwmapi", use_last_error=True).DwmSetWindowAttribute(
+                wapi.wintypes.HWND(root_hwnd), 33, ctypes.byref(wcp), ctypes.sizeof(wcp)
+            )
         except Exception:  # noqa: BLE001
             pass
 
@@ -223,34 +236,16 @@ class OverlayWindow:
         fg = self._rgb(self.theme.text_color)
         hi = self._rgb(self.theme.highlight_color)
 
+        f_sz = int(self.theme.font_size)
         while len(self._rows) < len(self._candidates):
-            row = tk.Label(
-                self._frame,
-                text="",
-                bg=bg,
-                fg=fg,
-                font=("Segoe UI", int(self.theme.font_size)),
-                anchor="w",
-                justify="left",
-                padx=10,
-                pady=4,
-            )
+            row = tk.Label(self._frame, text="", bg=bg, fg=fg, font=("Segoe UI", f_sz), anchor="w", padx=10, pady=4)
             self._rows.append(row)
 
         for i, c in enumerate(self._candidates):
             selected = i == self._selected
-            text = self._row_text(i, c, selected)
-            row = self._rows[i]
-            row.config(
-                text=text,
-                bg=hi if selected else bg,
-                fg=fg,
-                font=(
-                    "Segoe UI Semibold" if selected else "Segoe UI",
-                    int(self.theme.font_size),
-                ),
-            )
-            row.pack(fill="x")
+            fnt = ("Segoe UI Semibold" if selected else "Segoe UI", f_sz)
+            self._rows[i].config(text=self._row_text(i, c, selected), bg=hi if selected else bg, fg=fg, font=fnt)
+            self._rows[i].pack(fill="x")
 
         for j in range(len(self._candidates), len(self._rows)):
             self._rows[j].pack_forget()
@@ -354,7 +349,7 @@ class OverlayWindow:
         return item
 
     def accept_clipboard_index(self, index: int) -> str | None:
-        if not self.clipboard_open or index < 0 or index >= len(self._clip_items):
+        if not self.clipboard_open or not (0 <= index < len(self._clip_items)):
             return None
         self._selected = index
         return self.accept_clipboard_selected()
@@ -367,17 +362,14 @@ class OverlayWindow:
         if len(self._rows) == len(self._candidates):
             bg = self._rgb(self.theme.background_color)
             hi = self._rgb(self.theme.highlight_color)
+            f_sz = int(self.theme.font_size)
             if 0 <= old_idx < len(self._rows):
                 self._rows[old_idx].config(
-                    bg=bg,
-                    text=self._row_text(old_idx, self._candidates[old_idx], False),
-                    font=("Segoe UI", int(self.theme.font_size)),
+                    bg=bg, text=self._row_text(old_idx, self._candidates[old_idx], False), font=("Segoe UI", f_sz)
                 )
             if 0 <= self._selected < len(self._rows):
                 self._rows[self._selected].config(
-                    bg=hi,
-                    text=self._row_text(self._selected, self._candidates[self._selected], True),
-                    font=("Segoe UI Semibold", int(self.theme.font_size)),
+                    bg=hi, text=self._row_text(self._selected, self._candidates[self._selected], True), font=("Segoe UI Semibold", f_sz)
                 )
         else:
             self._render_candidates()
@@ -390,7 +382,7 @@ class OverlayWindow:
         return cand
 
     def accept_index(self, index: int) -> Candidate | None:
-        if not self.predicting or index < 0 or index >= len(self._candidates):
+        if not self.predicting or not (0 <= index < len(self._candidates)):
             return None
         self._selected = index
         return self.accept_selected()

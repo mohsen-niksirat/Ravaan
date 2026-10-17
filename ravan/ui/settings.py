@@ -92,29 +92,35 @@ class SettingsWindow:
         nb = ttk.Notebook(frm)
         nb.pack(fill="both", expand=True, pady=(0, 10))
 
+        tab_general = ttk.Frame(nb, padding=10)
+        tab_prediction = ttk.Frame(nb, padding=10)
         tab_hotkeys = ttk.Frame(nb, padding=10)
-        tab_features = ttk.Frame(nb, padding=10)
-        tab_tuning = ttk.Frame(nb, padding=10)
-        tab_words = ttk.Frame(nb, padding=10)
+        tab_exclusions = ttk.Frame(nb, padding=10)
+        tab_snippets = ttk.Frame(nb, padding=10)
+        tab_about = ttk.Frame(nb, padding=10)
 
+        nb.add(tab_general, text="General")
+        nb.add(tab_prediction, text="Prediction")
         nb.add(tab_hotkeys, text="Hotkeys")
-        nb.add(tab_features, text="Features")
-        nb.add(tab_tuning, text="Tuning & Exclusions")
-        nb.add(tab_words, text="Words & Snippets")
+        nb.add(tab_exclusions, text="Exclusions")
+        nb.add(tab_snippets, text="Snippets")
+        nb.add(tab_about, text="About")
 
         from ravan.ui.settings_builder import (
+            build_about_section,
             build_exclusions_section,
-            build_features_section,
+            build_general_section,
             build_hotkeys_section,
-            build_snippets_and_dict_section,
-            build_tuning_section,
+            build_prediction_section,
+            build_snippets_section,
         )
 
+        build_general_section(self, tab_general, 0, pad)
+        build_prediction_section(self, tab_prediction, 0, pad)
         build_hotkeys_section(self, tab_hotkeys, 0, pad)
-        build_features_section(self, tab_features, 0, pad)
-        r = build_tuning_section(self, tab_tuning, 0, pad)
-        build_exclusions_section(self, tab_tuning, r, pad)
-        build_snippets_and_dict_section(self, tab_words, 0, pad)
+        build_exclusions_section(self, tab_exclusions, 0, pad)
+        build_snippets_section(self, tab_snippets, 0, pad)
+        build_about_section(tab_about)
 
         # ── Buttons ──
         btns = ttk.Frame(frm)
@@ -237,6 +243,18 @@ class SettingsWindow:
             messagebox.showwarning("Ravan", "Invalid undo autocorrect hotkey", parent=self._root)
             return
 
+        from ravan.core.config import hotkey_to_text
+
+        # Validate no duplicate hotkeys
+        active_hotkeys = [hotkey_to_text(h) for h in [convert, lang, clip, norm, case, undo] if h]
+        if len(active_hotkeys) != len(set(active_hotkeys)):
+            messagebox.showwarning(
+                "Ravan",
+                "Duplicate hotkeys detected! Each hotkey shortcut must be unique.",
+                parent=self._root,
+            )
+            return
+
         cfg = self.cfg
         if convert:
             cfg.convert_hotkey = convert
@@ -252,6 +270,10 @@ class SettingsWindow:
             cfg.undo_autocorrect_hotkey = undo
         cfg.prediction_enabled = self._prediction_var.get()
         cfg.autocorrect_enabled = self._autocorrect_var.get()
+        if hasattr(self, "_autocorrect_mode_var"):
+            cfg.autocorrect_mode = self._autocorrect_mode_var.get()
+        if hasattr(self, "_theme_mode_var"):
+            cfg.theme_mode = self._theme_mode_var.get()
         cfg.fix_punctuation_spacing = self._punct_spacing_var.get()
         cfg.auto_zwnj_enabled = self._zwnj_var.get()
         cfg.shift_space_zwnj = self._shift_space_var.get()

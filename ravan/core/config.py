@@ -35,6 +35,26 @@ class Theme:
     font_size: float = 14.0
     corner_radius: float = 6.0
 
+    @classmethod
+    def dark(cls) -> Theme:
+        return cls(
+            background_color=[32, 33, 36, 235],
+            text_color=[241, 243, 244, 255],
+            highlight_color=[66, 133, 244, 255],
+            font_size=14.0,
+            corner_radius=8.0,
+        )
+
+    @classmethod
+    def light(cls) -> Theme:
+        return cls(
+            background_color=[255, 255, 255, 240],
+            text_color=[32, 33, 36, 255],
+            highlight_color=[26, 115, 232, 255],
+            font_size=14.0,
+            corner_radius=8.0,
+        )
+
 
 @dataclass
 class Config:
@@ -78,6 +98,8 @@ class Config:
     fix_punctuation_spacing: bool = True
     autocorrect_mode: str = "safe"  # "off" | "safe" | "normal"
     ignored_words: list[str] = field(default_factory=list)
+    theme_mode: str = "auto"  # "auto" | "dark" | "light"
+    has_seen_onboarding: bool = False
 
     def is_excluded(self, exe_name: str | None) -> bool:
         return is_app_excluded(exe_name, self.excluded_apps)
@@ -220,6 +242,8 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         ignored_words=[
             str(w).strip() for w in data.get("ignored_words", []) if str(w).strip()
         ],
+        theme_mode=str(data.get("theme_mode", "auto")),
+        has_seen_onboarding=bool(data.get("has_seen_onboarding", False)),
     )
 
 

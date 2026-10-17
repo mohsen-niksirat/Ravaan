@@ -282,3 +282,35 @@ def enable_dpi_awareness() -> bool:
     except Exception:
         return False
 
+
+def is_windows_dark_mode() -> bool:
+    """Return True if Windows system/apps theme is Dark, False if Light."""
+    try:
+        import winreg
+
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+        ) as key:
+            val, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+            return val == 0
+    except Exception:
+        return True
+
+
+def get_system_dpi() -> int:
+    """Return primary display DPI (96 = 100%, 120 = 125%, 144 = 150%, etc.)."""
+    try:
+        LOGPIXELSX = 88
+        hdc = user32.GetDC(None)
+        if hdc:
+            gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
+            dpi = gdi32.GetDeviceCaps(hdc, LOGPIXELSX)
+            user32.ReleaseDC(None, hdc)
+            if dpi > 0:
+                return int(dpi)
+    except Exception:
+        pass
+    return 96
+
+

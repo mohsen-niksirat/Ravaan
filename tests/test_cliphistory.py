@@ -29,3 +29,28 @@ def test_clipboard_history_capacity():
         hist.add(f"item-{i}")
     assert len(hist) == 3
     assert hist.items() == ["item-4", "item-3", "item-2"]
+
+
+def test_clipboard_history_pinning_and_persistence(tmp_path):
+    storage = tmp_path / "clip.json"
+    hist = ClipboardHistory(maxlen=50, storage_path=storage)
+    hist.add("normal item 1")
+    hist.add("important pin")
+    hist.add("normal item 2")
+
+    # Pin the item
+    assert hist.is_pinned("important pin") is False
+    assert hist.toggle_pin("important pin") is True
+    assert hist.is_pinned("important pin") is True
+
+    # Pinned items must appear at the top of items()
+    items = hist.items()
+    assert items[0] == "important pin"
+    assert "normal item 2" in items
+
+    # Verify persistence by creating a second instance from the same file
+    hist2 = ClipboardHistory(maxlen=50, storage_path=storage)
+    assert hist2.is_pinned("important pin") is True
+    items2 = hist2.items()
+    assert items2[0] == "important pin"
+

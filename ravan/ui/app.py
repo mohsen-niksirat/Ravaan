@@ -40,8 +40,11 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         self.snippets = SnippetEngine.from_config(self.cfg)
         self.journal = KeystrokeJournal()
         from ravan.core.cliphistory import ClipboardHistory
+        from ravan.core.config import config_dir
 
-        self.clip_history = ClipboardHistory(maxlen=25)
+        self.clip_history = ClipboardHistory(
+            maxlen=50, storage_path=config_dir() / "clipboard_history.json"
+        )
         self.overlay = overlay if overlay is not None else OverlayWindow(self.cfg.theme)
         self.hook = KeyboardHook()
         self._ui_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
@@ -89,6 +92,8 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         if lang:
             self._last_lang_hkl = lang.hkl
             self._active_layout_tag = lang.tag
+        if not self.cfg.has_seen_onboarding:
+            self._show_onboarding()
         try:
             while self._running:
                 try:
@@ -247,6 +252,22 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         self._record_event(f"Undid autocorrect: reverted '{corrected}' -> '{orig}'")
         self.tray.notify(f"Reverted to '{orig}'")
         return True
+
+    def _show_onboarding(self) -> None:
+        self.cfg.has_seen_onboarding = True
+        from ravan.core.config import save_config
+
+        save_config(self.cfg)
+        msg = (
+            "به روان (Ravaan) خوش آمدید!\n"
+            "کلیدهای میانبر اصلی:\n"
+            "• F12: تغییر چیدمان (fa ↔ en)\n"
+            "• Alt+V: سابقه کلیپ‌بورد\n"
+            "• Shift+Space: نیم‌فاصله هوشمند\n"
+            "• Alt+L: نمایش زبان جاری\n"
+            "• Ctrl+Shift+Z: لغو تصحیح خودکار"
+        )
+        self.tray.notify(msg, title="Ravaan (روان)")
 
     def _on_word_completed(self, word: str, delimiter: str = "") -> bool:
         if not word:
