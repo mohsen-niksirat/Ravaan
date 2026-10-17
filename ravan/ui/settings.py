@@ -5,15 +5,13 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 from collections.abc import Callable
-from tkinter import messagebox, ttk
+from tkinter import ttk
+from typing import Any
 
 from ravan.core.config import (
     Config,
     Snippet,
-    save_config,
-    text_to_hotkey,
 )
-from ravan.platform.startup import is_startup_enabled, set_startup
 
 log = logging.getLogger(__name__)
 
@@ -104,6 +102,17 @@ class SettingsWindow:
         frm = ttk.Frame(self._root, padding=10)
         frm.pack(fill="both", expand=True)
 
+        # Search Bar
+        search_frm = ttk.Frame(frm)
+        search_frm.pack(fill="x", pady=(0, 6))
+        pack_side = "right" if rtl else "left"
+        ttk.Label(search_frm, text=t("settings.search_label", "🔍 Search:")).pack(
+            side=pack_side, padx=(0, 6) if not rtl else (6, 0)
+        )
+        self._search_var = tk.StringVar(value="")
+        search_entry = ttk.Entry(search_frm, textvariable=self._search_var)
+        search_entry.pack(side=pack_side, fill="x", expand=True)
+
         nb = ttk.Notebook(frm)
         nb.pack(fill="both", expand=True, pady=(0, 10))
 
@@ -140,6 +149,31 @@ class SettingsWindow:
         build_snippets_section(self, tab_snippets, 0, pad)
         build_sync_section(self, tab_sync, 0, pad)
         build_about_section(tab_about)
+
+        tabs_spec = [
+            (tab_general, t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "زبان", "شروع", "صدا"]),
+            (tab_prediction, t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "پیش‌بینی", "نیم‌فاصله"]),
+            (tab_hotkeys, t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید"]),
+            (tab_exclusions, t("settings.tab_exclusions", "Excluded Apps"), ["exclude", "blacklist", "app", "مستثنی"]),
+            (tab_snippets, t("settings.tab_snippets", "Snippets"), ["snippet", "trigger", "متن"]),
+            (tab_sync, t("settings.tab_sync", "Cloud Sync"), ["sync", "gist", "webdav", "همگام"]),
+            (tab_about, t("settings.tab_about", "About"), ["about", "version", "درباره"]),
+        ]
+
+        def _filter_tabs(*_args: Any) -> None:
+            q = self._search_var.get().strip().lower()
+            first = None
+            for tab_widget, title, kws in tabs_spec:
+                if not q or q in title.lower() or any(q in kw for kw in kws):
+                    nb.tab(tab_widget, state="normal")
+                    if first is None:
+                        first = tab_widget
+                else:
+                    nb.tab(tab_widget, state="hidden")
+            if first is not None and q:
+                nb.select(first)
+
+        self._search_var.trace_add("write", _filter_tabs)
 
         # ── Buttons ──
         btns = ttk.Frame(frm)
@@ -255,131 +289,15 @@ class SettingsWindow:
                 pass
             self._root = None
 
+    def _reset_tab_defaults(self, tab_name: str) -> None:
+        from ravan.ui.settings_reset import reset_tab_defaults
+
+        reset_tab_defaults(self, tab_name)
+
     def _save(self) -> None:
-        hk_items = [
-            (self._convert_var.get(), "convert"),
-            (self._lang_var.get(), "language"),
-            (self._clip_var.get(), "clipboard"),
-            (self._norm_var.get(), "normalize"),
-            (self._case_var.get(), "case"),
-            (self._undo_var.get(), "undo"),
-            (self._stats_var.get() if hasattr(self, "_stats_var") else "", "stats"),
-        ]
-        parsed = []
-        for raw, name in hk_items:
-            val = text_to_hotkey(raw)
-            if raw.strip() and val is None:
-                messagebox.showwarning("Ravan", f"Invalid {name} hotkey", parent=self._root)
-                return
-            parsed.append(val)
-        convert, lang, clip, norm, case, undo, stats = parsed
+        from ravan.ui.settings_save import save_settings_window
 
-        from ravan.core.config import hotkey_to_text
-
-        # Validate no duplicate hotkeys
-        active_hotkeys = [hotkey_to_text(h) for h in [convert, lang, clip, norm, case, undo, stats] if h]
-        if len(active_hotkeys) != len(set(active_hotkeys)):
-            messagebox.showwarning(
-                "Ravan",
-                "Duplicate hotkeys detected! Each hotkey shortcut must be unique.",
-                parent=self._root,
-            )
-            return
-
-        cfg = self.cfg
-        if convert:
-            cfg.convert_hotkey = convert
-        if lang:
-            cfg.lang_indicator_hotkey = lang
-        if clip:
-            cfg.clipboard_history_hotkey = clip
-        if norm:
-            cfg.normalize_hotkey = norm
-        if case:
-            cfg.case_hotkey = case
-        if undo:
-            cfg.undo_autocorrect_hotkey = undo
-        if stats:
-            cfg.quick_stats_hotkey = stats
-
-        cfg.prediction_enabled = self._prediction_var.get()
-        cfg.autocorrect_enabled = self._autocorrect_var.get()
-        if hasattr(self, "_autocorrect_mode_var"):
-            cfg.autocorrect_mode = self._autocorrect_mode_var.get()
-        if hasattr(self, "_theme_mode_var"):
-            cfg.theme_mode = self._theme_mode_var.get()
-        cfg.fix_punctuation_spacing = self._punct_spacing_var.get()
-        cfg.auto_zwnj_enabled = self._zwnj_var.get()
-        cfg.shift_space_zwnj = self._shift_space_var.get()
-        cfg.clipboard_history_enabled = self._cliphist_var.get()
-        cfg.inline_calc_enabled = self._calc_var.get()
-        cfg.quickpick_digits = self._digits_var.get()
-        cfg.english_dict_enabled = self._en_dict_var.get()
-        cfg.persian_dict_enabled = self._fa_dict_var.get()
-        def _safe_int(var: tk.IntVar, default: int, min_val: int, max_val: int) -> int:
-            try:
-                val = int(var.get())
-                return max(min_val, min(max_val, val))
-            except (tk.TclError, ValueError, TypeError):
-                return default
-
-        cfg.prediction_debounce_ms = _safe_int(self._debounce_var, 50, 0, 5000)
-        cfg.prediction_max_candidates = _safe_int(self._maxcand_var, 5, 1, 9)
-        cfg.min_prefix_len = _safe_int(self._minlen_var, 2, 1, 6)
-
-        excl = [
-            ln.strip().lower()
-            for ln in self._excl_text.get("1.0", "end").splitlines()
-            if ln.strip()
-        ]
-        cfg.excluded_apps = excl
-
-        cur_snip_text = self._snip_text.get("1.0", "end").strip()
-        if cur_snip_text == self._last_snip_text.strip():
-            cfg.snippets = list(self._managed_snippets)
-        else:
-            snippets: list[Snippet] = []
-            for ln in cur_snip_text.splitlines():
-                if "=>" not in ln:
-                    continue
-                trigger, _, repl = ln.partition("=>")
-                trigger = trigger.strip()
-                repl = repl.strip().replace("\\n", "\n")
-                if trigger and repl:
-                    snippets.append(Snippet(trigger=trigger, replacement=repl))
-            cfg.snippets = snippets
-
-        if self._startup_var.get() != is_startup_enabled():
-            if not set_startup(self._startup_var.get()):
-                messagebox.showwarning(
-                    "Ravan", "Could not update startup entry", parent=self._root
-                )
-        cfg.launch_at_startup = self._startup_var.get()
-
-        from ravan.core.user_dict import save_user_words
-
-        user_words = [
-            ln.strip()
-            for ln in self._user_words_text.get("1.0", "end").splitlines()
-            if ln.strip() and not ln.strip().startswith("#")
-        ]
-        save_user_words(user_words)
-
-        if hasattr(self, "_ui_language_var"):
-            val = self._ui_language_var.get()
-            cfg.ui_language = "fa" if "فارسی" in val else ("en" if "English" in val else "auto")
-
-        if hasattr(self, "_gist_token_var"):
-            cfg.gist_token = self._gist_token_var.get().strip()
-        if hasattr(self, "_gist_id_var"):
-            cfg.gist_id = self._gist_id_var.get().strip()
-        if hasattr(self, "_cloud_sync_var"):
-            cfg.cloud_sync_enabled = self._cloud_sync_var.get()
-
-        save_config(cfg)
-        if self.on_saved:
-            self.on_saved(cfg)
-        self._close()
+        save_settings_window(self)
 
     def _sync_push(self) -> None:
         from ravan.ui.settings_sync import do_sync_push

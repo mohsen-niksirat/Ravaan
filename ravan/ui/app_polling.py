@@ -181,3 +181,105 @@ class AppPollingMixin:
         if time.monotonic() - self._popup_shown_at > timeout_s:
             self.overlay.hide()
             set_popup_visible(False)
+
+    def _poll_background_sync(self: Any) -> None:
+        """Periodic background sync debounced after typing bursts with offline backoff."""
+        if not getattr(self.cfg, "cloud_sync_enabled", False):
+            return
+        interval_min = getattr(self.cfg, "sync_interval_min", 0)
+        if interval_min <= 0:
+            return
+
+        now = time.monotonic()
+        if not hasattr(self, "_last_bg_sync_poll"):
+            self._last_bg_sync_poll = now
+            self._last_sync_attempt = 0.0
+            self._sync_backoff_delay = 0.0
+            self._sync_in_progress = False
+            self._pending_sync_queued = False
+
+        if now - self._last_bg_sync_poll < 1.0:
+            return
+        self._last_bg_sync_poll = now
+
+        # Debounce after typing bursts: require at least 15s of idle time
+        if now - getattr(self, "_last_key_time", 0.0) < 15.0:
+            return
+
+        interval_sec = interval_min * 60.0
+        effective_interval = max(interval_sec, self._sync_backoff_delay)
+        if (now - self._last_sync_attempt < effective_interval) and not self._pending_sync_queued:
+            return
+
+        if self._sync_in_progress:
+            self._pending_sync_queued = True
+            return
+
+        self._sync_in_progress = True
+        self._pending_sync_queued = False
+        self._last_sync_attempt = now
+
+        def _bg_worker() -> None:
+            from ravan.core.config import Snippet, save_config
+            from ravan.core.sync import (
+                merge_dictionaries,
+                merge_snippets,
+                pull_sync,
+                push_sync,
+            )
+            from ravan.core.user_dict import load_user_words, save_user_words
+
+            try:
+                local_words = load_user_words()
+                local_snips = [
+                    {"trigger": s.trigger, "replacement": s.replacement, "enabled": s.enabled}
+                    for s in self.cfg.snippets
+                ]
+                res = pull_sync(self.cfg, current_words=local_words, current_snippets=local_snips)
+                if not res.get("ok"):
+                    log.warning(
+                        "Background sync pull failed (%s); queuing backoff retry",
+                        res.get("error", "Unknown"),
+                    )
+                    self._sync_backoff_delay = min(
+                        300.0, max(30.0, (self._sync_backoff_delay or 15.0) * 2)
+                    )
+                    self._pending_sync_queued = True
+                    return
+
+                merged_words = merge_dictionaries(local_words, res.get("user_words", []))
+                merged_snips, _ = merge_snippets(
+                    local_snips, res.get("snippets", []), resolution_strategy="keep_both"
+                )
+
+                push_res = push_sync(self.cfg, merged_words, merged_snips)
+                if push_res.get("ok"):
+                    self._sync_backoff_delay = 0.0
+                    save_user_words(merged_words)
+                    self.cfg.snippets = [
+                        Snippet(
+                            trigger=str(s["trigger"]),
+                            replacement=str(s["replacement"]),
+                            enabled=bool(s.get("enabled", True)),
+                        )
+                        for s in merged_snips
+                        if isinstance(s, dict) and s.get("trigger")
+                    ]
+                    self.cfg.last_sync_time = push_res.get("timestamp", "")
+                    save_config(self.cfg)
+                    log.info("Background sync succeeded at %s", self.cfg.last_sync_time)
+                else:
+                    log.warning("Background sync push failed: %s", push_res.get("error"))
+                    self._sync_backoff_delay = min(
+                        300.0, max(30.0, (self._sync_backoff_delay or 15.0) * 2)
+                    )
+                    self._pending_sync_queued = True
+            except Exception as exc:  # noqa: BLE001
+                log.error("Unexpected error in background sync: %s", exc)
+                self._sync_backoff_delay = 60.0
+                self._pending_sync_queued = True
+            finally:
+                self._sync_in_progress = False
+
+        import threading
+        threading.Thread(target=_bg_worker, name="ravan-bg-sync", daemon=True).start()

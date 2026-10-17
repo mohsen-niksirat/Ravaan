@@ -111,6 +111,7 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
                     self._poll_focus()
                     self._poll_language()
                     self._poll_clipboard()
+                    self._poll_background_sync()
                     self._maybe_predict()
                     self._maybe_timeout_popup()
                     self.overlay.tick()

@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import tempfile
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -110,6 +111,12 @@ class Config:
     gist_id: str = ""
     last_sync_time: str = ""
     ui_language: str = "auto"  # "auto" | "en" | "fa"
+    schema_version: int = 2
+    sync_backend: str = "gist"  # "gist" | "webdav"
+    webdav_url: str = ""
+    webdav_username: str = ""
+    webdav_password: str = ""
+    sync_interval_min: int = 0  # 0 (off), 15, 60 min
 
 
     def is_excluded(
@@ -220,7 +227,21 @@ def _bounded_int(data: dict[str, Any], key: str, default: int, low: int, high: i
         return default
 
 
-def config_from_dict(data: dict[str, Any]) -> Config:
+def migrate_config_dict(data: dict[str, Any]) -> dict[str, Any]:
+    """Perform schema version migration on config dictionary."""
+    ver = int(data.get("schema_version", 1))
+    if ver < 2:
+        data["schema_version"] = 2
+        data.setdefault("sync_backend", "gist")
+        data.setdefault("webdav_url", "")
+        data.setdefault("webdav_username", "")
+        data.setdefault("webdav_password", "")
+        data.setdefault("sync_interval_min", 0)
+    return data
+
+
+def config_from_dict(raw_data: dict[str, Any]) -> Config:
+    data = migrate_config_dict(dict(raw_data))
     snippets = [
         Snippet(
             trigger=str(s["trigger"]),
@@ -284,6 +305,12 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         gist_id=str(data.get("gist_id", "")),
         last_sync_time=str(data.get("last_sync_time", "")),
         ui_language=str(data.get("ui_language", "auto")),
+        schema_version=int(data.get("schema_version", 2)),
+        sync_backend=str(data.get("sync_backend", "gist")),
+        webdav_url=str(data.get("webdav_url", "")),
+        webdav_username=str(data.get("webdav_username", "")),
+        webdav_password=str(data.get("webdav_password", "")),
+        sync_interval_min=_bounded_int(data, "sync_interval_min", 0, 0, 1440),
     )
 
 
@@ -303,8 +330,16 @@ def load_config() -> Config:
         cfg = Config()
         save_config(cfg)
     except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
-        log.warning("Failed to parse config at %s: %s; using defaults", path, exc)
+        log.warning("Failed to parse config at %s: %s; moving corrupt file aside", path, exc)
+        try:
+            if path.is_file():
+                backup = path.with_name(f"config.json.corrupt.{int(time.time())}")
+                path.rename(backup)
+                log.info("Moved corrupt config to %s", backup)
+        except OSError:
+            pass
         cfg = Config()
+        save_config(cfg)
 
     try:
         from ravan.core.i18n import set_locale

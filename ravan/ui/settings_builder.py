@@ -63,6 +63,16 @@ def build_hotkeys_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
         ttk.Label(frm, text=hint, foreground="gray").grid(row=row, column=2, sticky="w", **pad)
         row += 1
 
+    ttk.Separator(frm, orient="horizontal").grid(
+        row=row, column=0, columnspan=3, sticky="we", pady=6
+    )
+    row += 1
+    ttk.Button(
+        frm,
+        text=t("settings.reset_tab_btn", "↺ Reset tab defaults"),
+        command=lambda: win._reset_tab_defaults("hotkeys"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+    row += 1
     return row
 
 
@@ -152,7 +162,18 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
         frm, textvariable=win._theme_mode_var, values=["auto", "dark", "light"], state="readonly", width=12
     )
     theme_box.grid(row=row, column=1, sticky="w", **pad)
-    row += 2
+    row += 1
+
+    ttk.Separator(frm, orient="horizontal").grid(
+        row=row, column=0, columnspan=3, sticky="we", pady=6
+    )
+    row += 1
+    ttk.Button(
+        frm,
+        text=t("settings.reset_tab_btn", "↺ Reset tab defaults"),
+        command=lambda: win._reset_tab_defaults("general"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+    row += 1
     return row
 
 
@@ -233,7 +254,18 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     win._user_words_text = tk.Text(frm, width=40, height=3)
     win._user_words_text.insert("1.0", "\n".join(load_user_words()))
     win._user_words_text.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
-    row += 2
+    row += 1
+
+    ttk.Separator(frm, orient="horizontal").grid(
+        row=row, column=0, columnspan=3, sticky="we", pady=6
+    )
+    row += 1
+    ttk.Button(
+        frm,
+        text=t("settings.reset_tab_btn", "↺ Reset tab defaults"),
+        command=lambda: win._reset_tab_defaults("prediction"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+    row += 1
     return row
 
 
@@ -252,7 +284,7 @@ def build_exclusions_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
 
     excl_tools = ttk.Frame(frm)
     excl_tools.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
-    row += 2
+    row += 1
 
     pack_side = "right" if rtl else "left"
     win._detected_app_var = tk.StringVar(value=t("settings.active_app", "Active app: {app}", app="—"))
@@ -269,6 +301,18 @@ def build_exclusions_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     ttk.Button(excl_tools, text=t("settings.btn_pick_window", "Pick Window…"), command=win._open_window_picker).pack(
         side=pack_side, padx=3
     )
+    row += 1
+
+    ttk.Separator(frm, orient="horizontal").grid(
+        row=row, column=0, columnspan=3, sticky="we", pady=6
+    )
+    row += 1
+    ttk.Button(
+        frm,
+        text=t("settings.reset_tab_btn", "↺ Reset tab defaults"),
+        command=lambda: win._reset_tab_defaults("exclusions"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+    row += 1
     return row
 
 
@@ -289,86 +333,26 @@ def build_snippets_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     win._snip_text = tk.Text(frm, width=40, height=6)
     win._update_snip_display()
     win._snip_text.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
-    row += 2
+    row += 1
+
+    ttk.Separator(frm, orient="horizontal").grid(
+        row=row, column=0, columnspan=3, sticky="we", pady=6
+    )
+    row += 1
+    ttk.Button(
+        frm,
+        text=t("settings.reset_tab_btn", "↺ Reset tab defaults"),
+        command=lambda: win._reset_tab_defaults("snippets"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+    row += 1
     return row
 
 
 def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, Any]) -> int:
-    rtl = is_rtl()
-    row = start_row
-    align = "e" if rtl else "w"
-    pack_side = "right" if rtl else "left"
-    ttk.Label(
-        frm,
-        text=t("settings.sync_header", "Cloud Sync via GitHub Gist"),
-        font=("Segoe UI", 11, "bold"),
-    ).grid(row=row, column=0, columnspan=3, sticky=align, pady=(0, 4))
-    row += 1
+    """Delegate to ravan.ui.settings_sync."""
+    from ravan.ui.settings_sync import build_sync_section as _build_sync
 
-    ttk.Label(
-        frm,
-        text=t("settings.sync_desc", "Sync your user words and snippets securely across PCs via a GitHub Gist."),
-        foreground="#444444",
-    ).grid(row=row, column=0, columnspan=3, sticky=align, pady=(0, 8))
-    row += 1
-
-    ttk.Label(frm, text=t("settings.sync_pat_label", "Gist Personal Access Token:")).grid(row=row, column=0, sticky=align, **pad)
-    win._gist_token_var = tk.StringVar(value=getattr(win.cfg, "gist_token", ""))
-    token_entry = ttk.Entry(frm, textvariable=win._gist_token_var, width=28, show="*")
-    token_entry.grid(row=row, column=1, sticky="w", **pad)
-
-    def toggle_show_token() -> None:
-        token_entry.config(show="" if token_entry.cget("show") == "*" else "*")
-
-    ttk.Button(frm, text=t("settings.show_hide", "Show/Hide"), command=toggle_show_token, width=9).grid(
-        row=row, column=2, sticky="w", **pad
-    )
-    row += 1
-
-    ttk.Label(frm, text=t("settings.sync_gist_id", "Gist ID:")).grid(row=row, column=0, sticky=align, **pad)
-    win._gist_id_var = tk.StringVar(value=getattr(win.cfg, "gist_id", ""))
-    ttk.Entry(frm, textvariable=win._gist_id_var, width=28).grid(
-        row=row, column=1, sticky="w", **pad
-    )
-    ttk.Label(frm, text=t("settings.gist_url_hint", "Found in gist URL"), foreground="gray").grid(
-        row=row, column=2, sticky="w", **pad
-    )
-    row += 1
-
-    win._cloud_sync_var = tk.BooleanVar(value=getattr(win.cfg, "cloud_sync_enabled", False))
-    ttk.Checkbutton(
-        frm,
-        text=t("settings.sync_auto", "Enable automatic background sync"),
-        variable=win._cloud_sync_var,
-    ).grid(row=row, column=0, columnspan=3, sticky=align, **pad)
-    row += 1
-
-    sync_btn_bar = ttk.Frame(frm)
-    sync_btn_bar.grid(row=row, column=0, columnspan=3, sticky=align, pady=(8, 4))
-    ttk.Button(sync_btn_bar, text=t("settings.sync_push_btn", "⬆ Push to Gist"), command=win._sync_push).pack(
-        side=pack_side, padx=(6, 0) if rtl else (0, 6)
-    )
-    ttk.Button(sync_btn_bar, text=t("settings.sync_pull_btn", "⬇ Pull from Gist"), command=win._sync_pull).pack(
-        side=pack_side, padx=6
-    )
-    row += 1
-
-    last_time = getattr(win.cfg, "last_sync_time", "") or t("settings.never", "Never")
-    win._last_sync_label_var = tk.StringVar(
-        value=t("settings.sync_last", "Last sync: {time}", time=last_time)
-    )
-    ttk.Label(frm, textvariable=win._last_sync_label_var, foreground="#555555").grid(
-        row=row, column=0, columnspan=3, sticky=align, **pad
-    )
-    row += 1
-
-    win._sync_status_var = tk.StringVar(value="")
-    ttk.Label(frm, textvariable=win._sync_status_var, font=("Segoe UI", 9, "bold")).grid(
-        row=row, column=0, columnspan=3, sticky=align, **pad
-    )
-    row += 1
-
-    return row
+    return _build_sync(win, frm, start_row, pad)
 
 
 def build_about_section(frm: ttk.Frame) -> None:

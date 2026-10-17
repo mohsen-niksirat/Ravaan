@@ -238,3 +238,109 @@ def pull_from_gist(
         "error": None,
         "timestamp": now_iso,
     }
+
+
+def merge_dictionaries(local_words: list[str], remote_words: list[str]) -> list[str]:
+    """Union merge local and remote words preserving original casing without duplicates."""
+    seen: set[str] = set()
+    merged: list[str] = []
+    for w in list(local_words) + list(remote_words):
+        clean = w.strip()
+        if not clean or clean.startswith("#"):
+            continue
+        key = clean.lower()
+        if key not in seen:
+            seen.add(key)
+            merged.append(clean)
+    return merged
+
+
+def merge_snippets(
+    local_snippets: list[dict[str, Any]],
+    remote_snippets: list[dict[str, Any]],
+    resolution_strategy: str = "keep_both",
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Merge local and remote snippets. Detect conflicts where replacement differs."""
+    merged: dict[str, dict[str, Any]] = {}
+    conflicts: list[dict[str, Any]] = []
+
+    for s in local_snippets:
+        trig = str(s.get("trigger", "")).strip()
+        if trig:
+            merged[trig] = dict(s)
+
+    for s in remote_snippets:
+        trig = str(s.get("trigger", "")).strip()
+        if not trig:
+            continue
+        if trig not in merged:
+            merged[trig] = dict(s)
+        else:
+            loc = merged[trig]
+            if loc.get("replacement", "") != s.get("replacement", ""):
+                conflicts.append({"trigger": trig, "local": loc, "remote": s})
+                if resolution_strategy == "remote":
+                    merged[trig] = dict(s)
+                elif resolution_strategy == "keep_both":
+                    remote_key = f"{trig}_remote"
+                    merged[remote_key] = {**dict(s), "trigger": remote_key}
+
+    return list(merged.values()), conflicts
+
+
+def push_sync(
+    cfg: Any,
+    user_words: list[str],
+    snippets: list[dict[str, Any]],
+    timeout: float = 8.0,
+) -> dict[str, Any]:
+    """Dispatch push to configured sync backend (gist or webdav)."""
+    backend = getattr(cfg, "sync_backend", "gist").lower()
+    if backend == "webdav":
+        from ravan.core.webdav import WebDAVClient
+
+        client = WebDAVClient(
+            url=getattr(cfg, "webdav_url", ""),
+            username=getattr(cfg, "webdav_username", ""),
+            password=getattr(cfg, "webdav_password", ""),
+        )
+        return client.push(user_words, snippets, timeout=timeout)
+
+    return push_to_gist(
+        token=getattr(cfg, "gist_token", ""),
+        gist_id=getattr(cfg, "gist_id", ""),
+        user_words=user_words,
+        snippets=snippets,
+        timeout=timeout,
+    )
+
+
+def pull_sync(
+    cfg: Any,
+    timeout: float = 8.0,
+    current_words: list[str] | None = None,
+    current_snippets: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Dispatch pull to configured sync backend (gist or webdav)."""
+    backend = getattr(cfg, "sync_backend", "gist").lower()
+    if backend == "webdav":
+        from ravan.core.webdav import WebDAVClient
+
+        client = WebDAVClient(
+            url=getattr(cfg, "webdav_url", ""),
+            username=getattr(cfg, "webdav_username", ""),
+            password=getattr(cfg, "webdav_password", ""),
+        )
+        return client.pull(
+            timeout=timeout,
+            current_words=current_words,
+            current_snippets=current_snippets,
+        )
+
+    return pull_from_gist(
+        token=getattr(cfg, "gist_token", ""),
+        gist_id=getattr(cfg, "gist_id", ""),
+        timeout=timeout,
+        current_words=current_words,
+        current_snippets=current_snippets,
+    )
