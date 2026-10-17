@@ -21,13 +21,18 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 | M11 | Number to Persian Words & Toman converter | Type `1250000/w`, `5000000/t`, `1250000/s` |
 | M12 | Keyboard layout audio feedback | tray → Settings… |
 | M13 | User custom dictionary & word learning | tray → Settings… or CLI `dict` |
-| M15 | External UTF-8 dictionary (12,500+ words) & adaptive boost | automatic learning |
+| M14 | Cloud Sync (GitHub Gist) for dictionary & snippets | tray → Settings… → Sync |
+| M15 | Quick Text Stats floating card | `Alt+S` |
 | M16 | Standalone PyInstaller build (`Ravaan.exe`) & GitHub Actions | downloadable release asset |
 | M17 | Diagnostics window, rotating logs & DPI awareness | tray → Diagnostics… |
 | M18 | Bilingual autocorrect & instant undo | `Ctrl+Shift+Z` / `Backspace` |
-| M19 | Snippets 2.0 (GUI editor, multi-line, cursor placeholder `$0`) | tray → Snippet Editor… |
+| M19 | Snippets 2.0 (GUI editor, `|` / `$0` cursor, `{{clipboard}}`) | tray → Snippet Editor… |
 | M20 | Code Quality (Modular refactoring, Ruff linting, Win32 mock tests) | `pytest` & `ruff check` |
 | M21 | Continuous Android-Style Prediction, Sentence Prediction & Adaptive Learning | `Space` / `Tab` / `Enter` / `1–5` |
+| M22 | Elevated App Detection & Window Class Exclusions | Settings → Excluded Apps |
+| M23 | Performance Profiling (< 500ms startup) & Hook Latency Monitoring | Diagnostic logs |
+| M24 | Interactive Window Picker (3s countdown) | Settings → Excluded Apps |
+| M25 | Automatic Update Checker & CLI flags | `--check-updates` & tray menu |
 
 ### Convert Selection or Last Word (`F12`)
 
@@ -110,11 +115,13 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 - **Undo Autocorrect**: Made a mistake or wanted the exact typed typo? Press `Ctrl+Shift+Z` or simply tap `Backspace` immediately to instantly revert to what you typed.
 - **Punctuation Spacing**: Automatically strips accidental spaces preceding punctuation marks (`.` `,` `!` `?` `:` `;` `؛` `،` `؟`).
 
-### Snippets 2.0 (Multi-line, Cursor Placement, Math & Date Macros)
+### Snippets 2.0 (Multi-line, Cursor Placement, Math, Clipboard & Toggles)
 
 - **Dedicated Snippet Editor**: Access via **tray → Snippets…** or **Settings → Open Snippet Editor…** featuring a live expansion preview, search filter, and quick placeholder buttons.
+- **Per-Snippet Toggle**: Enable or disable individual snippets with a single click without deleting them.
 - **Multi-line Templates**: Create rich multi-line expansions (code boilerplate, email templates, addresses, standard notes).
-- **Cursor Placement (`$0` or `{{cursor}}`)**: Position the typing cursor anywhere inside the inserted template (e.g. `console.log($0);` places the caret inside the parentheses).
+- **Cursor Placement (`|` or `$0` or `{{cursor}}`)**: Position the typing cursor anywhere inside the inserted template (e.g. `console.log(|);` or `func($0)` places the caret right at the pipe position).
+- **Clipboard Content Insertion (`{{clipboard}}`)**: Automatically embed the current clipboard text directly into the expanded snippet.
 - **Extended Date Macros**:
   - `{{year}}`, `{{month}}`, `{{day}}`, `{{weekday}}`, `{{hafteh}}`, `{{gregorian}}`
   - `{{yesterday}}`, `{{tomorrow}}`, `{{time_sec}}`, `{{timestamp}}`
@@ -124,6 +131,37 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
   - `{{calc: ۱۲ * ۵}}` → `۶۰` (supports Persian digits)
 - **JSON Import / Export**: Backup, restore, and share snippet libraries with 1-click JSON import (merge or replace) and export.
 - **Excluded Apps Safety**: Snippet triggers are completely disabled inside excluded applications (password managers, games, terminal emulators).
+
+### Quick Text Stats (`Alt+S`)
+
+- Select any text in any Windows application and press `Alt+S` to display an instant, modern statistics card at your caret or mouse cursor.
+- Displays:
+  - **Words**: Total word count
+  - **Characters**: Total characters (with and without whitespace)
+  - **Reading time**: Estimated reading duration in minutes/seconds (~200 wpm)
+  - **Persian / English ratio**: Language breakdown percentage (e.g. `85% فا / 15% EN`)
+- Dismisses smoothly with **Esc** or when clicking outside.
+
+### Cloud Sync (GitHub Gist)
+
+- Opt-in synchronization for your custom dictionary (`user_words.txt`) and custom snippets across multiple computers.
+- Configured via **tray → Settings… → Sync tab**:
+  - Enter your GitHub Personal Access Token (PAT) with `gist` scope.
+  - Automatically creates or links a private GitHub Gist (`ravaan-cloud-sync.json`).
+  - Automatic timestamped local backups (`.bak`) before any remote pull/push.
+  - Periodic background sync interval (optional) or manual 1-click **Sync Now**.
+
+### Interactive Window Picker & Elevated Process Detection
+
+- **Pick Window (3s countdown)**: In Settings → Excluded Apps, click **Pick Window…** and switch to any target application window. Ravaan captures its `.exe` process name or window class (`class:<name>`) automatically.
+- **Elevation Status Warning**: Real-time detection warns you if foreground apps run with Administrator privileges while Ravaan runs standard user, preventing unexpected hook deadlocks.
+
+### Update Checker & Versioning
+
+- Check for the latest releases directly from GitHub:
+  - In System Tray: click **Check for updates…** to see the current version and any available update.
+  - Via CLI: `python -m ravan --version` or `python -m ravan --check-updates`.
+
 
 ## Requirements
 
@@ -170,17 +208,21 @@ pyinstaller --clean -y ravan.spec
 ### Tray menu
 
 - **Show language (Alt+L)** — show the language chip now
-- **Settings…** — hotkeys, toggles, snippets, excluded apps detector, startup
+- **Settings…** — hotkeys, toggles, snippets, excluded apps detector, sync, startup
+- **Snippet Editor…** — manage custom snippets, cursor placeholder, and toggles
+- **Check for updates…** — check GitHub releases for the latest version
 - **Diagnostics…** — live status inspector (hook state, caret source, active app, last 50 events, copy markdown report)
 - **Word prediction** — toggle on/off (persisted)
 - **Quit**
 
-System tray icon → Quit to exit. Logs: `%APPDATA%\Ravan\logs\ravan.log` (capped with automatic 2MB log rotation and 3 backups).
+System tray icon → Quit to exit. Logs: `%APPDATA%\Ravan\logs\ravan.log` (capped with automatic 5MB log rotation and 3 backups).
 Config: `%APPDATA%\Ravan\config.json`
 
-## CLI diagnostics
+## CLI diagnostics & flags
 
 ```bash
+python -m ravan --version              # display current version (v0.5.0)
+python -m ravan --check-updates        # check GitHub for new releases
 python -m ravan.cli lang                # current keyboard language
 python -m ravan.cli caret               # caret / cursor position
 python -m ravan.cli convert hjvfd       # convert a word EN↔FA layout
@@ -213,9 +255,9 @@ pytest
 
 ```
 ravan/
-  core/       # config, layout map, dictionary, predictor, snippets, journal
+  core/       # config, layout map, dictionary, predictor, snippets, sync, updater, text_stats
   platform/   # Win32 hook, language, caret (UIA), SendInput, focus, single-instance, startup
-  ui/         # overlay, tray, settings window, app loop
+  ui/         # overlay, tray, settings window, stats popup, window picker, app loop
 ```
 
 ## فارسی
@@ -226,6 +268,12 @@ ravan/
 - تبدیل چیدمان متن انتخاب‌شده یا آخرین کلمه تایپ شده بین فارسی و انگلیسی با `F12`
   مثال: `o,vn` → `خورد` یا انتخاب یک پاراگراف و زدن `F12`
 - نیم‌فاصله‌گذاری هوشمند فارسی (ZWNJ): اتصال خودکار «می/نمی» و پسوندهای «ها/تر/ترین/مند/شناس» یا درج با `Shift+Space`
+- آمار سریع متن (`Alt+S`): انتخاب هر متن و مشاهده فوری تعداد کلمات، حروف، زمان تقریبی مطالعه و درصد کلمات فارسی/انگلیسی در یک کارت شناور مدرن
+- همگام‌سازی ابری اختیاری (Cloud Sync): همگام‌سازی امن واژگان شخصی و کلمات اختصاری بین سیستم‌های مختلف از طریق GitHub Gist با پشتیبان‌گیری خودکار محلی
+- اسنیپت‌های پیشرفته ۲.۰: امکان تعیین محل دقیق نشانگر با نماد لوله `|` یا `$0`، درج خودکار محتوای کلیپ‌بورد با `{{clipboard}}` و فعال/غیرفعال‌سازی تک‌تک اسنیپت‌ها
+- انتخاب‌گر هوشمند پنجره‌ها (Window Picker): تشخیص خودکار نام پردازه یا کلاس پنجره (`class:<name>`) با شمارش معکوس ۳ ثانیه‌ای برای افزودن به لیست برنامه‌های مستثنی
+- تشخیص و هشدار برنامه‌های ادمین (Elevated): هشدار هوشمند در تنظیمات در صورت اجرای برنامه‌های فعال با دسترسی Administrator
+- بررسی به‌روزرسانی: بررسی نسخه‌های جدید از گیت‌هاب از طریق منوی Tray و دستور `python -m ravan --check-updates`
 - نرمال‌سازی درجا و پاکسازی متن فارسی (اصلاح «ي» و «ك»، نیم‌فاصله‌ها و علائم) با `Ctrl+F12`
 - تغییر چرخشی وضعیت حروف لاتین (UPPERCASE → lowercase → Title Case) با `Shift+F12`
 - تبدیل خودکار عدد به حروف فارسی و تومان (تایپ `1250000/w`، `5000000/t`، `1250000/s` و دستور CLI `words`)
@@ -234,10 +282,10 @@ ravan/
 - ماشین‌حساب ریاضی درون‌خطی هنگام تایپ با فشردن کلید `=` (مانند `1200*1.09=` یا با اعداد فارسی `۱۲*۵=`)
 - درج تاریخ روز هجری شمسی و زمان با ماکروهای داینامیک (`/today`، `/shamsi`، `/تاریخ`، `/time`، `/uuid`)
 - واژه‌نامه شخصی کاربر (`user_words.txt`) برای یادگیری اصطلاحات، نام‌ها و کلمات خاص کاربر
-- پیشنهاد تکمیل کلمه نزدیک نشانگر (با واژه‌نامه بیش از ۱۳۰۰ کلمه پرکاربرد)
+- پیشنهاد تکمیل کلمه نزدیک نشانگر (با واژه‌نامه بیش از ۱۳۰۰ کلمه پرکاربرد و یادگیری مستمر)
 - اصلاح خودکار امن و کلمات اختصاری (Snippets) شخصی‌سازی‌شده
 - نرمال‌سازی حروف عربی/فارسی و تبدیل اعداد فارسی و انگلیسی (ابزار CLI)
-- پنجره تنظیمات کامل، منوی Tray، اجرای خودکار با ویندوز و مدیریت برنامه‌های مستثنی
+- پنجره تنظیمات تب‌بندی شده مدرن، ضبط کلیدهای میانبر، منوی Tray، اجرای خودکار با ویندوز و مدیریت برنامه‌های مستثنی
 
 ## Known limitations
 

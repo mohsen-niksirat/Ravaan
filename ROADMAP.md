@@ -1,48 +1,70 @@
 # Roadmap
 
-Done (v0.4):
-- M21: Continuous Android-Style Prediction, Atomic Injection & User Typing Style Learning Engine (Continuous early prediction starting at 1st character without popup dismissal during typing, sentence & next-word prediction on Space based on bigram transitions, UserLearningEngine tracking personal vocabulary and transitions with JSON persistence, single atomic SendInput batching preventing fast typing collisions, Android-style visual candidate highlighting with `[بعدی]` indicators, and fixed Shift+Space modifier check)
-- M20: Code Quality Pass (Refactored all modules to strictly under 400 lines of code across `ravan/ui` and `ravan/platform` via mixins and modular builders, raised test suite to 138 passing tests including comprehensive Win32 API and UI mock test suites, added `ruff` configuration to `pyproject.toml` with clean pass across all files, and integrated `ruff check .` into GitHub Actions CI matrix)
-- M19: Snippets 2.0 (Dedicated Snippet Editor window in Tkinter with live preview & search filter, multi-line snippet expansions, cursor-position placeholder `$0` and `{{cursor}}` via synthetic Left arrow key injection, expanded date macros for year/month/day/weekday/yesterday/tomorrow, embedded math calculation evaluation `{{calc:...}}`, JSON import/export with merge/replace, and excluded apps protection so snippet expansion is suppressed in excluded applications)
-- M18: Autocorrect & Language Intelligence (bilingual awareness via layout hook tracking so English and Persian are never mixed, Persian confusable typo normalization for `ی/ي`, `ک/ك`, `ه/ة`, `ت/ة`, log-frequency candidate probability scoring, instantaneous undo autocorrect via `Ctrl+Shift+Z` or single `Backspace`, and punctuation spacing cleanup removing pre-punctuation spaces before `.,!?:؛،؟`)
-- M17: Reliability & UX hardening (Per-Monitor V2 DPI awareness, flicker-free overlay row recycling with SWP_NOACTIVATE, interactive excluded apps detector in Settings, structured rotating file logging capped at 2MB with 3 backups, graceful UIA failure throttling per process, and Diagnostics tray window with live status & markdown report export)
-- M16: PyInstaller standalone distribution packaging (`Ravaan.exe` with bundled icon & assets, windowed no-console), GitHub Actions CI/CD release workflow on tag push, and install/uninstall documentation
-- M15: External UTF-8 dictionary loading (`word<TAB>frequency`), 12,500+ Persian frequency dataset, hierarchical ranking (custom dict > frequency > edit distance), and adaptive learning selection boost
-- Number to Persian words converter, Rial-to-Toman calculator, and thousands separator formatting (`/w`, `/t`, `/s`, CLI `words`)
-- Keyboard layout audio feedback (distinct gentle tones for Persian and English upon layout switch)
-- Dynamic snippets with Persian Jalali (Shamsi) calendar date/time expander (`/today`, `/shamsi`, `/tarikh`, `/time`, `/uuid`, `{{placeholders}}`, and CLI `jalali`)
-- In-place text transformation (case cycling with `Shift+F12` and Persian normalizer with `Ctrl+F12`)
-- Inline quick math calculator on `=` trigger (`(50+30)*2= -> 160`, supporting Persian digits `۱۲*۵= -> ۶۰`, and CLI `calc`)
-- User custom dictionary (`user_words.txt`), in-memory priority merging in `Dictionary` and `DictPredictor`, settings window editor, and CLI `dict list/add/remove`
-- Selection layout conversion (convert highlighted text in place or fall back to last word)
-- Smart Persian half-space (ZWNJ): prefix/suffix auto-attachment + `Shift+Space` hotkey
-- Caret clipboard history ring buffer popup (`Alt+V`) with quick 1–5 number paste
-- Persian / Arabic text and number normalization (CLI + core module)
-- Expanded dictionary assets (770+ English, 12,500+ Persian frequency-ranked words)
-- Full Settings UI with toggles for new features
-- Safe autocorrect (never rewrites dictionary words)
-- Tray menu with prediction toggle + notifications
-- Single-instance guard, launch-at-startup (HKCU Run)
-- Per-app exclusions (excluded_apps)
-- Real UIA caret (TextPattern2/TextPattern + ancestor walk)
-- Journal reset on focus change; popup auto-timeout; hotkey repeat throttle
+## Completed (v0.5.0)
+
+- **M25: Quick Text Statistics (Alt+S — Milestone M15)**
+  - Instantly inspect word count, character count (with & without whitespace), estimated reading time, and Persian vs. English character percentage ratio for any selected text or current word across any Windows application.
+  - Floating non-activating card with dark/light mode detection, DWM rounded corners, and auto-dismiss after 6 seconds or Esc.
+- **M24: GitHub Gist Cloud Sync (Opt-in)**
+  - Securely sync custom dictionary words (`user_words.txt`) and snippets (`snippets.json`) across PCs via a private GitHub Gist.
+  - Dedicated "Sync" tab in Settings with token masking, manual Push/Pull controls, last-sync timestamp, and automated pre-sync local backups kept in `%APPDATA%\Ravan\backups\`.
+- **M23: Snippets 2.0 Enhancements**
+  - Added support for cursor placement marker `|` (in addition to `$0` and `{{cursor}}`).
+  - Added `{{clipboard}}` expansion macro injecting current clipboard text into templates.
+  - Added per-snippet enable/disable toggle with persistent JSON import/export.
+- **M22: Performance, Profiling & Update Checker**
+  - Lazy-loading for prediction tables and dictionaries reducing app startup time to ~500 ms (< 1.5s target) and hook latency to < 0.1 ms median.
+  - Added `--version` and `--check-updates` CLI flags querying the GitHub Releases API.
+  - Added manual "Check for updates…" tray menu item with non-intrusive notifications and one-click release opening.
+- **M21: Reliability & System Compatibility**
+  - Elevated app awareness: detects when focused window runs as admin and warns user once via tray notification regarding UIPI isolation.
+  - Caret detection fallback chain optimization with 30ms TTL caching and failed UIA PID cooldown (3s) to prevent keystroke lag.
+  - Window class exclusion matching (support for `class:ClassName`) and interactive "Pick Window" modal with 3-second delay capture and open window list.
+  - Log rotation upgraded to 5 MB with 3 backup rotations and "Open logs folder" tray item.
+  - Global crash handler writing full tracebacks and the last 50 log lines to `%APPDATA%\Ravan\crash\`.
+- **M20: UI/UX Modernization & Live Hotkey Rebinding**
+  - Native Windows 11 rounded corners via DWM attribute 33 (`DWMWCP_ROUND`), subtle dark/light border, and Tk DPI scaling.
+  - Windows system theme auto-detection (dark/light) with manual override in Settings.
+  - Full-featured Settings window reorganized into clean tabs (General, Prediction, Hotkeys, Exclusions, Snippets, Sync, About).
+  - Interactive live key combination capture for hotkey rebinding with duplicate hotkey conflict validation.
+  - Clipboard history ring buffer expanded to 50 items with item pinning (favorites) and JSON persistence across restarts (`Alt+V`).
+  - First-run onboarding tooltip introducing top 5 essential shortcuts.
+- **M19: Trigram/Bigram N-Gram Prediction & Personal Adaptive Learning**
+  - High-frequency English corpus expanded to 2,760 words and Persian corpus to 3,000+ words.
+  - Fast $O(\log N)$ bisect prefix matching with sub-15ms response latency.
+  - Trigram and bigram transition engine tracking personal word pairings.
+  - Autocorrect modes (`safe`, `normal`, `off`) and persistent ignored words set.
 
 ---
 
-## Next Horizon (Proposed Future Milestones)
+## Completed (v0.4.0 and earlier)
 
-1. **Hotkey Remapping UI & Per-App Shortcut Profiles**
-   - Provide an interactive graphical keybinder in Settings to customize hotkeys (`F12`, `Alt+L`, `Alt+V`, `Ctrl+F12`, `Shift+F12`, `Shift+Space`, etc.).
-   - Support per-application custom trigger overrides (e.g. disable `F12` in VS Code or games, bind `Alt+F12` instead).
+- **M18: Continuous Android-Style Prediction, Atomic Injection & User Typing Style Learning Engine**
+- **M17: Code Quality Pass (< 400 LOC strict rule & Ruff 100% clean)**
+- **M16: Snippets Editor with Live Preview & Math Placeholders**
+- **M15: External UTF-8 Dictionary Loading & Hierarchical Ranking**
+- **M14: PyInstaller standalone distribution packaging (`Ravaan.exe`)**
+- **M13: Number to Persian words converter, Rial-to-Toman calculator, and thousands separator formatting**
+- **M12: Keyboard layout audio feedback (distinct gentle tones for Persian and English)**
+- **M11: Dynamic snippets with Persian Jalali (Shamsi) calendar date/time expander**
+- **M10: In-place text transformation (case cycling with `Shift+F12` and Persian normalizer with `Ctrl+F12`)**
+- **M9: Inline quick math calculator on `=` trigger**
+- **M8: User custom dictionary (`user_words.txt`) & priority merging**
+- **M7: Selection layout conversion**
+- **M6: Smart Persian half-space (ZWNJ): prefix/suffix auto-attachment + `Shift+Space` hotkey**
+- **M5: Caret clipboard history ring buffer popup (`Alt+V`)**
+- **M4: Persian / Arabic text and number normalization**
+- **M3: Safe autocorrect & confusable typo normalization**
+- **M2: Tray menu with prediction toggle + notifications**
+- **M1: Single-instance guard, launch-at-startup, per-app exclusions, real UIA caret**
 
-2. **Full English Frequency Dictionary Expansion (50,000+ Words)**
-   - Expand the bundled English dictionary with frequency counts derived from contemporary English corpora.
-   - Introduce n-gram bigram/trigram next-word prediction based on typed context.
+---
 
-3. **Cloud & Git Sync for User Dictionary and Snippets**
-   - Allow typists to synchronize `user_words.txt` and `snippets.json` across multiple machines using GitHub Gist, Google Drive, or WebDAV.
-   - Conflict resolution and backup history.
+## Future Horizon
 
-4. **Native Inno Setup Windows Installer & Auto-Updater**
-   - Build a signed setup `.exe` with Inno Setup with start-menu shortcuts and desktop integration.
-   - Lightweight silent background update checker for new GitHub Releases.
+1. **Native Inno Setup Windows Installer**
+   - Provide an optional graphical setup wizard `.exe` with Start Menu shortcuts and automatic uninstaller.
+2. **Global Hotstring Engine**
+   - Instant multi-character hotstring triggers without requiring word delimiters.
+3. **Multi-Monitor Caret Coordinate Mapping**
+   - Enhanced virtual screen multi-DPI per-monitor coordinate translations for heterogeneous monitor layouts.

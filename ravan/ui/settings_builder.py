@@ -338,12 +338,15 @@ def build_about_section(frm: ttk.Frame) -> None:
 
     ttk.Label(frm, text="Ravaan (روان)", font=("Segoe UI", 14, "bold")).pack(anchor="w", pady=(6, 2))
     ttk.Label(frm, text="Windows typing assistant for bilingual Persian/English typists", font=("Segoe UI", 10)).pack(
-        anchor="w", pady=(0, 8)
+        anchor="w", pady=(0, 4)
     )
-    ttk.Label(frm, text="Version 0.4.0 — MIT License", foreground="gray").pack(anchor="w", pady=(0, 4))
+    from ravan import __version__
+
+    ttk.Label(frm, text=f"Version {__version__} — MIT License", foreground="gray").pack(anchor="w", pady=(0, 4))
     ttk.Label(frm, text="GitHub: https://github.com/mohsen-niksirat/Ravaan", foreground="#1a73e8").pack(
         anchor="w", pady=(0, 8)
     )
+
     ttk.Separator(frm, orient="horizontal").pack(fill="x", pady=8)
     ttk.Label(
         frm,
