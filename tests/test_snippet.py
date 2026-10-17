@@ -171,3 +171,37 @@ def test_snippets_json_import_export():
     assert "\n" in imported[1].replacement
     assert imported[2].trigger == "fa"
     assert "متن فارسی" in imported[2].replacement
+
+
+def test_cursor_pipe_placeholder():
+    clean, offset = parse_cursor_placeholder("Hello |, world!")
+    assert clean == "Hello , world!"
+    assert offset == 8
+
+
+def test_clipboard_template_placeholder():
+    from unittest.mock import patch
+
+    with patch("ravan.platform.clipboard.get_clipboard_text", return_value="https://example.com"):
+        res = render_template("Visit: {{clipboard}} today!")
+        assert res == "Visit: https://example.com today!"
+
+
+def test_snippet_enabled_toggle():
+    cfg = Config(
+        snippets=[
+            Snippet(trigger="active", replacement="I am enabled", enabled=True),
+            Snippet(trigger="disabled", replacement="I am disabled", enabled=False),
+        ]
+    )
+    engine = SnippetEngine.from_config(cfg)
+    assert engine.expand("active") == "I am enabled"
+    assert engine.expand("disabled") is None
+
+    # Verify JSON serialization retains enabled flag
+    json_data = snippets_to_json(cfg.snippets)
+    assert '"enabled": false' in json_data
+    reloaded = snippets_from_json(json_data)
+    assert reloaded[0].enabled is True
+    assert reloaded[1].enabled is False
+

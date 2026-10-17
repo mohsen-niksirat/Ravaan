@@ -98,11 +98,17 @@ class KeyHandlerMixin:
             # Note: Regular character keys fall through to typing, keeping prediction continuous!
 
         # Hotkeys
+        if hasattr(self.cfg, "quick_stats_hotkey") and matches_hotkey(
+            vk, self.cfg.quick_stats_hotkey
+        ):
+            self._ui_queue.put(("quick_stats", None))
+            return
         if self.cfg.clipboard_history_enabled and matches_hotkey(
             vk, self.cfg.clipboard_history_hotkey
         ):
             self._show_clipboard_popup()
             return
+
         if matches_hotkey(vk, self.cfg.undo_autocorrect_hotkey):
             if self._undo_last_autocorrect():
                 return

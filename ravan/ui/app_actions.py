@@ -185,3 +185,45 @@ class AppActionsMixin:
             "caret_pos": f"(x={caret.x}, y={caret.y}, w={caret.width}, h={caret.height})",
             "recent_events": list(self.recent_events),
         }
+
+    def _show_quick_text_stats(self: Any) -> None:
+        from ravan.core.text_stats import calculate_text_stats
+        from ravan.platform import winapi as w
+        from ravan.platform.caret import get_caret_rect
+        from ravan.platform.clipboard import get_clipboard_text, set_clipboard_text
+        from ravan.platform.inject import send_shortcut
+        from ravan.ui.stats_popup import StatsPopupWindow
+
+        old_clip = get_clipboard_text()
+        self._suppress_until = time.monotonic() + 0.15
+
+        # Simulate Ctrl+C to copy selected text
+        send_shortcut([w.VK_CONTROL], 0x43)
+        time.sleep(0.06)
+
+        new_clip = get_clipboard_text()
+        if old_clip is not None:
+            set_clipboard_text(old_clip)
+
+        target_text = ""
+        if new_clip and new_clip.strip() and new_clip != old_clip:
+            target_text = new_clip
+        else:
+            word = self.journal.last_word()
+            if word and len(word) >= 2:
+                target_text = word
+
+        if not target_text:
+            self.tray.notify(
+                "Select text and press Alt+S to view statistics.\n"
+                "ابتدا متن را انتخاب کنید و سپس Alt+S را بزنید.",
+                title="Quick Text Stats — Ravaan",
+            )
+            return
+
+        stats = calculate_text_stats(target_text)
+        caret = get_caret_rect()
+        if not hasattr(self, "_stats_popup") or self._stats_popup is None:
+            self._stats_popup = StatsPopupWindow()
+        self._stats_popup.show(stats, x=caret.x, y=caret.y + caret.height + 6)
+

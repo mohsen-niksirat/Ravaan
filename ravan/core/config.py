@@ -25,6 +25,8 @@ class HotkeySpec:
 class Snippet:
     trigger: str
     replacement: str
+    enabled: bool = True
+
 
 
 @dataclass
@@ -100,6 +102,14 @@ class Config:
     ignored_words: list[str] = field(default_factory=list)
     theme_mode: str = "auto"  # "auto" | "dark" | "light"
     has_seen_onboarding: bool = False
+    quick_stats_hotkey: HotkeySpec = field(
+        default_factory=lambda: HotkeySpec(key="S", modifiers=["Alt"])
+    )
+    cloud_sync_enabled: bool = False
+    gist_token: str = ""
+    gist_id: str = ""
+    last_sync_time: str = ""
+
 
     def is_excluded(
         self,
@@ -211,7 +221,11 @@ def _bounded_int(data: dict[str, Any], key: str, default: int, low: int, high: i
 
 def config_from_dict(data: dict[str, Any]) -> Config:
     snippets = [
-        Snippet(trigger=str(s["trigger"]), replacement=str(s["replacement"]))
+        Snippet(
+            trigger=str(s["trigger"]),
+            replacement=str(s["replacement"]),
+            enabled=bool(s.get("enabled", True)),
+        )
         for s in data.get("snippets", [])
         if isinstance(s, dict) and s.get("trigger") and "replacement" in s
     ]
@@ -261,7 +275,15 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         ],
         theme_mode=str(data.get("theme_mode", "auto")),
         has_seen_onboarding=bool(data.get("has_seen_onboarding", False)),
+        quick_stats_hotkey=_hotkey_from_dict(
+            data.get("quick_stats_hotkey"), HotkeySpec("S", ["Alt"])
+        ),
+        cloud_sync_enabled=bool(data.get("cloud_sync_enabled", False)),
+        gist_token=str(data.get("gist_token", "")),
+        gist_id=str(data.get("gist_id", "")),
+        last_sync_time=str(data.get("last_sync_time", "")),
     )
+
 
 
 def config_to_dict(cfg: Config) -> dict[str, Any]:

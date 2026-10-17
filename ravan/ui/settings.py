@@ -97,6 +97,7 @@ class SettingsWindow:
         tab_hotkeys = ttk.Frame(nb, padding=10)
         tab_exclusions = ttk.Frame(nb, padding=10)
         tab_snippets = ttk.Frame(nb, padding=10)
+        tab_sync = ttk.Frame(nb, padding=10)
         tab_about = ttk.Frame(nb, padding=10)
 
         nb.add(tab_general, text="General")
@@ -104,6 +105,7 @@ class SettingsWindow:
         nb.add(tab_hotkeys, text="Hotkeys")
         nb.add(tab_exclusions, text="Exclusions")
         nb.add(tab_snippets, text="Snippets")
+        nb.add(tab_sync, text="Sync")
         nb.add(tab_about, text="About")
 
         from ravan.ui.settings_builder import (
@@ -113,6 +115,7 @@ class SettingsWindow:
             build_hotkeys_section,
             build_prediction_section,
             build_snippets_section,
+            build_sync_section,
         )
 
         build_general_section(self, tab_general, 0, pad)
@@ -120,7 +123,9 @@ class SettingsWindow:
         build_hotkeys_section(self, tab_hotkeys, 0, pad)
         build_exclusions_section(self, tab_exclusions, 0, pad)
         build_snippets_section(self, tab_snippets, 0, pad)
+        build_sync_section(self, tab_sync, 0, pad)
         build_about_section(tab_about)
+
 
         # ── Buttons ──
         btns = ttk.Frame(frm)
@@ -235,6 +240,7 @@ class SettingsWindow:
         norm = text_to_hotkey(self._norm_var.get())
         case = text_to_hotkey(self._case_var.get())
         undo = text_to_hotkey(self._undo_var.get())
+        stats = text_to_hotkey(self._stats_var.get()) if hasattr(self, "_stats_var") else None
         if self._convert_var.get().strip() and convert is None:
             messagebox.showwarning("Ravan", "Invalid convert hotkey", parent=self._root)
             return
@@ -253,11 +259,14 @@ class SettingsWindow:
         if self._undo_var.get().strip() and undo is None:
             messagebox.showwarning("Ravan", "Invalid undo autocorrect hotkey", parent=self._root)
             return
+        if hasattr(self, "_stats_var") and self._stats_var.get().strip() and stats is None:
+            messagebox.showwarning("Ravan", "Invalid quick stats hotkey", parent=self._root)
+            return
 
         from ravan.core.config import hotkey_to_text
 
         # Validate no duplicate hotkeys
-        active_hotkeys = [hotkey_to_text(h) for h in [convert, lang, clip, norm, case, undo] if h]
+        active_hotkeys = [hotkey_to_text(h) for h in [convert, lang, clip, norm, case, undo, stats] if h]
         if len(active_hotkeys) != len(set(active_hotkeys)):
             messagebox.showwarning(
                 "Ravan",
@@ -279,6 +288,9 @@ class SettingsWindow:
             cfg.case_hotkey = case
         if undo:
             cfg.undo_autocorrect_hotkey = undo
+        if stats:
+            cfg.quick_stats_hotkey = stats
+
         cfg.prediction_enabled = self._prediction_var.get()
         cfg.autocorrect_enabled = self._autocorrect_var.get()
         if hasattr(self, "_autocorrect_mode_var"):
@@ -342,7 +354,25 @@ class SettingsWindow:
         ]
         save_user_words(user_words)
 
+        if hasattr(self, "_gist_token_var"):
+            cfg.gist_token = self._gist_token_var.get().strip()
+        if hasattr(self, "_gist_id_var"):
+            cfg.gist_id = self._gist_id_var.get().strip()
+        if hasattr(self, "_cloud_sync_var"):
+            cfg.cloud_sync_enabled = self._cloud_sync_var.get()
+
         save_config(cfg)
         if self.on_saved:
             self.on_saved(cfg)
         self._close()
+
+    def _sync_push(self) -> None:
+        from ravan.ui.settings_sync import do_sync_push
+
+        do_sync_push(self)
+
+    def _sync_pull(self) -> None:
+        from ravan.ui.settings_sync import do_sync_pull
+
+        do_sync_pull(self)
+

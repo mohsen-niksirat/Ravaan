@@ -147,6 +147,9 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
                 self.open_diagnostics()
             elif action == "set_prediction":
                 self.set_prediction_enabled(bool(arg))
+            elif action == "quick_stats":
+                self._show_quick_text_stats()
+
 
     def stop(self) -> None:
         if threading.current_thread() is not threading.main_thread():

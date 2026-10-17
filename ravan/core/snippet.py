@@ -83,6 +83,20 @@ def render_template(template: str) -> str:
         res = calculate(expr)
         return res if res is not None else match.group(0)
 
+    if "{{clipboard}}" in template.lower() or "{{clip}}" in template.lower():
+        try:
+            from ravan.platform.clipboard import get_clipboard_text
+
+            clip_val = get_clipboard_text() or ""
+        except Exception:
+            clip_val = ""
+        template = re.sub(
+            r"\{\{\s*(?:clipboard|clip)\s*\}\}",
+            clip_val,
+            template,
+            flags=re.IGNORECASE,
+        )
+
     # First evaluate math/calc expressions: {{calc: 100 * 1.09}} or {{math: 50 + 2}}
     rendered = re.sub(
         r"\{\{\s*(?:math|calc|eval)\s*:\s*([^}]+)\s*\}\}",
@@ -101,7 +115,7 @@ def render_template(template: str) -> str:
 
 
 def parse_cursor_placeholder(text: str) -> tuple[str, int | None]:
-    """Extract $0 or {{cursor}} from text.
+    """Extract $0, {{cursor}}, {{0}}, or | from text.
 
     Returns:
         (clean_text, cursor_offset)
@@ -114,12 +128,24 @@ def parse_cursor_placeholder(text: str) -> tuple[str, int | None]:
             clean = text[:pos] + text[pos + len(marker) :]
             offset = len(clean) - pos
             return clean, offset
+    if "|" in text:
+        pos = text.find("|")
+        clean = text[:pos] + text[pos + 1 :]
+        offset = len(clean) - pos
+        return clean, offset
     return text, None
 
 
 def snippets_to_json(snippets: list[Snippet], indent: int = 2) -> str:
     """Serialize snippet list to a UTF-8 JSON string."""
-    data = [{"trigger": s.trigger, "replacement": s.replacement} for s in snippets]
+    data = [
+        {
+            "trigger": s.trigger,
+            "replacement": s.replacement,
+            "enabled": getattr(s, "enabled", True),
+        }
+        for s in snippets
+    ]
     return json.dumps(data, ensure_ascii=False, indent=indent)
 
 
@@ -133,8 +159,9 @@ def snippets_from_json(json_str: str) -> list[Snippet]:
         if isinstance(item, dict) and "trigger" in item and "replacement" in item:
             trig = str(item["trigger"]).strip()
             repl = str(item["replacement"])
+            enabled = bool(item.get("enabled", True))
             if trig:
-                snippets.append(Snippet(trigger=trig, replacement=repl))
+                snippets.append(Snippet(trigger=trig, replacement=repl, enabled=enabled))
     return snippets
 
 
@@ -166,7 +193,12 @@ class SnippetEngine:
 
     @classmethod
     def from_config(cls, cfg: Config) -> SnippetEngine:
-        return cls([(s.trigger, s.replacement) for s in cfg.snippets])
+        return cls([
+            (s.trigger, s.replacement)
+            for s in cfg.snippets
+            if getattr(s, "enabled", True)
+        ])
+
 
     def expand_with_cursor(self, word: str) -> tuple[str, int | None] | None:
         """Expand word into (replacement_text, cursor_offset_from_end) or None."""

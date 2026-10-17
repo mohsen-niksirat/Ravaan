@@ -52,7 +52,10 @@ def build_hotkeys_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
         ("Normalize text:", "_norm_var", win.cfg.normalize_hotkey, "e.g. Ctrl+F12"),
         ("Cycle text case:", "_case_var", win.cfg.case_hotkey, "e.g. Shift+F12"),
         ("Undo autocorrect:", "_undo_var", win.cfg.undo_autocorrect_hotkey, "e.g. Ctrl+Shift+Z"),
+        ("Quick text stats:", "_stats_var", getattr(win.cfg, "quick_stats_hotkey", None) or win.cfg.quick_stats_hotkey, "e.g. Alt+S"),
     ]
+
+
 
     for label_text, var_attr, hotkey_spec, hint in entries_spec:
         ttk.Label(frm, text=label_text).grid(row=row, column=0, sticky="w", **pad)
@@ -254,7 +257,85 @@ def build_snippets_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     return row
 
 
+def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, Any]) -> int:
+    row = start_row
+    ttk.Label(
+        frm,
+        text="Cloud Sync via GitHub Gist (همگام‌سازی ابری)",
+        font=("Segoe UI", 11, "bold"),
+    ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 4))
+    row += 1
+
+    ttk.Label(
+        frm,
+        text="Sync your user words and snippets securely across PCs via a GitHub Gist.",
+        foreground="#444444",
+    ).grid(row=row, column=0, columnspan=3, sticky="w", pady=(0, 8))
+    row += 1
+
+    ttk.Label(frm, text="Gist Personal Access Token:").grid(row=row, column=0, sticky="w", **pad)
+    win._gist_token_var = tk.StringVar(value=getattr(win.cfg, "gist_token", ""))
+    token_entry = ttk.Entry(frm, textvariable=win._gist_token_var, width=28, show="*")
+    token_entry.grid(row=row, column=1, sticky="w", **pad)
+
+    def toggle_show_token() -> None:
+        if token_entry.cget("show") == "*":
+            token_entry.config(show="")
+        else:
+            token_entry.config(show="*")
+
+    ttk.Button(frm, text="Show/Hide", command=toggle_show_token, width=9).grid(
+        row=row, column=2, sticky="w", **pad
+    )
+    row += 1
+
+    ttk.Label(frm, text="Gist ID:").grid(row=row, column=0, sticky="w", **pad)
+    win._gist_id_var = tk.StringVar(value=getattr(win.cfg, "gist_id", ""))
+    ttk.Entry(frm, textvariable=win._gist_id_var, width=28).grid(
+        row=row, column=1, sticky="w", **pad
+    )
+    ttk.Label(frm, text="Found in gist URL", foreground="gray").grid(
+        row=row, column=2, sticky="w", **pad
+    )
+    row += 1
+
+    win._cloud_sync_var = tk.BooleanVar(value=getattr(win.cfg, "cloud_sync_enabled", False))
+    ttk.Checkbutton(
+        frm,
+        text="Enable automatic background sync",
+        variable=win._cloud_sync_var,
+    ).grid(row=row, column=0, columnspan=3, sticky="w", **pad)
+    row += 1
+
+    sync_btn_bar = ttk.Frame(frm)
+    sync_btn_bar.grid(row=row, column=0, columnspan=3, sticky="w", pady=(8, 4))
+    ttk.Button(sync_btn_bar, text="⬆ Push to Gist", command=win._sync_push).pack(
+        side="left", padx=(0, 6)
+    )
+    ttk.Button(sync_btn_bar, text="⬇ Pull from Gist", command=win._sync_pull).pack(
+        side="left", padx=6
+    )
+    row += 1
+
+    win._last_sync_label_var = tk.StringVar(
+        value=f"Last sync: {getattr(win.cfg, 'last_sync_time', '') or 'Never'}"
+    )
+    ttk.Label(frm, textvariable=win._last_sync_label_var, foreground="#555555").grid(
+        row=row, column=0, columnspan=3, sticky="w", **pad
+    )
+    row += 1
+
+    win._sync_status_var = tk.StringVar(value="")
+    ttk.Label(frm, textvariable=win._sync_status_var, font=("Segoe UI", 9, "bold")).grid(
+        row=row, column=0, columnspan=3, sticky="w", **pad
+    )
+    row += 1
+
+    return row
+
+
 def build_about_section(frm: ttk.Frame) -> None:
+
     ttk.Label(frm, text="Ravaan (روان)", font=("Segoe UI", 14, "bold")).pack(anchor="w", pady=(6, 2))
     ttk.Label(frm, text="Windows typing assistant for bilingual Persian/English typists", font=("Segoe UI", 10)).pack(
         anchor="w", pady=(0, 8)
