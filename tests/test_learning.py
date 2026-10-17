@@ -58,3 +58,41 @@ def test_top_learned_completions(tmp_path: Path):
 
     completions = engine.top_learned_completions("برنامه")
     assert "برنامه‌نویسی" in completions
+
+
+def test_seeded_trigrams_and_english_transitions(tmp_path: Path):
+    model_file = tmp_path / "learning.json"
+    engine = UserLearningEngine(storage_path=model_file)
+
+    # Persian seeded trigrams
+    pred_fa_1 = engine.predict_next_words("خیلی ممنون", limit=3)
+    assert "از" in pred_fa_1
+    pred_fa_2 = engine.predict_next_words("به نام", limit=3)
+    assert "خدا" in pred_fa_2
+
+    # English seeded transitions & trigrams
+    pred_en_1 = engine.predict_next_words("thank you", limit=3)
+    assert "very" in pred_en_1
+    pred_en_2 = engine.predict_next_words("looking forward", limit=3)
+    assert "to" in pred_en_2
+    pred_en_3 = engine.predict_next_words("how are", limit=3)
+    assert "you" in pred_en_3
+
+    # Fallback to bigram when trigram is not found
+    pred_fallback = engine.predict_next_words("some unknown thank", limit=3)
+    assert "you" in pred_fallback
+
+
+def test_learn_trigrams(tmp_path: Path):
+    model_file = tmp_path / "learning.json"
+    engine = UserLearningEngine(storage_path=model_file)
+
+    engine.learn_trigram("machine", "learning", "models")
+    preds = engine.predict_next_words("machine learning", limit=3)
+    assert "models" in preds
+
+    # Persist and reload
+    engine.save()
+    engine2 = UserLearningEngine(storage_path=model_file)
+    preds2 = engine2.predict_next_words("machine learning", limit=3)
+    assert "models" in preds2

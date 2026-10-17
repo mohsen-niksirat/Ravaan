@@ -35,6 +35,8 @@ class DictPredictor(Predictor):
         english: Dictionary | None,
         persian: Dictionary | None,
         learning_engine: UserLearningEngine | None = None,
+        ignored_words: set[str] | list[str] | None = None,
+        autocorrect_mode: str = "safe",
     ) -> None:
         self.english = english
         self.persian = persian
@@ -43,7 +45,18 @@ class DictPredictor(Predictor):
             if learning_engine is not None
             else UserLearningEngine(auto_load=False)
         )
+        self.ignored_words = {
+            w.strip().lower() for w in (ignored_words or []) if w and w.strip()
+        }
+        self.session_suppressed: set[str] = set()
+        self.autocorrect_mode = autocorrect_mode.strip().lower()
         self._selection_counts: dict[str, int] = {}
+
+    def suppress_session_word(self, word: str) -> None:
+        """Suppress autocorrection for this word for the rest of the running session."""
+        w = word.strip().lower()
+        if w:
+            self.session_suppressed.add(w)
 
     def record_selection(self, word: str, context: str | None = None) -> None:
         key = word.strip().lower()
@@ -51,7 +64,11 @@ class DictPredictor(Predictor):
             self._selection_counts[key] = self._selection_counts.get(key, 0) + 1
             self.learning.learn_word(word)
             if context:
-                self.learning.learn_transition(context, word)
+                parts = context.strip().split()
+                if len(parts) >= 2:
+                    self.learning.learn_trigram(parts[-2], parts[-1], word)
+                if parts:
+                    self.learning.learn_transition(parts[-1], word)
             self.learning.save()
 
     @classmethod
@@ -70,7 +87,13 @@ class DictPredictor(Predictor):
                     en_dict.add_word(w, priority=True)
 
         learning = UserLearningEngine(auto_load=True)
-        return cls(english=en_dict, persian=fa_dict, learning_engine=learning)
+        return cls(
+            english=en_dict,
+            persian=fa_dict,
+            learning_engine=learning,
+            ignored_words=cfg.ignored_words,
+            autocorrect_mode=cfg.autocorrect_mode if cfg.autocorrect_enabled else "off",
+        )
 
     def _dict_for(self, word: str, lang: str | None = None) -> Dictionary | None:
         if lang == "fa":
@@ -149,8 +172,8 @@ class DictPredictor(Predictor):
         candidates.sort(key=lambda c: c.score, reverse=True)
         completions = candidates[:limit]
 
-        if len(completions) < limit:
-            fuzzy = dict_.fuzzy_matches(prefix, 2, limit - len(completions))
+        if len(completions) < limit and len(prefix) >= 3:
+            fuzzy = dict_.fuzzy_matches(prefix, 1, limit - len(completions))
             prefix_rank = dict_.rank_of(prefix)
             for entry, dist in fuzzy:
                 if entry.word in seen_texts:
@@ -172,16 +195,15 @@ class DictPredictor(Predictor):
         return completions[:limit]
 
     def correct(self, word: str, lang: str | None = None) -> Candidate | None:
-        """Return a safe autocorrect candidate for a completed word, or None.
+        """Return an autocorrect candidate for a completed word based on configured mode, or None."""
+        if self.autocorrect_mode == "off":
+            return None
 
-        Safe and intelligent autocorrect:
-        - Bilingual awareness: only autocorrect in active language (never mix).
-        - Persian-specific typos: similar-looking letters (ه/ة, ي/ی, ك/ک, etc.).
-        - Exact dictionary words are never modified.
-        - Plausible in-progress prefixes are not mangled.
-        - Per-word probability ranking based on frequency, edit distance, and adaptive learning.
-        """
         if len(word) < 3 or not word.isalpha():
+            return None
+
+        w_low = word.lower()
+        if w_low in self.ignored_words or w_low in self.session_suppressed:
             return None
 
         # Bilingual check: never mix languages
@@ -213,8 +235,8 @@ class DictPredictor(Predictor):
                         kind=CandidateKind.AUTOCORRECT,
                     )
 
-        # 2. Still typing a plausible prefix of a short word? Don't auto-mangle
-        if len(word) >= 3:
+        # 2. Still typing a plausible prefix of a short word? Don't auto-mangle in safe mode
+        if self.autocorrect_mode == "safe" and len(word) >= 3:
             limit_len = len(word) + 2
             if any(len(e.word) <= limit_len for e in dict_.completions(word, 8)):
                 return None

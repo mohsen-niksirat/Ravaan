@@ -76,9 +76,17 @@ class Config:
         default_factory=lambda: HotkeySpec(key="Z", modifiers=["Ctrl", "Shift"])
     )
     fix_punctuation_spacing: bool = True
+    autocorrect_mode: str = "safe"  # "off" | "safe" | "normal"
+    ignored_words: list[str] = field(default_factory=list)
 
     def is_excluded(self, exe_name: str | None) -> bool:
         return is_app_excluded(exe_name, self.excluded_apps)
+
+    def is_word_ignored(self, word: str) -> bool:
+        if not word:
+            return False
+        w_low = word.strip().lower()
+        return any(w_low == ign.strip().lower() for ign in self.ignored_words)
 
 
 def is_app_excluded(exe_name: str | None, excluded_apps: list[str]) -> bool:
@@ -208,6 +216,10 @@ def config_from_dict(data: dict[str, Any]) -> Config:
             data.get("undo_autocorrect_hotkey"), HotkeySpec("Z", ["Ctrl", "Shift"])
         ),
         fix_punctuation_spacing=bool(data.get("fix_punctuation_spacing", True)),
+        autocorrect_mode=str(data.get("autocorrect_mode", "safe")).lower(),
+        ignored_words=[
+            str(w).strip() for w in data.get("ignored_words", []) if str(w).strip()
+        ],
     )
 
 

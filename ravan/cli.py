@@ -44,6 +44,9 @@ def main(argv: list[str] | None = None) -> int:
     p_words.add_argument("number", help="Number to convert e.g. 1250000 or ۱۲۵۰۰۰۰")
     p_words.add_argument("--toman", action="store_true", help="Convert Rial to Toman words (divide by 10)")
     p_words.add_argument("--sep", action="store_true", help="Format with thousands separators")
+    p_ignore = sub.add_parser("ignore", help="Manage ignored words (never autocorrected)")
+    p_ignore.add_argument("action", choices=["list", "add", "remove"])
+    p_ignore.add_argument("word", nargs="?", default="")
 
     args = parser.parse_args(argv)
 
@@ -198,6 +201,44 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         print(num_to_persian_words(args.number))
         return 0
+
+    if args.cmd == "ignore":
+        from ravan.core.config import load_config, save_config
+
+        cfg = load_config()
+        if args.action == "list":
+            if not cfg.ignored_words:
+                print("No ignored words configured.")
+            else:
+                for w in cfg.ignored_words:
+                    print(w)
+            return 0
+        elif args.action == "add":
+            target = args.word.strip()
+            if not target:
+                print("Error: Specify a word to ignore.", file=sys.stderr)
+                return 1
+            if cfg.is_word_ignored(target):
+                print(f"Word {target!r} is already ignored.")
+                return 0
+            cfg.ignored_words.append(target)
+            save_config(cfg)
+            print(f"Added {target!r} to ignored words.")
+            return 0
+        elif args.action == "remove":
+            target = args.word.strip()
+            if not target:
+                print("Error: Specify a word to remove.", file=sys.stderr)
+                return 1
+            low = target.lower()
+            remaining = [w for w in cfg.ignored_words if w.strip().lower() != low]
+            if len(remaining) == len(cfg.ignored_words):
+                print(f"Word {target!r} not found in ignored words.", file=sys.stderr)
+                return 1
+            cfg.ignored_words = remaining
+            save_config(cfg)
+            print(f"Removed {target!r} from ignored words.")
+            return 0
 
     return 1
 

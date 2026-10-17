@@ -240,6 +240,9 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         for ch in replace_text:
             self.journal.push(ch)
 
+        if hasattr(self, "predictor") and self.predictor:
+            self.predictor.suppress_session_word(orig)
+
         log.info("Undid autocorrect: reverted %r back to %r", corrected, orig)
         self._record_event(f"Undid autocorrect: reverted '{corrected}' -> '{orig}'")
         self.tray.notify(f"Reverted to '{orig}'")
@@ -263,10 +266,14 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
             return False
 
         lang_tag = self._active_layout_tag
-        prev_word = (
-            self.journal.previous_word()
-            if hasattr(self.journal, "previous_word")
-            else None
+        prev_context = (
+            self.journal.previous_context(2)
+            if hasattr(self.journal, "previous_context")
+            else (
+                self.journal.previous_word()
+                if hasattr(self.journal, "previous_word")
+                else None
+            )
         )
         cand = self.predictor.correct(word, lang=lang_tag)
         if cand is not None and cand.text != word:
@@ -274,25 +281,29 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
             self._last_autocorrect = (word, cand.text, time.monotonic(), delimiter)
             self._record_event(f"Autocorrect '{word}' -> '{cand.text}'", char=cand.text)
             self._replace_word(word, cand.text, delimiter=delimiter)
-            self.predictor.record_selection(cand.text, context=prev_word)
+            self.predictor.record_selection(cand.text, context=prev_context)
             return True
 
         if word:
-            self.predictor.record_selection(word, context=prev_word)
+            self.predictor.record_selection(word, context=prev_context)
         return False
 
     def _accept_candidate(self, cand: Candidate) -> None:
         from ravan.core.events import CandidateKind
 
         word = self.journal.last_word()
-        prev_word = (
-            self.journal.previous_word()
-            if hasattr(self.journal, "previous_word")
-            else None
+        prev_context = (
+            self.journal.previous_context(2)
+            if hasattr(self.journal, "previous_context")
+            else (
+                self.journal.previous_word()
+                if hasattr(self.journal, "previous_word")
+                else None
+            )
         )
         log.info("Accepted suggestion: %r → %r (kind=%s)", word, cand.text, cand.kind)
         self._record_event(f"Accepted candidate '{cand.text}'", char=cand.text)
-        self.predictor.record_selection(cand.text, context=prev_word)
+        self.predictor.record_selection(cand.text, context=prev_context)
 
         if cand.kind == CandidateKind.NEXT_WORD or not word:
             self._suppress_until = time.monotonic() + 0.08

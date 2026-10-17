@@ -112,7 +112,13 @@ def test_diagnostics_window_state():
 
 
 def test_overlay_show_clipboard_renders_rows():
-    ov = OverlayWindow()
+    import pytest
+
+    try:
+        ov = OverlayWindow()
+    except Exception as exc:
+        pytest.skip(f"Tkinter window unavailable: {exc}")
+
     try:
         ov.show_clipboard(["first item", "second item"], 100, 100)
         assert ov.clipboard_open is True

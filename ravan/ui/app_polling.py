@@ -110,9 +110,13 @@ class AppPollingMixin:
         self._pending_predict = False
         prefix = self.journal.last_word()
         context_word = (
-            self.journal.previous_word()
-            if hasattr(self.journal, "previous_word")
-            else ""
+            self.journal.previous_context(2)
+            if hasattr(self.journal, "previous_context")
+            else (
+                self.journal.previous_word()
+                if hasattr(self.journal, "previous_word")
+                else ""
+            )
         )
 
         if len(prefix) < self.cfg.min_prefix_len:

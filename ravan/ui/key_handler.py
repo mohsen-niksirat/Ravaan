@@ -131,6 +131,15 @@ class KeyHandlerMixin:
         if is_modifier(vk):
             return
 
+        if vk == w.VK_ESCAPE:
+            if self._last_autocorrect is not None:
+                orig, corrected, t_done, delim = self._last_autocorrect
+                if time.monotonic() - t_done < 4.0:
+                    if self._undo_last_autocorrect():
+                        return
+            self._last_autocorrect = None
+            return
+
         if vk == w.VK_BACK:
             if self._last_autocorrect is not None:
                 orig, corrected, t_done, delim = self._last_autocorrect

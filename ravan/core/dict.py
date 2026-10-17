@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 from dataclasses import dataclass
 from enum import Enum, auto
 
@@ -170,9 +171,13 @@ class Dictionary:
         self.language = language
         self._lower = {e.word.lower(): e for e in entries}
         # Sorted-by-length index for fast fuzzy candidate scan
-        self._by_len: dict[int, list[DictEntry]] = {}
+        self._by_len: dict[int, list[tuple[DictEntry, str]]] = {}
         for e in entries:
-            self._by_len.setdefault(len(e.word), []).append(e)
+            self._by_len.setdefault(len(e.word), []).append((e, e.word.lower()))
+
+        sorted_pairs = sorted(((e.word.lower(), e) for e in entries), key=lambda p: p[0])
+        self._sorted_keys = [p[0] for p in sorted_pairs]
+        self._sorted_entries = [p[1] for p in sorted_pairs]
 
     def add_word(self, word: str, priority: bool = True) -> None:
         """Add a dynamic word to the dictionary in-memory."""
@@ -190,6 +195,9 @@ class Dictionary:
                 except ValueError:
                     pass
                 self.entries.insert(0, new_entry)
+                idx = bisect.bisect_left(self._sorted_keys, key)
+                if idx < len(self._sorted_keys) and self._sorted_keys[idx] == key:
+                    self._sorted_entries[idx] = new_entry
             return
 
         rank = 0 if priority else len(self.entries) + 1
@@ -199,7 +207,10 @@ class Dictionary:
         else:
             self.entries.append(entry)
         self._lower[key] = entry
-        self._by_len.setdefault(len(clean), []).append(entry)
+        self._by_len.setdefault(len(clean), []).append((entry, key))
+        idx = bisect.bisect_left(self._sorted_keys, key)
+        self._sorted_keys.insert(idx, key)
+        self._sorted_entries.insert(idx, entry)
 
     @classmethod
     def english(cls) -> Dictionary:
@@ -223,9 +234,14 @@ class Dictionary:
 
     def completions(self, prefix: str, limit: int) -> list[DictEntry]:
         prefix_lower = prefix.lower()
-        matches = [
-            e for e in self.entries if e.word.lower().startswith(prefix_lower)
-        ]
+        if not prefix_lower:
+            return self.entries[:limit]
+        idx = bisect.bisect_left(self._sorted_keys, prefix_lower)
+        matches: list[DictEntry] = []
+        n = len(self._sorted_keys)
+        while idx < n and self._sorted_keys[idx].startswith(prefix_lower):
+            matches.append(self._sorted_entries[idx])
+            idx += 1
         matches.sort(key=lambda e: e.rank)
         return matches[:limit]
 
@@ -237,8 +253,10 @@ class Dictionary:
         matches: list[tuple[DictEntry, int]] = []
         # Only compare against words within the edit-distance length window
         for ln in range(max(1, n - max_dist), n + max_dist + 1):
-            for e in self._by_len.get(ln, ()):
-                dist = osa_distance(e.word.lower(), word_lower, max_dist=max_dist)
+            for e, w_low in self._by_len.get(ln, ()):
+                if e.rank > 3000:
+                    continue
+                dist = osa_distance(w_low, word_lower, max_dist=max_dist)
                 if 0 < dist <= max_dist:
                     matches.append((e, dist))
         matches.sort(key=lambda t: (t[1], t[0].rank))

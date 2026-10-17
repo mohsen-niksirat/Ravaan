@@ -77,3 +77,17 @@ class KeystrokeJournal:
         if text and not text[-1].isspace():
             return words[-2] if len(words) >= 2 else ""
         return words[-1]
+
+    def previous_context(self, n: int = 2) -> str:
+        """Return the last n completed words immediately before the current typing position."""
+        text = self.text()
+        words = text.split()
+        if not words:
+            return ""
+        if text and not text[-1].isspace():
+            completed = words[:-1]
+        else:
+            completed = words
+        if not completed:
+            return ""
+        return " ".join(completed[-n:])

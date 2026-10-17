@@ -127,3 +127,59 @@ def test_learned_completion_boost(tmp_path):
     # Newly learned word gets highest priority
     assert texts[0] == "ساختمان"
 
+
+def test_autocorrect_modes():
+    # Test "off" mode
+    pred_off = DictPredictor.from_config(Config(autocorrect_mode="off"))
+    assert pred_off.correct("teh") is None
+
+    # Test "safe" mode
+    pred_safe = DictPredictor.from_config(Config(autocorrect_mode="safe"))
+    assert pred_safe.correct("teh") is not None
+    assert pred_safe.correct("teh").text == "the"
+    # "hel" is a prefix of "hello", so safe mode must reject it
+    assert pred_safe.correct("hel") is None
+
+    # Test "normal" mode
+    pred_normal = DictPredictor.from_config(Config(autocorrect_mode="normal"))
+    assert pred_normal.correct("teh") is not None
+    assert pred_normal.correct("teh").text == "the"
+
+
+def test_ignored_words_suppresses_autocorrect():
+    cfg = Config(ignored_words=["teh", "mycustomword"])
+    pred = DictPredictor.from_config(cfg)
+    # Even though 'teh' is a known typo for 'the', it is ignored
+    assert pred.correct("teh") is None
+    assert pred.correct("TEH") is None
+
+
+def test_session_suppression():
+    pred = _pred()
+    assert pred.correct("teh") is not None
+    pred.suppress_session_word("teh")
+    # Now it is suppressed for this session
+    assert pred.correct("teh") is None
+
+
+def test_prediction_latency_benchmark():
+    import time
+
+    pred = _pred()
+    prefixes = ["th", "pro", "com", "سلام", "بر", "دان", "in", "te", "هم", "یک"]
+    warmup = pred.predict("th", "", 5)
+    assert warmup
+
+    # Measure 100 queries
+    start = time.perf_counter()
+    iterations = 100
+    for i in range(iterations):
+        p = prefixes[i % len(prefixes)]
+        res = pred.predict(p, "", 5)
+        assert len(res) > 0
+    elapsed = time.perf_counter() - start
+
+    avg_ms = (elapsed / iterations) * 1000.0
+    # Must remain strictly < 15ms per keystroke (usually < 1ms)
+    assert avg_ms < 15.0, f"Average latency too high: {avg_ms:.2f}ms"
+
