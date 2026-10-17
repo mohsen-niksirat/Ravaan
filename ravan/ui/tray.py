@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class TrayIcon:
         on_diagnostics: Callable[[], None] | None = None,
         on_toggle_prediction: Callable[[bool], None] | None = None,
         is_prediction_enabled: Callable[[], bool] | None = None,
+        on_update_found: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self._on_quit = on_quit
         self._on_show_lang = on_show_lang
@@ -52,6 +54,7 @@ class TrayIcon:
         self._on_diagnostics = on_diagnostics
         self._on_toggle_prediction = on_toggle_prediction
         self._is_prediction_enabled = is_prediction_enabled
+        self._on_update_found = on_update_found
         self._icon = None
         self._thread: threading.Thread | None = None
 
@@ -149,19 +152,24 @@ class TrayIcon:
                         t("notifications.error_title", "Ravaan Error"),
                     )
                 elif res["has_update"]:
+                    summary = res.get("changelog_summary", "")
                     msg = t(
                         "notifications.update_available_body",
                         "Version {version} is available. Click to download.",
                         version=res["latest_version"],
                     )
+                    balloon_text = f"{msg}\n{summary}" if summary else msg
                     self._icon.notify(
-                        f"{msg}\nOpening release page...",
+                        balloon_text,
                         t("notifications.update_available_title", "Ravaan Update Available"),
                     )
-                    try:
-                        webbrowser.open(res["release_url"])
-                    except Exception:
-                        pass
+                    if self._on_update_found:
+                        self._on_update_found(res)
+                    else:
+                        try:
+                            webbrowser.open(res["release_url"])
+                        except Exception:
+                            pass
                 else:
                     msg = t(
                         "notifications.no_update_body",

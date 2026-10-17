@@ -24,6 +24,7 @@
     "lang_en": "English",
     "lang_fa": "فارسی",
     "launch_at_startup": "Launch at Windows startup",
+    "register_protocol": "Register 'ravan://' URL protocol handler",
     "theme_mode": "Theme Mode:",
     "theme_auto": "Auto (Windows theme)",
     "theme_dark": "Dark",
@@ -167,5 +168,16 @@
     "no_update_body": "You are using the latest version ({version}).",
     "select_text_stats_hint": "Select text and press Alt+S to view statistics.",
     "error_title": "Ravaan Error"
+  },
+  "updater": {
+    "title": "Ravaan Update — v{version}",
+    "header": "A new version of Ravaan is available!",
+    "changelog_label": "What's New:",
+    "downloading": "Downloading installer…",
+    "download_pct": "Downloading installer… {pct}%",
+    "download_err": "Download failed. Opening release in browser…",
+    "btn_install": "⬇ Download & Install",
+    "btn_browser": "🌐 View on GitHub",
+    "btn_later": "Later"
   }
 }

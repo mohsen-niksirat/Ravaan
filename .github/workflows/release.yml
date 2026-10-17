@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build-release:
@@ -32,15 +34,33 @@ jobs:
         run: |
           pytest
 
-      - name: Build Ravaan.exe
+      - name: Build portable executable
         run: |
           pyinstaller --clean -y ravan.spec
 
-      - name: Publish GitHub Release
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --no-progress
+
+      - name: Build Setup Installer
+        run: |
+          $ver = "${{ github.ref_name }}".TrimStart("v")
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="$ver" installer/setup.iss
+
+      - name: Generate Checksums
+        run: |
+          python scripts/generate_hashes.py | Out-File -FilePath checksums.txt -Encoding utf8
+          Get-Content checksums.txt
+
+      - name: Publish GitHub Release Draft
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Ravaan.exe
-          name: Ravan ${{ github.ref_name }}
-          draft: false
+          files: |
+            dist/Ravaan.exe
+            dist/Ravaan-Setup-*.exe
+            checksums.txt
+          name: Ravaan ${{ github.ref_name }}
+          draft: true
           prerelease: false
           generate_release_notes: true
+          append_body: true

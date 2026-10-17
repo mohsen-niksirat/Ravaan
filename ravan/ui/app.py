@@ -56,6 +56,7 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
             on_diagnostics=lambda: self._ui_queue.put(("diagnostics", None)),
             on_toggle_prediction=lambda val: self._ui_queue.put(("set_prediction", val)),
             is_prediction_enabled=lambda: self.cfg.prediction_enabled,
+            on_update_found=lambda info: self._ui_queue.put(("show_update", info)),
         )
         self._settings_window = None
         self._diagnostics_window = None
@@ -150,6 +151,19 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
                 self.set_prediction_enabled(bool(arg))
             elif action == "quick_stats":
                 self._show_quick_text_stats()
+            elif action == "show_update":
+                self._show_update_dialog(arg)
+
+    def _show_update_dialog(self, release_info: dict[str, Any]) -> None:
+        from ravan.ui.update_dialog import UpdateDialog
+
+        def on_exit() -> None:
+            if hasattr(self, "_single_instance") and self._single_instance:
+                self._single_instance.release()
+            self.stop()
+
+        dialog = UpdateDialog(release_info, on_ready_to_exit=on_exit)
+        dialog.show()
 
 
     def stop(self) -> None:

@@ -119,6 +119,16 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
     )
     row += 1
 
+    from ravan.platform.protocol import is_protocol_registered
+
+    win._protocol_var = tk.BooleanVar(value=is_protocol_registered())
+    ttk.Checkbutton(
+        frm,
+        text=t("settings.register_protocol", "Register 'ravan://' URL protocol handler"),
+        variable=win._protocol_var,
+    ).grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    row += 1
+
     win._sound_var = tk.BooleanVar(value=win.cfg.sound_feedback_enabled)
     ttk.Checkbutton(frm, text=t("settings.sound_feedback", "Audio feedback on keyboard layout switch"), variable=win._sound_var).grid(
         row=row, column=0, columnspan=3, sticky=align, **pad

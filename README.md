@@ -245,6 +245,40 @@ python -m ravan.cli dict remove "word"  # remove custom word
 > Each `python -m ravan` instance is single-instance-guarded (named mutex). Restarting
 > after an update re-runs the new code (the tray icon of the old process must be quit first).
 
+## Installation & Upgrade Guide
+
+Ravaan provides three distribution channels depending on your workflow:
+
+### 1. Windows Installer (`Ravaan-Setup-x.y.z.exe`) — Recommended
+- **Non-admin install**: Installs directly to `%LOCALAPPDATA%\Programs\Ravaan` without requiring administrator privileges.
+- **Start Menu & Startup**: Adds a Start Menu shortcut and an optional Windows startup entry.
+- **Protocol handler**: Automatically registers the `ravan://` URL protocol for deep links.
+- **Clean uninstall**: Uninstaller removes the application cleanly while preserving your personal dictionaries, snippets, and settings in `%APPDATA%\Ravan`.
+
+### 2. Standalone Portable (`Ravaan.exe`)
+- Single-file zero-install executable.
+- Download `Ravaan.exe` from [GitHub Releases](https://github.com/mohsen-niksirat/Ravaan/releases), place it in any folder, and double-click to run.
+
+### 3. From Source (Development)
+```bash
+git clone https://github.com/mohsen-niksirat/Ravaan.git
+cd Ravaan
+python -m pip install --upgrade pip
+pip install -e .[dev]
+python -m ravan
+```
+
+### In-App Auto-Updater
+- Ravaan automatically checks for new releases or on-demand via **tray → Check for updates…**.
+- When an update is detected, a non-blocking notification displays the changelog summary.
+- Clicking **Download & Install** downloads the new installer, smoothly releases the running instance mutex, launches the setup wizard, and exits the application cleanly.
+
+### `ravan://` Deep Link Protocol
+Ravaan registers a lightweight per-user URL protocol handler for desktop integrations:
+- `ravan://settings` — Open Settings window
+- `ravan://stats` — Open Quick Text Statistics
+- `ravan://snippet?trigger=@@` — Open Snippet Editor focused on a trigger
+
 ## Tests
 
 ```bash
@@ -302,6 +336,29 @@ ravan/
 - اصلاح خودکار امن و کلمات اختصاری (Snippets) شخصی‌سازی‌شده
 - نرمال‌سازی حروف عربی/فارسی و تبدیل اعداد فارسی و انگلیسی (ابزار CLI)
 - پنجره تنظیمات تب‌بندی شده مدرن، ضبط کلیدهای میانبر، منوی Tray، اجرای خودکار با ویندوز و مدیریت برنامه‌های مستثنی
+
+### راهنمای نصب و به‌روزرسانی (فارسی)
+
+برنامهٔ روان از سه روش در دسترس است:
+
+1. **فایل نصب‌کننده ویندوز (`Ravaan-Setup-x.y.z.exe`) — روش پیشنهادی:**
+   - نصب اختصاصی کاربر (Per-User) بدون نیاز به دسترسی ادمین (Administrator).
+   - مسیر نصب در `%LOCALAPPDATA%\Programs\Ravaan`.
+   - ایجاد خودکار میانبر منوی استارت و امکان فعال‌سازی اجرای خودکار هنگام روشن شدن ویندوز.
+   - ثبت خودکار پروتکل اینترنتی `ravan://` جهت باز کردن سریع بخش‌ها و پیوندهای مستقیم.
+   - حذف کامل و امن (Uninstall) بدون دست‌خوردن تنظیمات، واژگان شخصی و کلمات اختصاری در `%APPDATA%\Ravan`.
+2. **نسخهٔ پرتابل بدون نیاز به نصب (`Ravaan.exe`):**
+   - تک‌فایل اجرایی مستقل؛ تنها فایل را از صفحهٔ انتشار گیت‌هاب دانلود کرده و در هر پوشه‌ای اجرا کنید.
+3. **نصب از سورس کد (محیط توسعه):**
+   ```bash
+   git clone https://github.com/mohsen-niksirat/Ravaan.git
+   cd Ravaan
+   pip install -e .[dev]
+   python -m ravan
+   ```
+4. **به‌روزرسانی خودکار درون‌برنامه‌ای:**
+   - برنامه به‌صورت خودکار یا از طریق منوی Tray (گزینهٔ Check for updates…) نسخه‌های جدید را بررسی می‌کند.
+   - در صورت وجود نسخهٔ جدید، بالن اعلانی همراه با خلاصهٔ تغییرات نمایش داده می‌شود و با کلیک روی «دریافت و نصب»، فایل نصبی جدید دانلود و جایگزین می‌شود.
 
 ## Known limitations
 

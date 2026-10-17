@@ -116,6 +116,20 @@ def save_settings_window(win: Any) -> None:
             )
     cfg.launch_at_startup = win._startup_var.get()
 
+    if hasattr(win, "_protocol_var"):
+        from ravan.platform.protocol import (
+            is_protocol_registered,
+            register_protocol,
+            unregister_protocol,
+        )
+
+        want_protocol = win._protocol_var.get()
+        if want_protocol != is_protocol_registered():
+            if want_protocol:
+                register_protocol()
+            else:
+                unregister_protocol()
+
     from ravan.core.user_dict import save_user_words
 
     user_words = [
