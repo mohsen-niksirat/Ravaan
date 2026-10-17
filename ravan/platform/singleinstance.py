@@ -42,13 +42,22 @@ class SingleInstance:
                     return
                 self._handle = handle
                 self.acquired = True
+                import atexit
+
+                atexit.register(self.release)
                 return
             if err != ERROR_ACCESS_DENIED:
                 break
 
+    def __del__(self) -> None:
+        self.release()
+
     def release(self) -> None:
         if self._handle:
-            kernel32.ReleaseMutex(self._handle)
-            kernel32.CloseHandle(self._handle)
+            try:
+                kernel32.ReleaseMutex(self._handle)
+                kernel32.CloseHandle(self._handle)
+            except Exception:
+                pass
             self._handle = None
             self.acquired = False
