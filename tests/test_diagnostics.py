@@ -17,7 +17,7 @@ def test_setup_logging_rotating_handler():
     ]
     assert len(rotating_handlers) == 1
     h = rotating_handlers[0]
-    assert h.maxBytes == 2 * 1024 * 1024
+    assert h.maxBytes == 5 * 1024 * 1024
     assert h.backupCount == 3
 
 
@@ -54,6 +54,7 @@ def test_diagnostics_snapshot_structure():
 def test_caret_source_tracking():
     from ravan.platform import caret
 
+    caret.reset_caret_cache()
     with patch.object(
         caret, "_try_uia_caret", return_value=caret.CaretRect(10, 20, 2, 16)
     ):
@@ -62,6 +63,7 @@ def test_caret_source_tracking():
         assert rect.x == 10
         assert caret.get_last_caret_source() == "UIA"
 
+    caret.reset_caret_cache()
     with patch.object(caret, "_try_uia_caret", return_value=None), patch.object(
         caret, "_try_gui_thread_info", return_value=caret.CaretRect(30, 40, 2, 16)
     ):
@@ -69,3 +71,33 @@ def test_caret_source_tracking():
         assert source == "GetGUIThreadInfo"
         assert rect.x == 30
         assert caret.get_last_caret_source() == "GetGUIThreadInfo"
+
+
+
+def test_crash_handler_writes_dump(tmp_path):
+    import sys
+
+    from ravan.ui.log_setup import install_crash_handler
+
+    notified = []
+
+    def fake_notifier(msg: str):
+        notified.append(msg)
+
+    with patch("ravan.ui.log_setup.config_dir", return_value=tmp_path):
+        install_crash_handler(on_crash=fake_notifier)
+        handler = sys.excepthook
+
+        # Simulate unhandled exception
+        try:
+            raise ValueError("Test Crash Handler Failure")
+        except ValueError:
+            exc_info = sys.exc_info()
+            handler(*exc_info)
+
+        crash_files = list((tmp_path / "crash").glob("crash_*.txt"))
+        assert len(crash_files) == 1
+        content = crash_files[0].read_text(encoding="utf-8")
+        assert "Test Crash Handler Failure" in content
+        assert "Ravaan Crash Report" in content
+        assert len(notified) == 1

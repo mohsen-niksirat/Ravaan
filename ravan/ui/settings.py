@@ -168,20 +168,31 @@ class SettingsWindow:
         self._detected_app_var.set(f"{exe}  [{status}]")
         self._add_detected_btn.config(state="normal")
 
-    def _add_detected_to_exclusions(self) -> None:
-        exe = getattr(self, "_last_detected_exe", None)
-        if not exe:
+    def _add_exclusion_item(self, item: str) -> None:
+        item = item.strip().lower()
+        if not item:
             return
         current = self._get_current_exclusions_from_text()
-        if exe.lower() not in current:
+        if item not in current:
             text = self._excl_text.get("1.0", "end").rstrip()
             if text:
-                text += "\n" + exe.lower() + "\n"
+                text += "\n" + item + "\n"
             else:
-                text = exe.lower() + "\n"
+                text = item + "\n"
             self._excl_text.delete("1.0", "end")
             self._excl_text.insert("1.0", text)
-            self._detect_active_app()
+        self._detect_active_app()
+
+    def _add_detected_to_exclusions(self) -> None:
+        exe = getattr(self, "_last_detected_exe", None)
+        if exe:
+            self._add_exclusion_item(exe)
+
+    def _open_window_picker(self) -> None:
+        from ravan.ui.window_picker import WindowPickerWindow
+
+        picker = WindowPickerWindow(self._root, on_pick=self._add_exclusion_item)
+        picker.show()
 
     def _update_snip_display(self) -> None:
         if self._snip_text is None:

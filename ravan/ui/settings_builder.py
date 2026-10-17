@@ -234,6 +234,9 @@ def build_exclusions_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
         excl_tools, text="+ Add to Exclusions", command=win._add_detected_to_exclusions, state="disabled"
     )
     win._add_detected_btn.pack(side="left", padx=3)
+    ttk.Button(excl_tools, text="Pick Window…", command=win._open_window_picker).pack(
+        side="left", padx=3
+    )
     return row
 
 

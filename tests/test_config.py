@@ -31,10 +31,13 @@ def test_is_app_excluded():
     assert is_app_excluded(None, excls) is False
     assert is_app_excluded("", excls) is False
 
-    cfg = Config(excluded_apps=["slack.exe", "teams.exe"])
+    cfg = Config(excluded_apps=["slack.exe", "teams.exe", "class:custom_wnd"])
     assert cfg.is_excluded("slack.exe") is True
     assert cfg.is_excluded("SLACK.EXE") is True
     assert cfg.is_excluded("code.exe") is False
+    assert cfg.is_excluded("other.exe", window_class="custom_wnd") is True
+    assert cfg.is_excluded("other.exe", window_class="different_wnd") is False
+    assert is_app_excluded("other.exe", ["class:my_window_class"], window_class="My_Window_Class") is True
 
 
 def test_ignored_words_config():

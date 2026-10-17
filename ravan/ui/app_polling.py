@@ -25,14 +25,25 @@ class AppPollingMixin:
             return
         self._last_focus_poll = now
 
-        exe = foreground_exe()
-        # Transient failures (None) or our own overlay/settings window shouldn't
-        # be treated as a real app switch — they would wipe the journal mid-type.
-        if not exe or self._is_foreground_self():
+        hwnd = w.user32.GetForegroundWindow()
+        if not hwnd or self._is_foreground_self():
             return
-        if exe == self._current_exe:
+
+        from ravan.platform.focus import is_window_elevated, window_class_name
+
+        if is_window_elevated(hwnd):
+            if not getattr(self, "_elevated_notified", False):
+                self._elevated_notified = True
+                self.tray.notify(
+                    "Ravaan cannot assist in this window (admin). Run Ravaan as admin to enable.",
+                    title="Ravaan (روان)",
+                )
+
+        exe = foreground_exe()
+        if not exe or exe == self._current_exe:
             return
         self._current_exe = exe
+        self._current_window_class = window_class_name(hwnd)
         # New window → unknown text state; reset journal & popup
         self.journal.clear()
         self._pending_predict = False
@@ -55,7 +66,9 @@ class AppPollingMixin:
             return False
 
     def _is_excluded(self: Any) -> bool:
-        return self.cfg.is_excluded(self._current_exe)
+        return self.cfg.is_excluded(
+            self._current_exe, getattr(self, "_current_window_class", None)
+        )
 
     def _poll_language(self: Any) -> None:
         now = time.monotonic()

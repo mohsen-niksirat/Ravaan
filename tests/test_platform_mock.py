@@ -66,7 +66,7 @@ def test_focus_window_title_success():
 def test_focus_active_window_info():
     with patch.object(w.user32, "GetForegroundWindow", return_value=0):
         info = focus.active_window_info()
-        assert info == {"hwnd": 0, "pid": 0, "exe": None, "title": None}
+        assert info == {"hwnd": 0, "pid": 0, "exe": None, "class_name": None, "title": None}
 
     def fake_get_pid(hwnd, p_pid):
         p_pid._obj.value = 9999
@@ -254,3 +254,40 @@ def test_clipboard_fallback_when_open_fails():
     with patch.object(clipboard, "_open_clipboard", return_value=False):
         assert clipboard.get_clipboard_text() is None
         assert clipboard.set_clipboard_text("test") is False
+
+
+# --- Elevation & Caret Caching Tests ---
+
+def test_is_current_process_elevated_mock():
+    with patch("ctypes.WinDLL") as mock_windll:
+        mock_windll.return_value.IsUserAnAdmin.return_value = 1
+        assert focus.is_current_process_elevated() is True
+        mock_windll.return_value.IsUserAnAdmin.return_value = 0
+        assert focus.is_current_process_elevated() is False
+
+
+def test_is_window_elevated_when_access_denied():
+    with patch.object(focus, "is_current_process_elevated", return_value=False), \
+         patch.object(w.user32, "GetForegroundWindow", return_value=1234), \
+         patch.object(w.user32, "GetWindowThreadProcessId", side_effect=lambda h, p: setattr(p._obj, "value", 999)), \
+         patch.object(w.kernel32, "OpenProcess", return_value=0), \
+         patch("ctypes.get_last_error", return_value=5):
+        assert focus.is_window_elevated(1234) is True
+
+
+def test_caret_caching():
+    from ravan.platform import caret
+
+    caret.reset_caret_cache()
+    with patch.object(caret, "_try_uia_caret", return_value=caret.CaretRect(100, 200, 10, 20)) as mock_raw, \
+         patch.object(caret, "_get_active_pid", return_value=1234):
+        rect1, src1 = caret.get_caret_rect_with_source()
+        assert rect1.x == 100
+        assert src1 == "UIA"
+        # Immediate next call within 30ms returns cached without calling _try_uia_caret again
+        rect2, src2 = caret.get_caret_rect_with_source()
+        assert rect2.x == 100
+        assert src2 == "UIA"
+        assert mock_raw.call_count == 1
+
+

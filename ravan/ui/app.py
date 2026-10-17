@@ -79,6 +79,11 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
 
     def start(self) -> None:
         setup_logging()
+        from ravan.ui.log_setup import install_crash_handler
+
+        install_crash_handler(
+            on_crash=lambda msg: self.tray.notify(msg, title="Ravaan Error")
+        )
         log.info("Starting Ravan")
         log.info(
             "Suggestions: type 2+ letters → ↑/↓ select → Enter/Tab accept "

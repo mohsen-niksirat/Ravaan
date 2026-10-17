@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 
 from . import winapi as w
@@ -13,7 +14,11 @@ UIA_TextPatternId = 10023
 UIA_TextPattern2Id = 10024
 
 _last_caret_source: str = "none"
+_uia_failed_until: dict[int, float] = {}
 _uia_failed_pids: set[int] = set()
+_cached_caret: tuple[CaretRect, str, float] | None = None
+_cached_uia_automation = None
+
 
 
 @dataclass(frozen=True)
@@ -27,6 +32,14 @@ class CaretRect:
 def get_last_caret_source() -> str:
     """Return the name of the last successful caret detection source."""
     return _last_caret_source
+
+
+def reset_caret_cache() -> None:
+    """Reset cached caret position and UIA cooldown."""
+    global _cached_caret, _last_caret_source
+    _cached_caret = None
+    _last_caret_source = "none"
+    _uia_failed_until.clear()
 
 
 def _get_active_pid() -> int:
@@ -46,16 +59,25 @@ def _get_active_pid() -> int:
 
 def get_caret_rect_with_source() -> tuple[CaretRect, str]:
     """Return the caret rect and detection source ('UIA', 'GetGUIThreadInfo', or 'cursor')."""
-    global _last_caret_source
+    global _last_caret_source, _cached_caret
+
+    now = time.monotonic()
+    if _cached_caret is not None and (now - _cached_caret[2]) < 0.030:
+        return _cached_caret[0], _cached_caret[1]
 
     active_pid = _get_active_pid()
-    rect = _try_uia_caret()
-    if rect is not None:
-        if active_pid in _uia_failed_pids:
-            _uia_failed_pids.discard(active_pid)
-        _last_caret_source = "UIA"
-        log.debug("Caret via UIA: %s", rect)
-        return rect, "UIA"
+    rect = None
+    # Skip UIA if this PID recently failed UIA within cooldown
+    if active_pid not in _uia_failed_until or now > _uia_failed_until[active_pid]:
+        rect = _try_uia_caret()
+        if rect is not None:
+            _uia_failed_until.pop(active_pid, None)
+            _last_caret_source = "UIA"
+            _cached_caret = (rect, "UIA", now)
+            return rect, "UIA"
+        else:
+            if active_pid:
+                _uia_failed_until[active_pid] = now + 3.0
 
     # UIA was unavailable for this active window. Log once per process ID.
     if active_pid and active_pid not in _uia_failed_pids:
@@ -74,11 +96,13 @@ def get_caret_rect_with_source() -> tuple[CaretRect, str]:
     rect = _try_gui_thread_info()
     if rect is not None:
         _last_caret_source = "GetGUIThreadInfo"
+        _cached_caret = (rect, "GetGUIThreadInfo", now)
         log.debug("Caret via GetGUIThreadInfo: %s", rect)
         return rect, "GetGUIThreadInfo"
 
     rect = _cursor_position()
     _last_caret_source = "cursor"
+    _cached_caret = (rect, "cursor", now)
     log.debug("Caret via cursor: %s", rect)
     return rect, "cursor"
 
@@ -116,10 +140,13 @@ def _try_uia_caret() -> CaretRect | None:
         except Exception:  # noqa: BLE001
             return None
 
+    global _cached_uia_automation
     try:
-        automation = comtypes.client.CreateObject(
-            UIA.CUIAutomation, interface=UIA.IUIAutomation
-        )
+        if _cached_uia_automation is None:
+            _cached_uia_automation = comtypes.client.CreateObject(
+                UIA.CUIAutomation, interface=UIA.IUIAutomation
+            )
+        automation = _cached_uia_automation
         element = automation.GetFocusedElement()
         if element is None:
             return None

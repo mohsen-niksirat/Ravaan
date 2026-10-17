@@ -101,8 +101,14 @@ class Config:
     theme_mode: str = "auto"  # "auto" | "dark" | "light"
     has_seen_onboarding: bool = False
 
-    def is_excluded(self, exe_name: str | None) -> bool:
-        return is_app_excluded(exe_name, self.excluded_apps)
+    def is_excluded(
+        self,
+        exe_name: str | None,
+        class_name: str | None = None,
+        window_class: str | None = None,
+    ) -> bool:
+        cls = class_name or window_class
+        return is_app_excluded(exe_name, self.excluded_apps, class_name=cls)
 
     def is_word_ignored(self, word: str) -> bool:
         if not word:
@@ -111,18 +117,29 @@ class Config:
         return any(w_low == ign.strip().lower() for ign in self.ignored_words)
 
 
-def is_app_excluded(exe_name: str | None, excluded_apps: list[str]) -> bool:
-    """Return True if exe_name matches any filename in excluded_apps (case-insensitive)."""
-    if not exe_name:
-        return False
-    name = exe_name.strip().lower()
+def is_app_excluded(
+    exe_name: str | None,
+    excluded_apps: list[str],
+    class_name: str | None = None,
+    window_class: str | None = None,
+) -> bool:
+    """Return True if exe_name or class_name matches excluded_apps (case-insensitive)."""
+    name = exe_name.strip().lower() if exe_name else ""
+    c_name = (class_name or window_class or "").strip().lower()
     for item in excluded_apps:
         excl = item.strip().lower()
         if not excl:
             continue
-        if name == excl or name.endswith(excl):
+        if excl.startswith("class:"):
+            target_class = excl[6:].strip()
+            if target_class and c_name == target_class:
+                return True
+        elif name and (name == excl or name.endswith(excl)):
+            return True
+        elif c_name and c_name == excl:
             return True
     return False
+
 
 
 def config_dir() -> Path:

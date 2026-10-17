@@ -68,11 +68,14 @@ class TrayIcon:
                 return True
             return self._is_prediction_enabled()
 
+        from ravan.ui.log_setup import open_logs_folder
+
         menu = pystray.Menu(
             Item("Show language (Alt+L)", self._show_lang),
             Item("Snippets…", self._snippets),
             Item("Settings…", self._settings),
             Item("Diagnostics…", self._diagnostics),
+            Item("Open logs folder", lambda: open_logs_folder()),
             Item(
                 "Word prediction",
                 self._toggle_prediction,
