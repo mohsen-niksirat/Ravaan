@@ -35,9 +35,11 @@ class WindowPickerWindow:
             except tk.TclError:
                 self._root = None
 
+        from ravan.core.i18n import is_rtl, t
+
         win = tk.Toplevel(self._parent)
         self._root = win
-        win.title("Pick Window to Exclude — Ravaan")
+        win.title(t("picker.title", "Pick Window to Exclude — Ravaan"))
         win.geometry("560x420")
         win.minsize(450, 320)
         win.transient(self._parent)
@@ -49,18 +51,18 @@ class WindowPickerWindow:
         hdr.pack(fill="x", **pad)
         ttk.Label(
             hdr,
-            text="Select an open window from the list or capture with a delay:",
+            text=t("picker.instructions", "Select an open window from the list or capture with a delay:"),
             font=("Segoe UI", 9),
-        ).pack(side="left")
+        ).pack(side="right" if is_rtl() else "left")
 
         tree_frame = ttk.Frame(win)
         tree_frame.pack(fill="both", expand=True, padx=10, pady=4)
 
         cols = ("exe", "class", "title")
         self._tree = ttk.Treeview(tree_frame, columns=cols, show="headings", selectmode="browse")
-        self._tree.heading("exe", text="Executable (EXE)")
-        self._tree.heading("class", text="Window Class")
-        self._tree.heading("title", text="Window Title")
+        self._tree.heading("exe", text=t("picker.col_exe", "Executable (EXE)"))
+        self._tree.heading("class", text=t("picker.col_class", "Window Class"))
+        self._tree.heading("title", text=t("picker.col_title", "Window Title"))
 
         self._tree.column("exe", width=110, stretch=False)
         self._tree.column("class", width=140, stretch=False)
@@ -76,19 +78,22 @@ class WindowPickerWindow:
         btn_bar = ttk.Frame(win)
         btn_bar.pack(fill="x", padx=10, pady=(6, 10))
 
-        ttk.Button(btn_bar, text="🔄 Refresh", command=self._refresh_list).pack(side="left", padx=2)
-        self._countdown_btn = ttk.Button(
-            btn_bar, text="⏱ Capture in 3s…", command=self._start_countdown
-        )
-        self._countdown_btn.pack(side="left", padx=6)
+        side_l = "right" if is_rtl() else "left"
+        side_r = "left" if is_rtl() else "right"
 
-        ttk.Button(btn_bar, text="Cancel", command=self._close).pack(side="right", padx=2)
+        ttk.Button(btn_bar, text=t("picker.refresh", "🔄 Refresh"), command=self._refresh_list).pack(side=side_l, padx=2)
+        self._countdown_btn = ttk.Button(
+            btn_bar, text=t("picker.capture_in_3s", "⏱ Capture in 3s…"), command=self._start_countdown
+        )
+        self._countdown_btn.pack(side=side_l, padx=6)
+
+        ttk.Button(btn_bar, text=t("picker.cancel", "Cancel"), command=self._close).pack(side=side_r, padx=2)
         ttk.Button(
-            btn_bar, text="Exclude Class (class:...)", command=self._pick_selected_class
-        ).pack(side="right", padx=4)
+            btn_bar, text=t("picker.exclude_class", "Exclude Class"), command=self._pick_selected_class
+        ).pack(side=side_r, padx=4)
         ttk.Button(
-            btn_bar, text="Exclude EXE", command=self._pick_selected_exe
-        ).pack(side="right", padx=4)
+            btn_bar, text=t("picker.exclude_exe", "Exclude EXE"), command=self._pick_selected_exe
+        ).pack(side=side_r, padx=4)
 
         self._refresh_list()
 
@@ -148,13 +153,17 @@ class WindowPickerWindow:
     def _tick_countdown(self) -> None:
         if not self._root:
             return
+        from ravan.core.i18n import t
+
         if self._countdown_sec > 0:
-            self._countdown_btn.config(text=f"Focus target! ({self._countdown_sec}s)")
+            self._countdown_btn.config(
+                text=t("picker.focus_target", "Focus target! ({sec}s)", sec=self._countdown_sec)
+            )
             self._countdown_sec -= 1
             self._countdown_job = self._root.after(1000, self._tick_countdown)
         else:
             self._countdown_job = None
-            self._countdown_btn.config(text="⏱ Capture in 3s…", state="normal")
+            self._countdown_btn.config(text=t("picker.capture_in_3s", "⏱ Capture in 3s…"), state="normal")
             from ravan.platform.focus import active_window_info
 
             info = active_window_info()

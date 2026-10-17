@@ -109,6 +109,7 @@ class Config:
     gist_token: str = ""
     gist_id: str = ""
     last_sync_time: str = ""
+    ui_language: str = "auto"  # "auto" | "en" | "fa"
 
 
     def is_excluded(
@@ -282,8 +283,8 @@ def config_from_dict(data: dict[str, Any]) -> Config:
         gist_token=str(data.get("gist_token", "")),
         gist_id=str(data.get("gist_id", "")),
         last_sync_time=str(data.get("last_sync_time", "")),
+        ui_language=str(data.get("ui_language", "auto")),
     )
-
 
 
 def config_to_dict(cfg: Config) -> dict[str, Any]:
@@ -297,14 +298,21 @@ def load_config() -> Config:
         data = json.loads(text)
         if not isinstance(data, dict):
             raise TypeError("configuration root must be an object")
-        return config_from_dict(data)
+        cfg = config_from_dict(data)
     except FileNotFoundError:
         cfg = Config()
         save_config(cfg)
-        return cfg
     except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
         log.warning("Failed to parse config at %s: %s; using defaults", path, exc)
-        return Config()
+        cfg = Config()
+
+    try:
+        from ravan.core.i18n import set_locale
+
+        set_locale(cfg.ui_language)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Failed to initialize locale: %s", exc)
+    return cfg
 
 
 def save_config(cfg: Config) -> None:

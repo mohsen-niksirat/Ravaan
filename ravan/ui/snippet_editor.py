@@ -8,6 +8,7 @@ from collections.abc import Callable
 from tkinter import filedialog, messagebox, ttk
 
 from ravan.core.config import Snippet
+from ravan.core.i18n import t
 from ravan.core.snippet import (
     parse_cursor_placeholder,
     render_template,
@@ -26,19 +27,13 @@ _PLACEHOLDERS = [
 class SnippetEditorWindow:
     """Dedicated GUI for managing text expansion snippets."""
 
-    def __init__(
-        self,
-        snippets: list[Snippet],
-        on_saved: Callable[[list[Snippet]], None],
-    ) -> None:
+    def __init__(self, snippets: list[Snippet], on_saved: Callable[[list[Snippet]], None]) -> None:
         self.snippets: list[Snippet] = copy.deepcopy(snippets)
         self.on_saved = on_saved
         self._open = False
         self._built = False
         self._root: tk.Toplevel | None = None
         self._selected_index: int | None = None
-
-        # Widgets
         self._tree: ttk.Treeview | None = None
         self._filter_var: tk.StringVar | None = None
         self._trigger_var: tk.StringVar | None = None
@@ -68,7 +63,7 @@ class SnippetEditorWindow:
 
     def _build(self) -> None:
         self._root = tk.Toplevel()
-        self._root.title("Ravan — Snippet Editor (مدیریت متن‌های آماده)")
+        self._root.title(t("snippets_editor.title", "Ravaan — Snippet Editor"))
         self._root.geometry("820x560")
         self._root.minsize(720, 480)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
@@ -85,12 +80,10 @@ class SnippetEditorWindow:
 
         search_bar = ttk.Frame(left_frm)
         search_bar.pack(fill="x", pady=(0, 6))
-        ttk.Label(search_bar, text="Search:").pack(side="left", padx=(0, 4))
+        ttk.Label(search_bar, text=t("snippets_editor.search", "Search:")).pack(side="left", padx=(0, 4))
         self._filter_var = tk.StringVar()
         self._filter_var.trace_add("write", lambda *_: self._refresh_list())
-        ttk.Entry(search_bar, textvariable=self._filter_var).pack(
-            side="left", fill="x", expand=True
-        )
+        ttk.Entry(search_bar, textvariable=self._filter_var).pack(side="left", fill="x", expand=True)
 
         tree_frame = ttk.Frame(left_frm)
         tree_frame.pack(fill="both", expand=True)
@@ -107,8 +100,8 @@ class SnippetEditorWindow:
         tree_scroll.pack(side="right", fill="y")
         self._tree.pack(side="left", fill="both", expand=True)
 
-        self._tree.heading("trigger", text="Trigger", anchor="w")
-        self._tree.heading("preview", text="Preview", anchor="w")
+        self._tree.heading("trigger", text=t("snippets_editor.col_trigger", "Trigger"), anchor="w")
+        self._tree.heading("preview", text=t("snippets_editor.col_preview", "Preview"), anchor="w")
         self._tree.column("trigger", width=100, stretch=False)
         self._tree.column("preview", width=200, stretch=True)
         self._tree.bind("<<TreeviewSelect>>", self._on_tree_select)
@@ -116,9 +109,9 @@ class SnippetEditorWindow:
         list_btns = ttk.Frame(left_frm)
         list_btns.pack(fill="x", pady=(6, 0))
         for txt, cmd, px in [
-            ("+ New", self._add_snippet, (0, 4)),
-            ("- Delete", self._delete_snippet, 4),
-            ("Duplicate", self._duplicate_snippet, 4),
+            (t("snippets_editor.btn_new", "+ New"), self._add_snippet, (0, 4)),
+            (t("snippets_editor.btn_delete", "- Delete"), self._delete_snippet, 4),
+            (t("snippets_editor.btn_duplicate", "Duplicate"), self._duplicate_snippet, 4),
         ]:
             ttk.Button(list_btns, text=txt, command=cmd).pack(side="left", padx=px)
 
@@ -128,19 +121,19 @@ class SnippetEditorWindow:
 
         trig_frm = ttk.Frame(right_frm)
         trig_frm.pack(fill="x", pady=(0, 6))
-        ttk.Label(trig_frm, text="Trigger word:", font=("Segoe UI", 9, "bold")).pack(
+        ttk.Label(trig_frm, text=t("snippets_editor.trigger_label", "Trigger word:"), font=("Segoe UI", 9, "bold")).pack(
             side="left", padx=(0, 8)
         )
         self._trigger_var = tk.StringVar()
         self._trigger_var.trace_add("write", lambda *_: self._on_editor_modified())
         ttk.Entry(trig_frm, textvariable=self._trigger_var, width=24).pack(side="left")
-        ttk.Label(trig_frm, text="e.g. @@, /sig, fn", foreground="gray").pack(
+        ttk.Label(trig_frm, text=t("snippets_editor.trigger_hint", "e.g. @@, /sig, fn"), foreground="gray").pack(
             side="left", padx=8
         )
 
         ttk.Label(
             right_frm,
-            text="Replacement template (supports multiple lines & placeholders):",
+            text=t("snippets_editor.template_label", "Replacement template (supports multiple lines & placeholders):"),
             font=("Segoe UI", 9, "bold"),
         ).pack(anchor="w", pady=(4, 2))
 
@@ -148,11 +141,7 @@ class SnippetEditorWindow:
         ed_frm.pack(fill="both", expand=True)
         ed_scroll = ttk.Scrollbar(ed_frm, orient="vertical")
         self._text_editor = tk.Text(
-            ed_frm,
-            wrap="word",
-            height=8,
-            font=("Consolas", 10),
-            yscrollcommand=ed_scroll.set,
+            ed_frm, wrap="word", height=8, font=("Consolas", 10), yscrollcommand=ed_scroll.set
         )
         ed_scroll.config(command=self._text_editor.yview)
         ed_scroll.pack(side="right", fill="y")
@@ -160,7 +149,7 @@ class SnippetEditorWindow:
         self._text_editor.bind("<KeyRelease>", lambda *_: self._on_editor_modified())
 
         # Placeholder Quick Insertion Toolbar
-        helper_box = ttk.LabelFrame(right_frm, text="Insert Placeholders", padding=6)
+        helper_box = ttk.LabelFrame(right_frm, text=t("snippets_editor.insert_placeholders", "Insert Placeholders"), padding=6)
         helper_box.pack(fill="x", pady=(6, 6))
         h_btns = ttk.Frame(helper_box)
         h_btns.pack(fill="x")
@@ -172,11 +161,9 @@ class SnippetEditorWindow:
                 self._on_editor_modified()
 
         for label, val in _PLACEHOLDERS:
-            ttk.Button(h_btns, text=label, command=lambda v=val: add_ph(v)).pack(
-                side="left", padx=2
-            )
+            ttk.Button(h_btns, text=label, command=lambda v=val: add_ph(v)).pack(side="left", padx=2)
 
-        preview_box = ttk.LabelFrame(right_frm, text="Live Output Preview", padding=6)
+        preview_box = ttk.LabelFrame(right_frm, text=t("snippets_editor.live_preview", "Live Output Preview"), padding=6)
         preview_box.pack(fill="x", pady=(0, 6))
         self._preview_text = tk.Text(
             preview_box,
@@ -190,17 +177,17 @@ class SnippetEditorWindow:
         self._preview_text.pack(fill="x", expand=True)
 
         ttk.Button(
-            right_frm, text="Apply Changes to Selected", command=self._save_current_to_list
+            right_frm, text=t("snippets_editor.btn_apply", "Apply Changes to Selected"), command=self._save_current_to_list
         ).pack(anchor="e")
 
         # ── BOTTOM TOOLBAR ──
         bot_bar = ttk.Frame(main_frm)
         bot_bar.pack(fill="x", pady=(6, 0))
         for txt, cmd, side, px in [
-            ("Import JSON...", self._import_json, "left", (0, 6)),
-            ("Export JSON...", self._export_json, "left", 6),
-            ("Save & Close", self._save_all_and_close, "right", 6),
-            ("Cancel", self._close, "right", (6, 0)),
+            (t("snippets_editor.btn_import", "Import JSON…"), self._import_json, "left", (0, 6)),
+            (t("snippets_editor.btn_export", "Export JSON…"), self._export_json, "left", 6),
+            (t("snippets_editor.btn_save_close", "Save & Close"), self._save_all_and_close, "right", 6),
+            (t("snippets_editor.btn_cancel", "Cancel"), self._close, "right", (6, 0)),
         ]:
             ttk.Button(bot_bar, text=txt, command=cmd).pack(side=side, padx=px)
 
@@ -274,7 +261,7 @@ class SnippetEditorWindow:
         trig = self._trigger_var.get().strip()
         repl = self._text_editor.get("1.0", tk.END).rstrip("\n")
         if not trig:
-            messagebox.showwarning("Ravan", "Trigger cannot be empty", parent=self._root)
+            messagebox.showwarning(t("app_name", "Ravaan"), t("snippets_editor.empty_trigger_warn", "Trigger cannot be empty"), parent=self._root)
             return
 
         if self._selected_index is not None and 0 <= self._selected_index < len(self.snippets):
@@ -287,9 +274,7 @@ class SnippetEditorWindow:
         self._select_index(self._selected_index)
 
     def _add_snippet(self) -> None:
-        self.snippets.append(
-            Snippet(trigger="new_trigger", replacement="New replacement text")
-        )
+        self.snippets.append(Snippet(trigger="new_trigger", replacement="New replacement text"))
         self._refresh_list()
         self._select_index(len(self.snippets) - 1)
         if self._trigger_var:
@@ -322,7 +307,7 @@ class SnippetEditorWindow:
     def _import_json(self) -> None:
         path = filedialog.askopenfilename(
             parent=self._root,
-            title="Import Snippets JSON",
+            title=t("snippets_editor.import_title", "Import Snippets"),
             filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
         )
         if not path:
@@ -331,15 +316,12 @@ class SnippetEditorWindow:
             with open(path, encoding="utf-8") as f:
                 imported = snippets_from_json(f.read())
             if not imported:
-                messagebox.showinfo("Ravan", "No valid snippets found in file.", parent=self._root)
+                messagebox.showinfo(t("app_name", "Ravaan"), t("snippets_editor.no_snippets_found", "No valid snippets found in file."), parent=self._root)
                 return
 
             ans = messagebox.askyesnocancel(
-                "Import Snippets",
-                f"Found {len(imported)} snippets.\n\n"
-                "Click 'Yes' to Merge with existing snippets.\n"
-                "Click 'No' to Replace all existing snippets.\n"
-                "Click 'Cancel' to abort.",
+                t("snippets_editor.import_title", "Import Snippets"),
+                t("snippets_editor.import_prompt", "Found {count} snippets.\n\nClick 'Yes' to Merge with existing snippets.\nClick 'No' to Replace all existing snippets.\nClick 'Cancel' to abort.", count=len(imported)),
                 parent=self._root,
             )
             if ans is None:
@@ -355,9 +337,9 @@ class SnippetEditorWindow:
             self._refresh_list()
             if self.snippets:
                 self._select_index(0)
-            messagebox.showinfo("Ravan", f"Successfully imported {len(imported)} snippets.", parent=self._root)
+            messagebox.showinfo(t("app_name", "Ravaan"), t("snippets_editor.import_success", "Successfully imported {count} snippets.", count=len(imported)), parent=self._root)
         except Exception as ex:  # noqa: BLE001
-            messagebox.showerror("Import Error", f"Failed to import snippets:\n{ex}", parent=self._root)
+            messagebox.showerror(t("notifications.error_title", "Ravaan Error"), t("snippets_editor.import_err", "Failed to import snippets:\n{ex}", ex=ex), parent=self._root)
 
     def _sync_current(self) -> None:
         if self._selected_index is not None and self._trigger_var and self._text_editor:
@@ -370,7 +352,7 @@ class SnippetEditorWindow:
         self._sync_current()
         path = filedialog.asksaveasfilename(
             parent=self._root,
-            title="Export Snippets to JSON",
+            title=t("snippets_editor.btn_export", "Export JSON…"),
             defaultextension=".json",
             filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
         )
@@ -379,9 +361,9 @@ class SnippetEditorWindow:
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(snippets_to_json(self.snippets))
-            messagebox.showinfo("Ravan", f"Exported {len(self.snippets)} snippets successfully.", parent=self._root)
+            messagebox.showinfo(t("app_name", "Ravaan"), t("snippets_editor.export_success", "Exported {count} snippets successfully.", count=len(self.snippets)), parent=self._root)
         except Exception as ex:  # noqa: BLE001
-            messagebox.showerror("Export Error", f"Failed to export snippets:\n{ex}", parent=self._root)
+            messagebox.showerror(t("notifications.error_title", "Ravaan Error"), t("snippets_editor.export_err", "Failed to export snippets:\n{ex}", ex=ex), parent=self._root)
 
     def _save_all_and_close(self) -> None:
         self._sync_current()

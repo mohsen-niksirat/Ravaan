@@ -80,10 +80,25 @@ class SettingsWindow:
     def _build(self) -> None:
         self._root = tk.Toplevel()
         self._root.withdraw()
-        self._root.title("Ravan — Settings")
         self._root.attributes("-topmost", True)
         self._root.resizable(False, False)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
+        self._render_ui()
+        self._root.update_idletasks()
+        self._center()
+        self._root.deiconify()
+        self._root.focus_set()
+
+    def _render_ui(self) -> None:
+        if self._root is None:
+            return
+        from ravan.core.i18n import is_rtl, t
+
+        rtl = is_rtl()
+        self._root.title(t("settings.title", "Ravaan — Settings"))
+
+        for ch in self._root.winfo_children():
+            ch.destroy()
 
         pad = {"padx": 10, "pady": 4}
         frm = ttk.Frame(self._root, padding=10)
@@ -100,13 +115,13 @@ class SettingsWindow:
         tab_sync = ttk.Frame(nb, padding=10)
         tab_about = ttk.Frame(nb, padding=10)
 
-        nb.add(tab_general, text="General")
-        nb.add(tab_prediction, text="Prediction")
-        nb.add(tab_hotkeys, text="Hotkeys")
-        nb.add(tab_exclusions, text="Exclusions")
-        nb.add(tab_snippets, text="Snippets")
-        nb.add(tab_sync, text="Sync")
-        nb.add(tab_about, text="About")
+        nb.add(tab_general, text=t("settings.tab_general", "General"))
+        nb.add(tab_prediction, text=t("settings.tab_prediction", "Prediction"))
+        nb.add(tab_hotkeys, text=t("settings.tab_hotkeys", "Hotkeys"))
+        nb.add(tab_exclusions, text=t("settings.tab_exclusions", "Excluded Apps"))
+        nb.add(tab_snippets, text=t("settings.tab_snippets", "Snippets"))
+        nb.add(tab_sync, text=t("settings.tab_sync", "Cloud Sync"))
+        nb.add(tab_about, text=t("settings.tab_about", "About"))
 
         from ravan.ui.settings_builder import (
             build_about_section,
@@ -126,17 +141,24 @@ class SettingsWindow:
         build_sync_section(self, tab_sync, 0, pad)
         build_about_section(tab_about)
 
-
         # ── Buttons ──
         btns = ttk.Frame(frm)
         btns.pack(fill="x", pady=(4, 0))
-        ttk.Button(btns, text="Cancel", command=self._close).pack(side="right", padx=4)
-        ttk.Button(btns, text="Save", command=self._save).pack(side="right", padx=4)
+        btn_side = "left" if rtl else "right"
+        ttk.Button(btns, text=t("settings.btn_cancel", "Cancel"), command=self._close).pack(side=btn_side, padx=4)
+        ttk.Button(btns, text=t("settings.btn_save", "Save Settings"), command=self._save).pack(side=btn_side, padx=4)
 
-        self._root.update_idletasks()
-        self._center()
-        self._root.deiconify()
-        self._root.focus_set()
+    def _on_language_changed(self, _event: object = None) -> None:
+        if not hasattr(self, "_ui_language_var"):
+            return
+        from ravan.core.i18n import set_locale
+
+        val = self._ui_language_var.get()
+        new_lang = "fa" if "فارسی" in val else ("en" if "English" in val else "auto")
+        self.cfg.ui_language = new_lang
+        set_locale(new_lang)
+        if self._root:
+            self._render_ui()
 
     def _center(self) -> None:
         if self._root is None:
@@ -234,34 +256,23 @@ class SettingsWindow:
             self._root = None
 
     def _save(self) -> None:
-        convert = text_to_hotkey(self._convert_var.get())
-        lang = text_to_hotkey(self._lang_var.get())
-        clip = text_to_hotkey(self._clip_var.get())
-        norm = text_to_hotkey(self._norm_var.get())
-        case = text_to_hotkey(self._case_var.get())
-        undo = text_to_hotkey(self._undo_var.get())
-        stats = text_to_hotkey(self._stats_var.get()) if hasattr(self, "_stats_var") else None
-        if self._convert_var.get().strip() and convert is None:
-            messagebox.showwarning("Ravan", "Invalid convert hotkey", parent=self._root)
-            return
-        if self._lang_var.get().strip() and lang is None:
-            messagebox.showwarning("Ravan", "Invalid language hotkey", parent=self._root)
-            return
-        if self._clip_var.get().strip() and clip is None:
-            messagebox.showwarning("Ravan", "Invalid clipboard history hotkey", parent=self._root)
-            return
-        if self._norm_var.get().strip() and norm is None:
-            messagebox.showwarning("Ravan", "Invalid normalize hotkey", parent=self._root)
-            return
-        if self._case_var.get().strip() and case is None:
-            messagebox.showwarning("Ravan", "Invalid case hotkey", parent=self._root)
-            return
-        if self._undo_var.get().strip() and undo is None:
-            messagebox.showwarning("Ravan", "Invalid undo autocorrect hotkey", parent=self._root)
-            return
-        if hasattr(self, "_stats_var") and self._stats_var.get().strip() and stats is None:
-            messagebox.showwarning("Ravan", "Invalid quick stats hotkey", parent=self._root)
-            return
+        hk_items = [
+            (self._convert_var.get(), "convert"),
+            (self._lang_var.get(), "language"),
+            (self._clip_var.get(), "clipboard"),
+            (self._norm_var.get(), "normalize"),
+            (self._case_var.get(), "case"),
+            (self._undo_var.get(), "undo"),
+            (self._stats_var.get() if hasattr(self, "_stats_var") else "", "stats"),
+        ]
+        parsed = []
+        for raw, name in hk_items:
+            val = text_to_hotkey(raw)
+            if raw.strip() and val is None:
+                messagebox.showwarning("Ravan", f"Invalid {name} hotkey", parent=self._root)
+                return
+            parsed.append(val)
+        convert, lang, clip, norm, case, undo, stats = parsed
 
         from ravan.core.config import hotkey_to_text
 
@@ -353,6 +364,10 @@ class SettingsWindow:
             if ln.strip() and not ln.strip().startswith("#")
         ]
         save_user_words(user_words)
+
+        if hasattr(self, "_ui_language_var"):
+            val = self._ui_language_var.get()
+            cfg.ui_language = "fa" if "فارسی" in val else ("en" if "English" in val else "auto")
 
         if hasattr(self, "_gist_token_var"):
             cfg.gist_token = self._gist_token_var.get().strip()

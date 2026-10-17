@@ -68,22 +68,23 @@ class TrayIcon:
                 return True
             return self._is_prediction_enabled()
 
+        from ravan.core.i18n import t
         from ravan.ui.log_setup import open_logs_folder
 
         menu = pystray.Menu(
-            Item("Show language (Alt+L)", self._show_lang),
-            Item("Snippets…", self._snippets),
-            Item("Settings…", self._settings),
-            Item("Diagnostics…", self._diagnostics),
-            Item("Open logs folder", lambda: open_logs_folder()),
-            Item("Check for updates…", self._check_updates),
+            Item(t("tray.show_language", "Show language (Alt+L)"), self._show_lang),
+            Item(t("tray.snippet_editor", "Snippets…"), self._snippets),
+            Item(t("tray.settings", "Settings…"), self._settings),
+            Item(t("tray.diagnostics", "Diagnostics…"), self._diagnostics),
+            Item(t("tray.open_logs", "Open logs folder"), lambda: open_logs_folder()),
+            Item(t("tray.check_updates", "Check for updates…"), self._check_updates),
             Item(
-                "Word prediction",
+                t("tray.word_prediction", "Word prediction"),
                 self._toggle_prediction,
                 checked=visible_pred,
             ),
             pystray.Menu.SEPARATOR,
-            Item("Quit", self._quit),
+            Item(t("tray.quit", "Quit"), self._quit),
         )
 
         self._icon = pystray.Icon("Ravan", _make_icon_image(), "Ravan", menu)
@@ -137,6 +138,7 @@ class TrayIcon:
         def _bg():
             import webbrowser
 
+            from ravan.core.i18n import t
             from ravan.core.updater import check_for_updates
 
             res = check_for_updates()
@@ -144,21 +146,31 @@ class TrayIcon:
                 if res.get("error"):
                     self._icon.notify(
                         f"Could not check for updates: {res['error']}",
-                        "Ravaan Update Check",
+                        t("notifications.error_title", "Ravaan Error"),
                     )
                 elif res["has_update"]:
+                    msg = t(
+                        "notifications.update_available_body",
+                        "Version {version} is available. Click to download.",
+                        version=res["latest_version"],
+                    )
                     self._icon.notify(
-                        f"A new version is available: v{res['latest_version']}!\nOpening release page...",
-                        "Ravaan Update Available",
+                        f"{msg}\nOpening release page...",
+                        t("notifications.update_available_title", "Ravaan Update Available"),
                     )
                     try:
                         webbrowser.open(res["release_url"])
                     except Exception:
                         pass
                 else:
+                    msg = t(
+                        "notifications.no_update_body",
+                        "You are using the latest version ({version}).",
+                        version=res["current_version"],
+                    )
                     self._icon.notify(
-                        f"Ravaan is up to date (version {res['current_version']}).",
-                        "Ravaan Update Check",
+                        msg,
+                        t("notifications.no_update_title", "Ravaan is up to date"),
                     )
 
         threading.Thread(target=_bg, name="ravan-update-check", daemon=True).start()

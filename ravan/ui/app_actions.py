@@ -214,10 +214,14 @@ class AppActionsMixin:
                 target_text = word
 
         if not target_text:
+            from ravan.core.i18n import t
+
             self.tray.notify(
-                "Select text and press Alt+S to view statistics.\n"
-                "ابتدا متن را انتخاب کنید و سپس Alt+S را بزنید.",
-                title="Quick Text Stats — Ravaan",
+                t(
+                    "notifications.select_text_stats_hint",
+                    "Select text and press Alt+S to view statistics.",
+                ),
+                title=t("stats.header", "📊 Text Statistics"),
             )
             return
 

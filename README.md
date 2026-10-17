@@ -251,13 +251,29 @@ python -m ravan.cli dict remove "word"  # remove custom word
 pytest
 ```
 
+## Localization / Internationalization (i18n)
+
+Ravaan features a full native bilingual UI (Persian and English) with live language switching in Settings, automatic Windows display language detection, and dynamic RTL/LTR layout adjustment.
+
+### Supported Locales:
+- `fa`: Persian (فارسی) — native phrasing, correct ZWNJ typography, and right-to-left layout.
+- `en`: English — default international locale.
+- `auto`: Automatically detects Windows display language via Win32 `GetUserDefaultUILanguage()`.
+
+### Adding a New Language (e.g. German `de.json`):
+1. **Copy catalog**: Copy `ravan/data/locales/en.json` to `ravan/data/locales/de.json`.
+2. **Translate strings**: Translate string values in `de.json` while keeping placeholders (e.g. `{count}`, `{version}`, `{time}`) intact.
+3. **Register locale (optional RTL)**: If your language is right-to-left (e.g. Arabic `ar`), add its code to `_RTL_LOCALES` in `ravan/core/i18n.py`.
+4. **Select in UI**: Set `"ui_language": "de"` in `config.json` or choose it in the UI Language dropdown in Settings.
+
 ## Architecture
 
 ```
 ravan/
-  core/       # config, layout map, dictionary, predictor, snippets, sync, updater, text_stats
+  core/       # config, layout map, dictionary, predictor, snippets, sync, updater, text_stats, i18n
+  data/       # locales (en.json, fa.json)
   platform/   # Win32 hook, language, caret (UIA), SendInput, focus, single-instance, startup
-  ui/         # overlay, tray, settings window, stats popup, window picker, app loop
+  ui/         # overlay, tray, settings window, stats popup, window picker, snippet editor, app loop
 ```
 
 ## فارسی

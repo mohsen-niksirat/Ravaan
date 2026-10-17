@@ -51,16 +51,23 @@ class StatsPopupWindow:
         frame = tk.Frame(win, bg=bg, highlightbackground=border, highlightthickness=1, padx=14, pady=12)
         frame.pack(fill="both", expand=True)
 
+        from ravan.core.i18n import is_rtl, t
+
+        rtl = is_rtl()
+        align_label = "right" if rtl else "left"
+        align_val = "left" if rtl else "right"
+        footer_anchor = "w" if rtl else "e"
+
         # Header
         hdr = tk.Frame(frame, bg=bg)
         hdr.pack(fill="x", pady=(0, 8))
         tk.Label(
             hdr,
-            text="📊 Text Statistics  |  آمار متن",
+            text=t("stats.header", "📊 Text Statistics"),
             font=("Segoe UI", 10, "bold"),
             bg=bg,
             fg=accent,
-        ).pack(side="left")
+        ).pack(side=align_label)
 
         # Stats Cards
         words = stats.get("word_count", 0)
@@ -70,11 +77,15 @@ class StatsPopupWindow:
         time_str = f"~{sec}s" if sec < 60 else f"~{sec // 60}m {sec % 60}s"
         ratio = stats.get("ratio_str", "—")
 
+        words_val = en_to_fa_digits(str(words)) if rtl else str(words)
+        chars_val = f"{en_to_fa_digits(str(chars))}  [{t('stats.no_spaces', 'without spaces: {count}', count=en_to_fa_digits(str(no_space)))}]" if rtl else f"{chars}  [{t('stats.no_spaces', 'without spaces: {count}', count=no_space)}]"
+        time_val = en_to_fa_digits(time_str) if rtl else time_str
+
         rows = [
-            ("Words / واژه‌ها:", f"{words}  ({en_to_fa_digits(str(words))})"),
-            ("Characters / نویسه‌ها:", f"{chars}  [بدون فاصله: {no_space}]"),
-            ("Reading Time / زمان مطالعه:", f"{time_str}  ({en_to_fa_digits(time_str)})"),
-            ("Language Ratio / نسبت زبان:", ratio),
+            (t("stats.words", "Words:"), words_val),
+            (t("stats.characters", "Characters:"), chars_val),
+            (t("stats.reading_time", "Reading Time:"), time_val),
+            (t("stats.language_ratio", "Language Ratio:"), ratio),
         ]
 
         body = tk.Frame(frame, bg=card_bg, padx=10, pady=8)
@@ -82,21 +93,20 @@ class StatsPopupWindow:
 
         for label_text, val_text in rows:
             r_frm = tk.Frame(body, bg=card_bg)
-
             r_frm.pack(fill="x", pady=2)
-            tk.Label(r_frm, text=label_text, font=("Segoe UI", 9), bg=card_bg, fg=fg).pack(side="left")
+            tk.Label(r_frm, text=label_text, font=("Segoe UI", 9), bg=card_bg, fg=fg).pack(side=align_label)
             tk.Label(
                 r_frm, text=val_text, font=("Segoe UI Semibold", 9), bg=card_bg, fg=accent
-            ).pack(side="right")
+            ).pack(side=align_val)
 
         footer = tk.Label(
             frame,
-            text="Press Esc or click to close • روان",
+            text=t("stats.footer", "Press Esc or click to close • Ravaan"),
             font=("Segoe UI", 8),
             bg=bg,
             fg="#70757a" if is_dark else "#80868b",
         )
-        footer.pack(anchor="e", pady=(6, 0))
+        footer.pack(anchor=footer_anchor, pady=(6, 0))
 
         win.bind("<Button-1>", lambda _: self.close())
         win.bind("<Escape>", lambda _: self.close())

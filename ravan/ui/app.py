@@ -195,9 +195,9 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         from ravan.core.config import save_config
 
         save_config(self.cfg)
-        self.snippets = SnippetEngine.from_config(self.cfg)
-        log.info("Saved %d snippets from editor", len(snippets))
-        self.tray.notify(f"Saved {len(snippets)} snippets")
+        from ravan.core.i18n import t
+
+        self.tray.notify(t("notifications.snippets_saved", "Saved {count} snippets", count=len(snippets)))
 
     def open_diagnostics(self) -> None:
         if self._diagnostics_window is not None and self._diagnostics_window.open:
@@ -262,24 +262,21 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
 
         log.info("Undid autocorrect: reverted %r back to %r", corrected, orig)
         self._record_event(f"Undid autocorrect: reverted '{corrected}' -> '{orig}'")
-        self.tray.notify(f"Reverted to '{orig}'")
+        from ravan.core.i18n import t
+
+        msg = t("notifications.autocorrect_undone", "Reverted to '{orig}'", orig=orig)
+        self.tray.notify(msg)
         return True
 
     def _show_onboarding(self) -> None:
         self.cfg.has_seen_onboarding = True
         from ravan.core.config import save_config
+        from ravan.core.i18n import t
 
         save_config(self.cfg)
-        msg = (
-            "به روان (Ravaan) خوش آمدید!\n"
-            "کلیدهای میانبر اصلی:\n"
-            "• F12: تغییر چیدمان (fa ↔ en)\n"
-            "• Alt+V: سابقه کلیپ‌بورد\n"
-            "• Shift+Space: نیم‌فاصله هوشمند\n"
-            "• Alt+L: نمایش زبان جاری\n"
-            "• Ctrl+Shift+Z: لغو تصحیح خودکار"
-        )
-        self.tray.notify(msg, title="Ravaan (روان)")
+        msg = t("onboarding.body", "Welcome to Ravaan!")
+        title = t("onboarding.title", "Welcome to Ravaan (روان)!")
+        self.tray.notify(msg, title=title)
 
     def _on_word_completed(self, word: str, delimiter: str = "") -> bool:
         if not word:
