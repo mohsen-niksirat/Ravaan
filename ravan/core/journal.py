@@ -91,3 +91,35 @@ class KeystrokeJournal:
         if not completed:
             return ""
         return " ".join(completed[-n:])
+
+    def last_n_words_span(self, n: int = 1) -> tuple[str, int]:
+        """Return (span_text, total_chars) for the last n words including intermediate/trailing spaces."""
+        text = self.text()
+        if not text or n <= 0:
+            return "", 0
+
+        end = len(text)
+        curr = end
+        while curr > 0 and text[curr - 1] == " ":
+            curr -= 1
+
+        words_found = 0
+        while curr > 0 and words_found < n:
+            while curr > 0 and not text[curr - 1].isspace():
+                curr -= 1
+            words_found += 1
+            if words_found >= n:
+                break
+            while curr > 0 and text[curr - 1].isspace():
+                curr -= 1
+
+        start = max(0, curr)
+        span_text = text[start:end]
+        return span_text, len(span_text)
+
+    def pop_last_n_chars(self, count: int) -> str:
+        """Pop and return the last count characters from the journal."""
+        popped = []
+        for _ in range(min(count, len(self._chars))):
+            popped.append(self._chars.pop())
+        return "".join(reversed(popped))

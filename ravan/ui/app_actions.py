@@ -18,30 +18,59 @@ class AppActionsMixin:
     """Mixin containing user action implementations for RavanApp."""
 
     def _convert_selection_or_last_word(self: Any) -> None:
-        """Convert selected text if any exists; otherwise convert the last typed word."""
+        """Convert selected text if any exists; otherwise convert the last typed word(s)."""
         from ravan.platform.clipboard import try_convert_selection
 
         self._suppress_until = time.monotonic() + 0.12
         if try_convert_selection(self.mapper.convert_text):
             log.info("Converted selected text layout")
+            self._f12_last_converted = None
+            self._f12_repeat_count = 0
             return
-        self._convert_last_word()
+
+        now = time.monotonic()
+        if (
+            hasattr(self, "_f12_last_converted")
+            and self._f12_last_converted is not None
+            and now - getattr(self, "_last_f12_time", 0.0) < 1.5
+        ):
+            self._f12_repeat_count = getattr(self, "_f12_repeat_count", 1) + 1
+            prev_conv_len, prev_orig_text = self._f12_last_converted
+            self._suppress_until = now + 0.06
+            replace_last_n_with(prev_conv_len, prev_orig_text)
+            self.journal.pop_last_n_chars(prev_conv_len)
+            for ch in prev_orig_text:
+                self.journal.push(ch)
+            time.sleep(0.02)
+        else:
+            self._f12_repeat_count = 1
+
+        self._last_f12_time = time.monotonic()
+        self._convert_last_n_words(self._f12_repeat_count)
 
     def _convert_last_word(self: Any) -> None:
-        word, trailing = self.journal.last_word_info(allow_trailing_spaces=True)
-        if not word:
+        self._convert_last_n_words(1)
+
+    def _convert_last_n_words(self: Any, n: int) -> None:
+        span_text, span_len = self.journal.last_n_words_span(n=n)
+        if not span_text or span_len <= 0:
+            self._f12_last_converted = None
+            self._f12_repeat_count = 0
             return
-        converted = self.mapper.convert_word(word)
-        if not converted or converted == word:
-            log.info("No conversion for %r", word)
+
+        converted = self.mapper.convert_text(span_text)
+        if not converted or converted == span_text:
+            log.info("No conversion for %r", span_text)
+            self._f12_last_converted = None
             return
-        log.info("Convert %r → %r (trailing spaces: %d)", word, converted, trailing)
-        self._suppress_until = time.monotonic() + 0.05
-        trailing_str = " " * trailing
-        replace_last_n_with(len(word) + trailing, converted + trailing_str)
-        self.journal.pop_last_word_info(allow_trailing_spaces=True)
-        for ch in converted + trailing_str:
+
+        log.info("Convert %d words: %r → %r", n, span_text, converted)
+        self._suppress_until = time.monotonic() + 0.06
+        replace_last_n_with(span_len, converted)
+        self.journal.pop_last_n_chars(span_len)
+        for ch in converted:
             self.journal.push(ch)
+        self._f12_last_converted = (len(converted), span_text)
 
     def _normalize_selection_or_last_word(self: Any) -> None:
         """Normalize Persian text in selection or the last typed word."""

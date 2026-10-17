@@ -50,6 +50,11 @@ def main(argv: list[str] | None = None) -> int:
     p_ignore = sub.add_parser("ignore", help="Manage ignored words (never autocorrected)")
     p_ignore.add_argument("action", choices=["list", "add", "remove"])
     p_ignore.add_argument("word", nargs="?", default="")
+    sub.add_parser("bench", help="Run prediction benchmark and measure latency/accuracy")
+    p_learn = sub.add_parser("learn", help="Manage learned model profile (stats, export, import)")
+    p_learn.add_argument("action", choices=["stats", "export", "import"])
+    p_learn.add_argument("path", nargs="?", default="")
+    p_learn.add_argument("--overwrite", action="store_true", help="Overwrite existing model on import")
 
     args = parser.parse_args(argv)
     if args.version:
@@ -265,6 +270,38 @@ def main(argv: list[str] | None = None) -> int:
             cfg.ignored_words = remaining
             save_config(cfg)
             print(f"Removed {target!r} from ignored words.")
+            return 0
+
+    if args.cmd == "bench":
+        from ravan.core.benchmark import run_prediction_benchmark
+
+        print("Running prediction benchmark across held-out test fixtures...")
+        res = run_prediction_benchmark()
+        print(res.format_summary())
+        return 0
+
+    if args.cmd == "learn":
+        from ravan.core.learning import UserLearningEngine
+
+        engine = UserLearningEngine(auto_load=True)
+        if args.action == "stats":
+            print(f"Learned Words       : {len(engine.word_counts)}")
+            print(f"Bigram Transitions  : {len(engine.transitions)}")
+            print(f"Trigram Transitions : {len(engine.trigrams)}")
+            print(f"Active App Profiles : {list(engine.app_word_counts.keys())}")
+            return 0
+        elif args.action == "export":
+            target = args.path or "user_learning_export.json"
+            engine.export_profile(target)
+            print(f"Exported learned profile to {target}")
+            return 0
+        elif args.action == "import":
+            if not args.path:
+                print("Error: Specify a file path to import.", file=sys.stderr)
+                return 1
+            count = engine.import_profile(args.path, merge=not args.overwrite)
+            engine.save()
+            print(f"Imported {count} words and patterns from {args.path}")
             return 0
 
     return 1

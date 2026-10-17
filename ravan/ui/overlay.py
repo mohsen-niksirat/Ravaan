@@ -225,7 +225,9 @@ class OverlayWindow:
         prefix = f"{index + 1}  "
         mark = "▶ " if selected else "   "
         tag = ""
-        if candidate.kind.name == "NEXT_WORD":
+        if candidate.kind.name == "SENTENCE":
+            tag = "  [جمله]"
+        elif candidate.kind.name == "NEXT_WORD":
             tag = "  [بعدی]"
         elif candidate.kind.name == "AUTOCORRECT":
             tag = "  ≈"

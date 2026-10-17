@@ -251,14 +251,18 @@ class Dictionary:
         word_lower = word.lower()
         n = len(word_lower)
         matches: list[tuple[DictEntry, int]] = []
-        # Only compare against words within the edit-distance length window
-        for ln in range(max(1, n - max_dist), n + max_dist + 1):
+        lens = sorted(range(max(1, n - max_dist), n + max_dist + 1), key=lambda x: abs(x - n))
+        for ln in lens:
             for e, w_low in self._by_len.get(ln, ()):
                 if e.rank > 3000:
                     continue
                 dist = osa_distance(w_low, word_lower, max_dist=max_dist)
                 if 0 < dist <= max_dist:
                     matches.append((e, dist))
+                    if len(matches) >= limit * 4:
+                        break
+            if len(matches) >= limit * 4:
+                break
         matches.sort(key=lambda t: (t[1], t[0].rank))
         return matches[:limit]
 

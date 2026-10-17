@@ -10,6 +10,7 @@ class CandidateKind(Enum):
     COMPLETION = auto()
     AUTOCORRECT = auto()
     NEXT_WORD = auto()
+    SENTENCE = auto()
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ class Candidate:
     text: str
     score: float
     kind: CandidateKind
+    replace_len: int | None = None
 
 
 @dataclass(frozen=True)

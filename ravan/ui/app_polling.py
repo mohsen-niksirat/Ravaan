@@ -135,7 +135,7 @@ class AppPollingMixin:
         if len(prefix) < self.cfg.min_prefix_len:
             if self.cfg.next_word_prediction and context_word and prefix == "":
                 cands = self.predictor.predict(
-                    "", context_word, self.cfg.prediction_max_candidates
+                    "", context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
                 )
                 if cands:
                     caret = get_caret_rect()
@@ -158,7 +158,7 @@ class AppPollingMixin:
             return
 
         cands = self.predictor.predict(
-            prefix, context_word, self.cfg.prediction_max_candidates
+            prefix, context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
         )
         if not cands:
             if self.overlay.predicting:

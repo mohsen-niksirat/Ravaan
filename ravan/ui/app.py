@@ -333,12 +333,26 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         )
         log.info("Accepted suggestion: %r → %r (kind=%s)", word, cand.text, cand.kind)
         self._record_event(f"Accepted candidate '{cand.text}'", char=cand.text)
-        self.predictor.record_selection(cand.text, context=prev_context)
+        app_name = getattr(self, "_current_exe", None)
+        self.predictor.record_selection(cand.text, context=prev_context, app_name=app_name)
 
-        if cand.kind == CandidateKind.NEXT_WORD or not word:
+        if cand.kind == CandidateKind.SENTENCE:
+            del_len = cand.replace_len if cand.replace_len is not None else len(word)
             self._suppress_until = time.monotonic() + 0.08
-            replace_last_n_with(0, cand.text)
-            for ch in cand.text:
+            replace_text = cand.text + " "
+            replace_last_n_with(del_len, replace_text)
+            for _ in range(del_len):
+                if self.journal._chars:
+                    self.journal._chars.pop()
+            for ch in replace_text:
+                self.journal.push(ch)
+            self.overlay.hide()
+            set_popup_visible(False)
+        elif cand.kind == CandidateKind.NEXT_WORD or not word:
+            self._suppress_until = time.monotonic() + 0.08
+            replace_text = cand.text + " "
+            replace_last_n_with(0, replace_text)
+            for ch in replace_text:
                 self.journal.push(ch)
             self.overlay.hide()
             set_popup_visible(False)

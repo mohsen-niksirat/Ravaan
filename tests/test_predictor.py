@@ -168,7 +168,8 @@ def test_prediction_latency_benchmark():
     pred = _pred()
     prefixes = ["th", "pro", "com", "سلام", "بر", "دان", "in", "te", "هم", "یک"]
     warmup = pred.predict("th", "", 5)
-    assert warmup
+    warmup_fa = pred.predict("سلام", "", 5)
+    assert warmup and warmup_fa
 
     # Measure 100 queries
     start = time.perf_counter()

@@ -100,10 +100,34 @@ class LayoutMapper:
             return en
         return self.fa_to_en_word(word)
 
-    def convert_text(self, text: str) -> str:
-        """Convert arbitrary multiline text or sentences Persian ↔ English."""
+    def convert_text(self, text: str, preserve_digits_punct: bool = True) -> str:
+        """Convert multiline text or selections Persian ↔ English.
+
+        Handles mixed-direction selections (converting Persian words to English and English
+        words to Persian) and preserves numbers and punctuation untouched.
+        """
         if not text:
             return ""
-        if any(is_persian_or_arabic(c) for c in text):
-            return "".join(self.fa_to_en.get(c, c) for c in text)
-        return "".join(self.en_to_fa.get(c, c) for c in text)
+
+        if not preserve_digits_punct:
+            if any(is_persian_or_arabic(c) for c in text):
+                return "".join(self.fa_to_en.get(c, c) for c in text)
+            return "".join(self.en_to_fa.get(c, c) for c in text)
+
+        import re
+
+        tokens = re.split(r"(\s+|[0-9\u06F0-\u06F9]+|[^\w\s\u200c',;\[\]\\]+)", text)
+        out: list[str] = []
+        for tok in tokens:
+            if not tok:
+                continue
+            if re.match(r"^(\s+|[0-9\u06F0-\u06F9]+|[^\w\s\u200c',;\[\]\\]+)$", tok):
+                out.append(tok)
+            elif any(is_persian_or_arabic(c) for c in tok):
+                out.append("".join(self.fa_to_en.get(c, c) for c in tok))
+            elif any("a" <= c.lower() <= "z" for c in tok):
+                out.append("".join(self.en_to_fa.get(c, c) for c in tok))
+            else:
+                out.append(tok)
+
+        return "".join(out)

@@ -23,12 +23,16 @@ def is_arabic_persian(c: str) -> bool:
 
 class Predictor(ABC):
     @abstractmethod
-    def predict(self, prefix: str, context: str, limit: int) -> list[Candidate]:
+    def predict(
+        self, prefix: str, context: str, limit: int, app_name: str | None = None
+    ) -> list[Candidate]:
         raise NotImplementedError
 
-    def record_selection(self, word: str, context: str | None = None) -> None:
+    def record_selection(
+        self, word: str, context: str | None = None, app_name: str | None = None
+    ) -> None:
         """Record a user-accepted candidate to boost future predictions."""
-        del word, context  # Optional hook for subclasses to override
+        del word, context, app_name  # Optional hook for subclasses to override
 
 
 class DictPredictor(Predictor):
@@ -111,17 +115,19 @@ class DictPredictor(Predictor):
         if w:
             self.session_suppressed.add(w)
 
-    def record_selection(self, word: str, context: str | None = None) -> None:
+    def record_selection(
+        self, word: str, context: str | None = None, app_name: str | None = None
+    ) -> None:
         key = word.strip().lower()
         if key:
             self._selection_counts[key] = self._selection_counts.get(key, 0) + 1
-            self.learning.learn_word(word)
+            self.learning.learn_word(word, app_name=app_name)
             if context:
                 parts = context.strip().split()
                 if len(parts) >= 2:
-                    self.learning.learn_trigram(parts[-2], parts[-1], word)
+                    self.learning.learn_trigram(parts[-2], parts[-1], word, app_name=app_name)
                 if parts:
-                    self.learning.learn_transition(parts[-1], word)
+                    self.learning.learn_transition(parts[-1], word, app_name=app_name)
             self.learning.save()
 
     @classmethod
@@ -171,11 +177,13 @@ class DictPredictor(Predictor):
         return self.english
 
 
-    def predict(self, prefix: str, context: str, limit: int) -> list[Candidate]:
+    def predict(
+        self, prefix: str, context: str, limit: int, app_name: str | None = None
+    ) -> list[Candidate]:
         if not prefix:
             if not context:
                 return []
-            next_words = self.learning.predict_next_words(context, limit)
+            next_words = self.learning.predict_next_words(context, limit, app_name=app_name)
             return [
                 Candidate(
                     text=w,
@@ -193,32 +201,34 @@ class DictPredictor(Predictor):
         seen_texts: set[str] = set()
 
         # 1. Learned completions from user typing history (highest priority)
-        learned_matches = self.learning.top_learned_completions(prefix, limit)
+        learned_matches = self.learning.top_learned_completions(prefix, limit, app_name=app_name)
         for w in learned_matches:
             if w.lower() != prefix.lower():
                 candidates.append(
                     Candidate(
                         text=w,
-                        score=2000.0 + self.learning.get_word_boost(w),
+                        score=2000.0 + self.learning.get_word_boost(w, app_name=app_name),
                         kind=CandidateKind.COMPLETION,
                     )
                 )
                 seen_texts.add(w)
 
-        # 2. Dictionary completions
+        # 2. Dictionary completions with smoothed context ranking
         scan_limit = max(limit * 3, 20)
+        c_words = context.strip().split() if context else []
+        w1 = c_words[-2] if len(c_words) >= 2 else None
+        w2 = c_words[-1] if c_words else None
+
         for entry in dict_.completions(prefix, scan_limit):
             if entry.word.lower() != prefix.lower() and entry.word not in seen_texts:
                 boost = (
                     self._selection_counts.get(entry.word.lower(), 0)
-                    + self.learning.get_word_boost(entry.word)
+                    + self.learning.get_word_boost(entry.word, app_name=app_name)
                 )
-                # Boost if it matches a context transition
-                if context and context in self.learning.transitions:
-                    if entry.word in self.learning.transitions[context]:
-                        boost += 50.0
+                if w2:
+                    smoothed_score = self.learning.compute_smoothed_score(entry.word, w2=w2, w1=w1)
+                    boost += smoothed_score * 80.0
 
-                # Ranking hierarchy: Custom Dict (rank=0) > Frequency (with adaptive boost)
                 if entry.rank == 0:
                     score = 1000.0 + boost
                 else:
@@ -234,20 +244,34 @@ class DictPredictor(Predictor):
                 )
                 seen_texts.add(entry.word)
 
-        # Completions are the user's intent → always preferred over fuzzy matches
         candidates.sort(key=lambda c: c.score, reverse=True)
         completions = candidates[:limit]
 
-        if len(completions) < limit and len(prefix) >= 3:
-            fuzzy = dict_.fuzzy_matches(prefix, 1, limit - len(completions))
+        # 3. Sentence continuations (top-3 multi-word completions shown after single words)
+        sentence_cands = self.learning.predict_sentence_continuations(
+            context, prefix=prefix, limit=3, app_name=app_name
+        )
+        for sent in sentence_cands:
+            if sent not in seen_texts and sent.lower() != prefix.lower():
+                completions.append(
+                    Candidate(
+                        text=sent,
+                        score=150.0,
+                        kind=CandidateKind.SENTENCE,
+                        replace_len=len(prefix),
+                    )
+                )
+                seen_texts.add(sent)
+
+        # 4. Fuzzy matches (fallback when completions are empty)
+        if not completions and len(prefix) >= 3:
+            fuzzy = dict_.fuzzy_matches(prefix, 1, limit)
             prefix_rank = dict_.rank_of(prefix)
             for entry, dist in fuzzy:
                 if entry.word in seen_texts:
                     continue
-                # Never suggest a word already in the dictionary unless much more frequent
                 if prefix_rank is not None and entry.rank >= prefix_rank:
                     continue
-                # Fuzzy matches are penalised by edit distance so they rank strictly below completions
                 score = (1.0 / (entry.rank + 1.0)) * (1.0 / (dist * 10.0 + 1.0))
                 completions.append(
                     Candidate(
@@ -258,7 +282,7 @@ class DictPredictor(Predictor):
                 )
                 seen_texts.add(entry.word)
 
-        return completions[:limit]
+        return completions[: limit + 3]
 
     def correct(self, word: str, lang: str | None = None) -> Candidate | None:
         """Return an autocorrect candidate for a completed word based on configured mode, or None."""
