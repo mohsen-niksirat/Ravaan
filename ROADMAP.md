@@ -1,9 +1,9 @@
 # Roadmap
 
-## Completed (v1.0.0-rc1)
+## Completed (v1.0.0 Stable Release)
 
 - **Phase 0: Release Engineering Pipeline & Pre-Release Hardening**
-  - Multi-artifact GitHub Actions release workflow publishing both `Ravaan-1.0.0-rc1-portable.zip` and `Ravaan-Setup-1.0.0-rc1.exe`.
+  - Multi-artifact GitHub Actions release workflow publishing both `Ravaan-1.0.0-portable.zip` and `Ravaan-Setup-1.0.0.exe`.
   - Windows binary release smoke check job downloading portable zip and executing `Ravaan.exe --check-updates --version` before publishing.
   - In-app updater hardened with pre-release channel awareness (stable users protected from `-rc` releases).
   - Bilingual release notes template (`docs/RELEASE_NOTES_TEMPLATE.md`) with automated SHA256 checksum tables, elevated app warnings, and migration guide.
@@ -126,11 +126,12 @@
 
 ---
 
-## Future Horizon
+## Post-1.0 Ideas (Future Exploration)
 
-1. **Native Inno Setup Windows Installer**
-   - Provide an optional graphical setup wizard `.exe` with Start Menu shortcuts and automatic uninstaller.
-2. **Global Hotstring Engine**
-   - Instant multi-character hotstring triggers without requiring word delimiters.
-3. **Multi-Monitor Caret Coordinate Mapping**
-   - Enhanced virtual screen multi-DPI per-monitor coordinate translations for heterogeneous monitor layouts.
+> [!NOTE]
+> The items below represent exploratory conceptual ideas for post-1.0 consideration. They are not active release commitments or roadmapped promises.
+
+1. **Wayland / Linux Port Exploration**: Investigate abstraction of low-level hooks (`WH_KEYBOARD_LL` → `libinput` / `uinput`) for cross-platform typing assistance.
+2. **Grammar & Preposition Assistance**: Context-aware suggestions for Persian prepositions (به/با/از/در) and formal business letter phrasing.
+3. **Local Vector Search for Large Snippet Catalogs**: Fast, on-device vector search for large snippet catalogs without cloud dependencies.
+4. **Enhanced Voice Dictation Companion**: Local Whisper-based speech-to-text integration piping into Ravaan's Persian normalizer and auto-ZWNJ pipeline.

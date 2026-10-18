@@ -5,10 +5,13 @@
 ## English
 
 ### Highlights
-- First Release Candidate for **v1.0.0** stable release.
+- Official **v1.0.0** stable public release of Ravaan (روان) for Windows typists!
 - Complete release engineering pipeline with automated multi-artifact packaging (`Setup.exe` + portable `.zip`).
-- In-app auto-updater hardened with pre-release channel awareness (stable releases never receive `-rc` builds unless opted in).
-- Automated CI smoke test running real Windows binaries prior to release publishing.
+- In-app auto-updater hardened with pre-release channel awareness and 1-click update.
+- Windows DPAPI credential encryption, zero-telemetry policy, and local-only processing.
+- Real-World Windows QA Matrix: multi-monitor mixed-DPI popup clamping, elevated window degradation, and robust caret tracking fallbacks.
+- UX Final Polish: unified theme palette tokens (dark/light/high-contrast), prediction confidence meter, first-run onboarding wizard, and upgraded system tray toggles.
+- Data & Migration Completeness: central data manifest, learning profile sync, and lossless migration test harness from all prior versions.
 - Bilingual UI (English & Persian) with complete RTL layout rendering and live language switching.
 - Prediction Engine v2 with Stupid Backoff n-grams, exponential frequency decay, and app-context awareness.
 - Cloud Sync 2.0 with WebDAV, GitHub Gist, 3-way dictionary merge, and schema versioning.
@@ -34,10 +37,13 @@
 ## فارسی (Persian)
 
 ### ویژگی‌های برجسته
-- اولین نسخه پیش‌نمایش نهایی (Release Candidate 1) برای انتشار پایدار **v1.0.0**.
+- انتشار رسمی و پایدار نسخه **v1.0.0** دستیار هوشمند تایپ روان برای ویندوز!
 - خط تولید خودکار پکیج‌های نصبی و پرتابل (`Setup.exe` و فایل فشرده `.zip`).
-- سامانه بروزرسانی درون‌برنامه‌ای هوشمند با تفکیک نسخه‌های آزمایشی و پایدار (کاربران پایدار نسخه‌های rc دریافت نمی‌کنند).
-- تست صحت‌سنجی خودکار اجرایی (Smoke Test) در محیط واقعی ویندوز پیش از انتشار.
+- سامانه بروزرسانی درون‌برنامه‌ای هوشمند و امن با امکان ارتقای ۱کلیکی.
+- امنیت پیشرفته: رمزنگاری اعتبارات با Windows DPAPI، سیاست عدم ارسال تله‌متری و پردازش ۱۰۰٪ محلی داده‌ها.
+- سازگاری کامل با ویندوز: مهار خطاهای چندمانیتوره و DPI ترکیبی، مدیریت برنامه‌های ادمین و سیستم بازگشتی ردگیری مکان‌نما.
+- پالایش تجربه کاربری: تم‌های مدرن تیره/روشن/کنتراست بالا، درجه اطمینان پیش‌بینی، جادوگر راه‌اندازی اولیه و منوی ترای ارتقایافته.
+- مانیفست متمرکز داده‌ها، همگام‌سازی پروفایل یادگیری و تضمین مهاجرت بی‌نقص از کلیه نسخه‌های قبلی.
 - رابط کاربری دو زبانه (فارسی و انگلیسی) با پشتیبانی کامل از چینش راست‌به‌چپ (RTL) و تغییر آنی زبان.
 - موتور پیش‌بینی هوشمند نگارش ۲ مجهز به الگوریتم Stupid Backoff، زوال نمایی فراوانی و درک بستر برنامه فعال.
 - همگام‌سازی ابری ۲٫۰ پشتیبان سرویس‌های WebDAV و GitHub Gist همراه با ادغام ۳طرفه واژگان.

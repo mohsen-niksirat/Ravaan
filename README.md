@@ -1,13 +1,43 @@
-# Ravan (روان)
+# Ravaan (روان) — v1.0.0
 
-Windows typing assistant for bilingual Persian/English typists.
+> **The lightweight, privacy-first, bilingual Persian/English typing copilot for Windows.**
 
-Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, autocorrect, and text snippets — in any app.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d4.svg)](https://microsoft.com/windows)
+[![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg)](https://python.org)
+[![Version: 1.0.0](https://img.shields.io/badge/Release-v1.0.0%20Stable-success.svg)](https://github.com/mohsen-niksirat/Ravaan/releases/tag/v1.0.0)
+
+Ravaan helps typists with keyboard-language awareness, wrong-layout conversion (F12), real-time word/sentence prediction, intelligent half-spaces (ZWNJ), text snippets, math evaluation, and clipboard history — seamlessly in any Windows app.
+
+[Features](#features) • [Installation](#installation) • [Privacy & Data (DATA.md)](DATA.md) • [Security (SECURITY.md)](SECURITY.md) • [Changelog](CHANGELOG.md) • [راهنمای فارسی](#فارسی)
+
+---
+
+## Installation
+
+### 1. Windows Installer (`Ravaan-Setup-1.0.0.exe`) — Recommended
+- **Non-admin per-user installation**: installs cleanly into `%LOCALAPPDATA%\Programs\Ravaan` without requiring UAC administrator prompts.
+- **System integration**: creates Start Menu shortcuts, optional launch at startup, and registers `ravan://` deep links.
+- **Safe uninstaller**: cleanly uninstalls while preserving your custom vocabulary and settings in `%APPDATA%\Ravan\`.
+
+### 2. Portable Package (`Ravaan-1.0.0-portable.zip`)
+- **Zero-installation portable build**: includes standalone `Ravaan.exe` and documentation.
+- Simply extract to any folder or USB drive and run.
+
+### 3. From Source (Developers)
+```bash
+git clone https://github.com/mohsen-niksirat/Ravaan.git
+cd Ravaan
+pip install -e .[dev]
+python -m ravan
+```
+
+---
 
 ## Features
 
 | Milestone | Feature | Hotkey (default) |
-|-----------|---------|------------------|
+| :--- | :--- | :--- |
 | M1 | Language chip near caret on layout switch | `Alt+L` on demand |
 | M2 | Convert selection or last word Persian ↔ English layout | `F12` |
 | M3 | Word prediction popup (with expanded corpus 1300+ words) | see below |
