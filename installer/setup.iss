@@ -42,7 +42,7 @@ Name: "registerprotocol"; Description: "Register ravan:// URL protocol handler";
 
 [Files]
 Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
