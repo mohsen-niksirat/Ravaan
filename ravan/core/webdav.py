@@ -22,6 +22,13 @@ class WebDAVClient:
         self.url = url.strip().rstrip("/")
         self.username = username.strip()
         self.password = password.strip()
+        if self.url.lower().startswith("http://"):
+            log.warning(
+                "Security Warning: WebDAV server URL %s uses unencrypted HTTP. "
+                "Credentials and dictionary data will be transmitted in plaintext! "
+                "HTTPS is strongly recommended.",
+                self.url,
+            )
 
     def _get_auth_header(self) -> str:
         if not self.username and not self.password:

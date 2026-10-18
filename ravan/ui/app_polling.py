@@ -106,7 +106,13 @@ class AppPollingMixin:
 
         text = get_clipboard_text()
         if text:
-            self.clip_history.add(text)
+            self.clip_history.add(
+                text,
+                source_app=self._current_exe,
+                ignore_passwords=self.cfg.clip_history_ignore_passwords,
+                excluded_apps=self.cfg.excluded_apps,
+                retention_days=self.cfg.clip_history_retention_days,
+            )
 
     def _schedule_predict(self: Any) -> None:
         self._last_key_time = time.monotonic()

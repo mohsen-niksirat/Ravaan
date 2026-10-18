@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bilingual release notes template (`docs/RELEASE_NOTES_TEMPLATE.md`) with automated SHA256 tables, known limitations, and upgrade notes.
   - Combined CLI argument execution support for diagnostic commands (`--check-updates --version`).
 
+- **Security & Privacy Hardening**:
+  - Comprehensive `SECURITY.md` threat model documenting local-first processing, zero raw keystroke persistence, and reporting policies.
+  - Windows Data Protection API (DPAPI) encryption for Gist tokens and WebDAV passwords in `config.json` via ctypes with automatic plaintext token migration.
+  - Clipboard history hardening with password manager exclusion (1Password, Bitwarden, KeePass, etc.), regex token and Shannon entropy filtering, and 7-day auto-expiration.
+  - WebDAV unencrypted HTTP security warning on plain `http://` configurations.
+  - Sandboxed `ravan://` deep link parser with strict action whitelisting, parameter sanitization, and ReDoS/buffer overflow resilience.
+  - Keylogger-risk audit test verifying zero raw keystroke dumps in logs and aggregate-only learning profiles.
+
 ## [0.7.0] - 2026-10-18
 
 ### Added

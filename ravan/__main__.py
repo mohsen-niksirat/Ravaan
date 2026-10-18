@@ -21,7 +21,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Check for newer versions on GitHub and exit",
     )
+    parser.add_argument(
+        "url",
+        nargs="?",
+        default=None,
+        help="Optional ravan:// deep link URL",
+    )
     args = parser.parse_args(argv)
+
+    if args.url and (args.url.startswith("ravan://") or args.url.startswith("ravan:")):
+        from ravan.platform.protocol import parse_protocol_url
+
+        res = parse_protocol_url(args.url)
+        if not res.get("valid"):
+            print(f"Invalid or disallowed deep link: {res.get('error')}", file=sys.stderr)
+            return 1
 
     if args.version or args.check_updates:
         if args.version:

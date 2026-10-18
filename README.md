@@ -279,7 +279,8 @@ python -m ravan.cli dict remove "word"  # remove custom word
 Ravaan provides three distribution channels depending on your workflow:
 
 ### 1. Windows Installer (`Ravaan-Setup-x.y.z.exe`) — Recommended
-- **Non-admin install**: Installs directly to `%LOCALAPPDATA%\Programs\Ravaan` without requiring administrator privileges.
+- **Non-admin install**: Installs per-user directly to `%LOCALAPPDATA%\Programs\Ravaan` without requiring UAC administrator privileges.
+- **Strict filesystem containment**: Ravaan strictly confines all user settings and data to `%APPDATA%\Ravan` and writes nowhere else on the filesystem. See [SECURITY.md](SECURITY.md) for our detailed threat model and privacy policy.
 - **Start Menu & Startup**: Adds a Start Menu shortcut and an optional Windows startup entry.
 - **Protocol handler**: Automatically registers the `ravan://` URL protocol for deep links.
 - **Clean uninstall**: Uninstaller removes the application cleanly while preserving your personal dictionaries, snippets, and settings in `%APPDATA%\Ravan`.
@@ -371,8 +372,9 @@ ravan/
 برنامهٔ روان از سه روش در دسترس است:
 
 1. **فایل نصب‌کننده ویندوز (`Ravaan-Setup-x.y.z.exe`) — روش پیشنهادی:**
-   - نصب اختصاصی کاربر (Per-User) بدون نیاز به دسترسی ادمین (Administrator).
+   - نصب اختصاصی کاربر (Per-User) بدون نیاز به دسترسی ادمین (Administrator/UAC).
    - مسیر نصب در `%LOCALAPPDATA%\Programs\Ravaan`.
+   - ایزولاسیون کامل داده‌ها: برنامه به جز پوشهٔ `%APPDATA%\Ravan` در هیچ کجای دیسک فایلی ذخیره نمی‌کند (مستندات امنیتی کامل در [SECURITY.md](SECURITY.md)).
    - ایجاد خودکار میانبر منوی استارت و امکان فعال‌سازی اجرای خودکار هنگام روشن شدن ویندوز.
    - ثبت خودکار پروتکل اینترنتی `ravan://` جهت باز کردن سریع بخش‌ها و پیوندهای مستقیم.
    - حذف کامل و امن (Uninstall) بدون دست‌خوردن تنظیمات، واژگان شخصی و کلمات اختصاری در `%APPDATA%\Ravan`.

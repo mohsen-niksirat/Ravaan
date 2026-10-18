@@ -8,6 +8,13 @@
   - In-app updater hardened with pre-release channel awareness (stable users protected from `-rc` releases).
   - Bilingual release notes template (`docs/RELEASE_NOTES_TEMPLATE.md`) with automated SHA256 checksum tables, elevated app warnings, and migration guide.
   - Multi-flag CLI diagnostic execution support.
+- **Phase 1: Security & Privacy Hardening**
+  - Comprehensive `SECURITY.md` threat model documenting zero keystroke persistence and responsible disclosure.
+  - Windows DPAPI credential encryption via ctypes for Gist tokens and WebDAV passwords in `config.json` with seamless migration.
+  - Hardened clipboard history: automatic exclusion of password manager apps (1Password, Bitwarden, KeePass, etc.), regex token filtering, Shannon entropy heuristics, and 7-day auto-expiration.
+  - WebDAV unencrypted HTTP warning on insecure configurations.
+  - Hardened sandboxed `ravan://` deep link URL parser with action whitelisting, input sanitization, and fuzz resilience.
+  - Keylogger-risk audit test verifying zero raw keystroke leaks in logs and aggregate-only learning profiles.
 
 ## Completed (v0.7.0)
 

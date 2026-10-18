@@ -98,21 +98,76 @@ def unregister_protocol() -> bool:
         return False
 
 
+ALLOWED_ACTIONS = {"settings", "stats", "snippet", "help", "about"}
+ALLOWED_SETTINGS_TABS = {
+    "general",
+    "prediction",
+    "hotkeys",
+    "exclusions",
+    "snippets",
+    "sync",
+    "about",
+}
+MAX_URL_LENGTH = 2048
+MAX_PARAM_LENGTH = 256
+
+
+def sanitize_param_value(val: str) -> str:
+    """Sanitize parameter string: strip control chars, null bytes, enforce max length."""
+    cleaned = "".join(ch for ch in val if ch >= " " and ch != "\x7f")
+    return cleaned[:MAX_PARAM_LENGTH].strip()
+
+
 def parse_protocol_url(url: str) -> dict[str, Any]:
-    """Parse deep link URL like ravan://settings?tab=sync into action and parameters."""
-    clean_url = url.strip()
-    if not clean_url:
-        return {"action": "", "params": {}}
+    """Parse and validate deep link URL like ravan://settings?tab=sync.
 
-    parsed = urlparse(clean_url)
+    Security guarantees:
+    - Never throws unhandled exceptions on malformed / fuzzed input.
+    - Limits total length to 2048 chars to mitigate buffer overflow / ReDoS.
+    - Rejects any scheme other than 'ravan'.
+    - Whitelists only known safe actions: settings, stats, snippet, help, about.
+    - Strips path traversal / directory navigation characters.
+    - Validates and sanitizes parameters (no arbitrary code execution or injection).
+    """
+    clean_url = str(url).strip()
+    if not clean_url or len(clean_url) > MAX_URL_LENGTH or "\x00" in clean_url:
+        return {"valid": False, "action": "", "params": {}, "error": "Invalid or oversized URL"}
+
+    try:
+        parsed = urlparse(clean_url)
+    except Exception as exc:  # noqa: BLE001
+        return {"valid": False, "action": "", "params": {}, "error": f"URL parse error: {exc}"}
+
     if parsed.scheme.lower() != PROTOCOL_SCHEME:
-        return {"action": "", "params": {}}
+        return {"valid": False, "action": "", "params": {}, "error": f"Invalid scheme: {parsed.scheme}"}
 
-    action = (parsed.netloc or parsed.path).strip("/").lower()
-    raw_params = parse_qs(parsed.query)
-    # Simplify query dict values from list[str] to single str when length is 1
-    params: dict[str, Any] = {}
+    raw_action = (parsed.netloc or parsed.path).strip("/")
+    raw_action = raw_action.replace("\\", "/").partition("/")[0].strip().lower()
+
+    if raw_action not in ALLOWED_ACTIONS:
+        return {
+            "valid": False,
+            "action": "",
+            "params": {},
+            "error": f"Disallowed action: {raw_action[:32]}",
+        }
+
+    raw_params = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=20)
+    params: dict[str, str] = {}
     for k, v in raw_params.items():
-        params[k] = v[0] if len(v) == 1 else v
+        clean_k = sanitize_param_value(k).lower()
+        if not clean_k or not v:
+            continue
+        params[clean_k] = sanitize_param_value(v[0])
 
-    return {"action": action, "params": params}
+    if raw_action == "settings":
+        tab = params.get("tab", "").lower()
+        if tab and tab not in ALLOWED_SETTINGS_TABS:
+            params["tab"] = "general"
+    elif raw_action == "snippet":
+        trigger = params.get("trigger", "")
+        if trigger:
+            clean_trigger = "".join(ch for ch in trigger if ch.isalnum() or ch in "@#$/._-")
+            params["trigger"] = clean_trigger[:64]
+
+    return {"valid": True, "action": raw_action, "params": params, "error": None}

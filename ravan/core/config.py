@@ -13,7 +13,14 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-DEFAULT_EXCLUDED_APPS = ["explorer.exe"]
+DEFAULT_EXCLUDED_APPS = [
+    "explorer.exe",
+    "1password.exe",
+    "bitwarden.exe",
+    "keepass.exe",
+    "keepassxc.exe",
+    "lockapp.exe",
+]
 
 
 @dataclass
@@ -61,12 +68,8 @@ class Theme:
 
 @dataclass
 class Config:
-    convert_hotkey: HotkeySpec = field(
-        default_factory=lambda: HotkeySpec(key="F12", modifiers=[])
-    )
-    lang_indicator_hotkey: HotkeySpec = field(
-        default_factory=lambda: HotkeySpec(key="L", modifiers=["Alt"])
-    )
+    convert_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", []))
+    lang_indicator_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("L", ["Alt"]))
     autocorrect_enabled: bool = True
     prediction_enabled: bool = True
     quickpick_digits: bool = True
@@ -84,28 +87,18 @@ class Config:
     auto_zwnj_enabled: bool = True
     shift_space_zwnj: bool = True
     clipboard_history_enabled: bool = True
-    clipboard_history_hotkey: HotkeySpec = field(
-        default_factory=lambda: HotkeySpec(key="V", modifiers=["Alt"])
-    )
-    normalize_hotkey: HotkeySpec = field(
-        default_factory=lambda: HotkeySpec(key="F12", modifiers=["Ctrl"])
-    )
-    case_hotkey: HotkeySpec = field(
-        default_factory=lambda: HotkeySpec(key="F12", modifiers=["Shift"])
-    )
+    clipboard_history_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("V", ["Alt"]))
+    normalize_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", ["Ctrl"]))
+    case_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", ["Shift"]))
     inline_calc_enabled: bool = True
     sound_feedback_enabled: bool = False
-    undo_autocorrect_hotkey: HotkeySpec = field(
-        default_factory=lambda: HotkeySpec(key="Z", modifiers=["Ctrl", "Shift"])
-    )
+    undo_autocorrect_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Z", ["Ctrl", "Shift"]))
     fix_punctuation_spacing: bool = True
     autocorrect_mode: str = "safe"  # "off" | "safe" | "normal"
     ignored_words: list[str] = field(default_factory=list)
     theme_mode: str = "auto"  # "auto" | "dark" | "light"
     has_seen_onboarding: bool = False
-    quick_stats_hotkey: HotkeySpec = field(
-        default_factory=lambda: HotkeySpec(key="S", modifiers=["Alt"])
-    )
+    quick_stats_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("S", ["Alt"]))
     cloud_sync_enabled: bool = False
     gist_token: str = ""
     gist_id: str = ""
@@ -117,10 +110,10 @@ class Config:
     webdav_username: str = ""
     webdav_password: str = ""
     sync_interval_min: int = 0  # 0 (off), 15, 60 min
-    power_mode_hotkey: HotkeySpec = field(
-        default_factory=lambda: HotkeySpec(key="P", modifiers=["Ctrl", "Alt"])
-    )
+    power_mode_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("P", ["Ctrl", "Alt"]))
     power_mode_duration_min: int = 0
+    clip_history_ignore_passwords: bool = True
+    clip_history_retention_days: int = 7
 
 
     def is_excluded(
@@ -258,6 +251,14 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
     excluded = data.get("excluded_apps", DEFAULT_EXCLUDED_APPS)
     if not isinstance(excluded, list):
         excluded = DEFAULT_EXCLUDED_APPS
+
+    from ravan.core.crypto import unprotect_secret
+
+    gist_tok, g_mig = unprotect_secret(str(data.get("gist_token", "")))
+    webdav_pwd, w_mig = unprotect_secret(str(data.get("webdav_password", "")))
+    if g_mig or w_mig:
+        log.info("Migrated plaintext sync credentials to DPAPI encryption.")
+
     return Config(
         convert_hotkey=_hotkey_from_dict(data.get("convert_hotkey"), HotkeySpec("F12")),
         lang_indicator_hotkey=_hotkey_from_dict(
@@ -305,7 +306,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
             data.get("quick_stats_hotkey"), HotkeySpec("S", ["Alt"])
         ),
         cloud_sync_enabled=bool(data.get("cloud_sync_enabled", False)),
-        gist_token=str(data.get("gist_token", "")),
+        gist_token=gist_tok,
         gist_id=str(data.get("gist_id", "")),
         last_sync_time=str(data.get("last_sync_time", "")),
         ui_language=str(data.get("ui_language", "auto")),
@@ -313,17 +314,26 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         sync_backend=str(data.get("sync_backend", "gist")),
         webdav_url=str(data.get("webdav_url", "")),
         webdav_username=str(data.get("webdav_username", "")),
-        webdav_password=str(data.get("webdav_password", "")),
+        webdav_password=webdav_pwd,
         sync_interval_min=_bounded_int(data, "sync_interval_min", 0, 0, 1440),
         power_mode_hotkey=_hotkey_from_dict(
             data.get("power_mode_hotkey"), HotkeySpec("P", ["Ctrl", "Alt"])
         ),
         power_mode_duration_min=_bounded_int(data, "power_mode_duration_min", 0, 0, 1440),
+        clip_history_ignore_passwords=bool(data.get("clip_history_ignore_passwords", True)),
+        clip_history_retention_days=_bounded_int(data, "clip_history_retention_days", 7, 1, 365),
     )
 
 
 def config_to_dict(cfg: Config) -> dict[str, Any]:
-    return asdict(cfg)
+    d = asdict(cfg)
+    from ravan.core.crypto import protect_secret
+
+    if d.get("gist_token"):
+        d["gist_token"] = protect_secret(d["gist_token"])
+    if d.get("webdav_password"):
+        d["webdav_password"] = protect_secret(d["webdav_password"])
+    return d
 
 
 def load_config() -> Config:
