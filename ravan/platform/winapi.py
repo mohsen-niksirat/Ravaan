@@ -314,3 +314,87 @@ def get_system_dpi() -> int:
     return 96
 
 
+class MONITORINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", wintypes.DWORD),
+        ("rcMonitor", RECT),
+        ("rcWork", RECT),
+        ("dwFlags", wintypes.DWORD),
+    ]
+
+
+try:
+    user32.MonitorFromPoint.argtypes = [POINT, wintypes.DWORD]
+    user32.MonitorFromPoint.restype = wintypes.HMONITOR
+    user32.GetMonitorInfoW.argtypes = [wintypes.HMONITOR, ctypes.POINTER(MONITORINFO)]
+    user32.GetMonitorInfoW.restype = wintypes.BOOL
+except Exception:
+    pass
+
+
+def get_monitor_work_area(x: int, y: int) -> tuple[int, int, int, int]:
+    """Return (left, top, right, bottom) work area of the monitor containing (x, y)."""
+    try:
+        pt = POINT(x=int(x), y=int(y))
+        hmon = user32.MonitorFromPoint(pt, 2)  # MONITOR_DEFAULTTONEAREST
+        if hmon:
+            mi = MONITORINFO()
+            mi.cbSize = ctypes.sizeof(MONITORINFO)
+            if user32.GetMonitorInfoW(hmon, ctypes.byref(mi)):
+                return (
+                    int(mi.rcWork.left),
+                    int(mi.rcWork.top),
+                    int(mi.rcWork.right),
+                    int(mi.rcWork.bottom),
+                )
+    except Exception:
+        pass
+    try:
+        w = int(user32.GetSystemMetrics(SM_CXSCREEN)) or 1920
+        h = int(user32.GetSystemMetrics(SM_CYSCREEN)) or 1080
+        return (0, 0, w, h)
+    except Exception:
+        return (0, 0, 1920, 1080)
+
+
+def get_current_process_rss_mb() -> float:
+    """Return the current process RSS (Working Set) memory usage in megabytes."""
+    try:
+        class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+            ]
+
+        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+        psapi.GetProcessMemoryInfo.argtypes = [
+            wintypes.HANDLE,
+            ctypes.POINTER(PROCESS_MEMORY_COUNTERS),
+            wintypes.DWORD,
+        ]
+        psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+
+        pmc = PROCESS_MEMORY_COUNTERS()
+        pmc.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS)
+        hproc = kernel32.GetCurrentProcess()
+        if psapi.GetProcessMemoryInfo(hproc, ctypes.byref(pmc), pmc.cb):
+            return round(pmc.WorkingSetSize / (1024 * 1024), 2)
+    except Exception:
+        pass
+    try:
+        import resource
+
+        return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 2)
+    except Exception:
+        return 0.0
+
+

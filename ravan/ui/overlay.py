@@ -143,6 +143,12 @@ class OverlayWindow:
             except Exception:  # noqa: BLE001
                 pass
             self._fade_after = None
+        try:
+            from ravan.platform.hook import set_popup_visible
+
+            set_popup_visible(False)
+        except Exception:
+            pass
 
     def _clear_rows(self) -> None:
         for row in self._rows:
@@ -195,18 +201,13 @@ class OverlayWindow:
         popup_h = max(self._root.winfo_reqheight(), 28 * len(candidates) + 28)
         eff_h = max(height, 22)
 
-        screen_h = 1080
-        try:
-            from ravan.platform import winapi as wapi
+        from ravan.platform import winapi as wapi
 
-            screen_h = int(wapi.user32.GetSystemMetrics(wapi.SM_CYSCREEN)) or 1080
-        except Exception:
-            screen_h = self._root.winfo_screenheight() or 1080
-
-        if y + eff_h + popup_h + 12 < screen_h:
+        m_left, m_top, m_right, m_bottom = wapi.get_monitor_work_area(x, y)
+        if y + eff_h + popup_h + 8 < m_bottom:
             py = y + eff_h + 8
         else:
-            py = max(8, y - popup_h - 8)
+            py = max(m_top + 8, y - popup_h - 8)
 
         from ravan.core.predictor import is_arabic_persian
 
@@ -261,17 +262,9 @@ class OverlayWindow:
         try:
             from ravan.platform import winapi as wapi
 
-            vx = int(wapi.user32.GetSystemMetrics(wapi.SM_XVIRTUALSCREEN))
-            vy = int(wapi.user32.GetSystemMetrics(wapi.SM_YVIRTUALSCREEN))
-            vw = int(wapi.user32.GetSystemMetrics(wapi.SM_CXVIRTUALSCREEN))
-            vh = int(wapi.user32.GetSystemMetrics(wapi.SM_CYVIRTUALSCREEN))
-            if vw > 0 and vh > 0:
-                px = max(vx, min(int(x), vx + vw - w - 8))
-                py = max(vy, min(int(y), vy + vh - h - 8))
-            else:
-                sw = self._root.winfo_screenwidth()
-                px = max(0, min(int(x), sw - w - 8))
-                py = max(0, int(y))
+            m_left, m_top, m_right, m_bottom = wapi.get_monitor_work_area(x, y)
+            px = max(m_left + 8, min(int(x), m_right - w - 8))
+            py = max(m_top + 8, min(int(y), m_bottom - h - 8))
 
             root_hwnd = self._get_root_hwnd()
             if root_hwnd:
@@ -326,18 +319,14 @@ class OverlayWindow:
         self._root.update_idletasks()
         popup_h = max(self._root.winfo_reqheight(), 28 * len(cands) + 28)
         eff_h = max(height, 22)
-        screen_h = 1080
-        try:
-            from ravan.platform import winapi as wapi
 
-            screen_h = int(wapi.user32.GetSystemMetrics(wapi.SM_CYSCREEN)) or 1080
-        except Exception:
-            screen_h = self._root.winfo_screenheight() or 1080
+        from ravan.platform import winapi as wapi
 
-        if y + eff_h + popup_h + 12 < screen_h:
+        m_left, m_top, m_right, m_bottom = wapi.get_monitor_work_area(x, y)
+        if y + eff_h + popup_h + 8 < m_bottom:
             py = y + eff_h + 8
         else:
-            py = max(8, y - popup_h - 8)
+            py = max(m_top + 8, y - popup_h - 8)
 
         self._place(x, py)
         self._root.deiconify()

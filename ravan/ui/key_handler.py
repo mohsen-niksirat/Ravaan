@@ -38,6 +38,20 @@ class KeyHandlerMixin:
             self._handle_key(event)
 
     def _handle_key(self: Any, event: HookEvent) -> None:
+        # Ignore input inside excluded applications completely
+        if hasattr(self, "_is_excluded") and self._is_excluded():
+            if self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
+            return
+
+        # Suppress assistance in elevated (admin) windows (single tray warning, never spam)
+        if hasattr(self, "_check_elevated") and self._check_elevated():
+            if self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
+            return
+
         vk = event.vk_code
         char = vk_to_unicode(vk, event.scan_code) or ""
         self._record_event("Key pressed", vk=vk, char=char)

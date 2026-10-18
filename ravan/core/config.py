@@ -19,7 +19,10 @@ DEFAULT_EXCLUDED_APPS = [
     "bitwarden.exe",
     "keepass.exe",
     "keepassxc.exe",
+    "dashlane.exe",
     "lockapp.exe",
+    "logonui.exe",
+    "credentialuibroker.exe",
 ]
 
 

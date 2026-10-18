@@ -60,6 +60,10 @@ def main(argv: list[str] | None = None) -> int:
     p_import = sub.add_parser("import", help="Import user data from a ZIP archive")
     p_import.add_argument("path", help="Source ZIP archive path")
     p_import.add_argument("--merge", action="store_true", help="Merge dictionaries and snippets")
+    sub.add_parser("selftest", help="Run comprehensive in-app diagnostics and health checks")
+    p_soak = sub.add_parser("soak", help="Run memory and latency soak test")
+    p_soak.add_argument("-d", "--duration", type=float, default=600.0, help="Duration in seconds (default: 600)")
+    p_soak.add_argument("-k", "--keystrokes", type=int, default=10000, help="Max keystrokes (default: 10000)")
 
     args = parser.parse_args(argv)
     if args.version or args.check_updates:
@@ -329,6 +333,21 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:
             print(f"Import failed: {exc}", file=sys.stderr)
             return 1
+
+    if args.cmd == "selftest":
+        from ravan.platform.selftest import format_selftest_report, run_selftest
+
+        res = run_selftest()
+        print(format_selftest_report(res))
+        return 0 if res["all_passed"] else 1
+
+    if args.cmd == "soak":
+        from ravan.core.soak import format_soak_report, run_soak_test
+
+        print(f"Starting soak test: {args.duration}s duration, up to {args.keystrokes:,} keystrokes...")
+        summary = run_soak_test(duration_seconds=args.duration, max_keystrokes=args.keystrokes)
+        print(format_soak_report(summary))
+        return 0 if summary.passed else 1
 
     return 1
 

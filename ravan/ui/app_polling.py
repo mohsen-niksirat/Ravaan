@@ -8,7 +8,7 @@ from typing import Any
 
 from ravan.platform import winapi as w
 from ravan.platform.caret import get_caret_rect
-from ravan.platform.focus import foreground_exe
+from ravan.platform.focus import foreground_exe, window_class_name
 from ravan.platform.hook import set_popup_visible
 from ravan.platform.lang import current_language, language_label
 from ravan.platform.winapi import wintypes
@@ -29,15 +29,7 @@ class AppPollingMixin:
         if not hwnd or self._is_foreground_self():
             return
 
-        from ravan.platform.focus import is_window_elevated, window_class_name
-
-        if is_window_elevated(hwnd):
-            if not getattr(self, "_elevated_notified", False):
-                self._elevated_notified = True
-                self.tray.notify(
-                    "Ravaan cannot assist in this window (admin). Run Ravaan as admin to enable.",
-                    title="Ravaan (روان)",
-                )
+        self._check_elevated(hwnd)
 
         exe = foreground_exe()
         if not exe or exe == self._current_exe:
@@ -50,6 +42,28 @@ class AppPollingMixin:
         if self.overlay.predicting:
             self.overlay.hide()
             set_popup_visible(False)
+
+    def _check_elevated(self: Any, hwnd: int | None = None) -> bool:
+        from ravan.platform.focus import is_window_elevated
+
+        target_hwnd = hwnd or w.user32.GetForegroundWindow()
+        if not target_hwnd or self._is_foreground_self():
+            return False
+        if is_window_elevated(target_hwnd):
+            warned = getattr(self, "_elevated_warned_hwnds", None)
+            if warned is None:
+                warned = set()
+                self._elevated_warned_hwnds = warned
+            if target_hwnd not in warned:
+                warned.add(target_hwnd)
+                if len(warned) > 100:
+                    warned.pop()
+                self.tray.notify(
+                    "Ravaan cannot assist in this window (admin). Run Ravaan as admin to enable.",
+                    title="Ravaan (روان)",
+                )
+            return True
+        return False
 
     def _is_foreground_self(self: Any) -> bool:
         """True if the focused window belongs to this process (overlay/settings)."""
@@ -86,6 +100,10 @@ class AppPollingMixin:
             self._last_lang_hkl = lang.hkl
             if self._is_excluded():
                 return
+            if self.overlay.predicting:
+                self.overlay.hide()
+                set_popup_visible(False)
+            self._pending_predict = False
             if self.cfg.sound_feedback_enabled:
                 from ravan.platform.sound import play_layout_switch_sound
 

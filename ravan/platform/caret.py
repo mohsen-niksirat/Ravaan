@@ -58,9 +58,24 @@ def _get_active_pid() -> int:
         return 0
 
 
+_mock_caret: tuple[CaretRect, str] | None = None
+
+
+def set_mock_caret(rect: CaretRect | None, source: str = "mock") -> None:
+    """Mock hook for testing caret detection and fallback."""
+    global _mock_caret
+    if rect is None:
+        _mock_caret = None
+    else:
+        _mock_caret = (rect, source)
+
+
 def get_caret_rect_with_source() -> tuple[CaretRect, str]:
     """Return the caret rect and detection source ('UIA', 'GetGUIThreadInfo', or 'cursor')."""
     global _last_caret_source, _cached_caret
+
+    if _mock_caret is not None:
+        return _mock_caret[0], _mock_caret[1]
 
     now = time.monotonic()
     if _cached_caret is not None and (now - _cached_caret[2]) < 0.030:
@@ -71,7 +86,7 @@ def get_caret_rect_with_source() -> tuple[CaretRect, str]:
     # Skip UIA if this PID recently failed UIA within cooldown
     if active_pid not in _uia_failed_until or now > _uia_failed_until[active_pid]:
         rect = _try_uia_caret()
-        if rect is not None:
+        if rect is not None and (-10000 <= rect.x <= 50000) and (-10000 <= rect.y <= 50000):
             _uia_failed_until.pop(active_pid, None)
             _last_caret_source = "UIA"
             _cached_caret = (rect, "UIA", now)
@@ -95,7 +110,7 @@ def get_caret_rect_with_source() -> tuple[CaretRect, str]:
         )
 
     rect = _try_gui_thread_info()
-    if rect is not None:
+    if rect is not None and (-10000 <= rect.x <= 50000) and (-10000 <= rect.y <= 50000):
         _last_caret_source = "GetGUIThreadInfo"
         _cached_caret = (rect, "GetGUIThreadInfo", now)
         log.debug("Caret via GetGUIThreadInfo: %s", rect)
@@ -117,6 +132,12 @@ def _rects_to_caret(rects) -> CaretRect | None:
     if not rects or len(rects) < 4:
         return None
     left, top, width, height = rects[0], rects[1], rects[2], rects[3]
+    # Filter out whole-window/container bounding boxes (e.g. terminals, canvases)
+    if width > 600 or height > 250:
+        return None
+    # Filter out degenerate (0, 0) rects
+    if left == 0 and top == 0 and (width <= 2 or height <= 2):
+        return None
     if width <= 0:  # empty selection → caret line
         width = 2
     if height <= 0:
@@ -231,16 +252,25 @@ def _try_gui_thread_info() -> CaretRect | None:
         if w.user32.GetGUIThreadInfo(thread_id, ctypes.byref(info)):
             caret = info.rcCaret
             hwnd_caret = info.hwndCaret
-            if hwnd_caret:
+            if (
+                hwnd_caret
+                and not (
+                    caret.left == 0
+                    and caret.top == 0
+                    and caret.right == 0
+                    and caret.bottom == 0
+                )
+            ):
                 pt = w.POINT(caret.left, caret.top)
                 w.user32.ClientToScreen(hwnd_caret, ctypes.byref(pt))
-                width = caret.right - caret.left
-                height = caret.bottom - caret.top
-                if height <= 0:
-                    height = 16
-                if width <= 0:
-                    width = 2
-                result = CaretRect(x=pt.x, y=pt.y, width=width, height=height)
+                if pt.x != 0 or pt.y != 0:
+                    width = caret.right - caret.left
+                    height = caret.bottom - caret.top
+                    if height <= 0:
+                        height = 16
+                    if width <= 0:
+                        width = 2
+                    result = CaretRect(x=pt.x, y=pt.y, width=width, height=height)
         return result
     finally:
         if attached:

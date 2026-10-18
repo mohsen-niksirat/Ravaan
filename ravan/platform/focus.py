@@ -101,8 +101,19 @@ def is_current_process_elevated() -> bool:
         return False
 
 
+_mock_window_elevated: bool | None = None
+
+
+def set_mock_window_elevated(value: bool | None) -> None:
+    """Mock hook for testing elevated window detection."""
+    global _mock_window_elevated
+    _mock_window_elevated = value
+
+
 def is_window_elevated(hwnd: int | None = None) -> bool:
     """Return True if the target window's process is elevated while current process is not."""
+    if _mock_window_elevated is not None:
+        return _mock_window_elevated
     if is_current_process_elevated():
         return False
     target_hwnd = hwnd or w.user32.GetForegroundWindow()
