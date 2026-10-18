@@ -11,7 +11,7 @@ from collections import deque
 from datetime import datetime
 from typing import Any
 
-from ravan.core.config import Config, load_config
+from ravan.core.config import Config, load_config, save_config
 from ravan.core.events import Candidate
 from ravan.core.journal import KeystrokeJournal
 from ravan.core.layout import LayoutMapper
@@ -54,6 +54,7 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
         self._settings_window = None
         self._diagnostics_window = None
         self._snippet_window = None
+        self._wizard_window = None
         self.recent_events: deque[dict[str, Any]] = deque(maxlen=50)
 
         self._last_lang_hkl: int | None = None
@@ -70,6 +71,8 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
         self._last_clip_poll = 0.0
         self._last_autocorrect: tuple[str, str, float, str] | None = None
         self._own_pid = os.getpid()
+        self.is_paused = False
+        self._pause_timer: threading.Timer | None = None
 
     def start(self) -> None:
         t0 = time.perf_counter()
@@ -115,6 +118,8 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
                         self._diagnostics_window.tick()
                     if self._snippet_window is not None:
                         self._snippet_window.tick()
+                    if self._wizard_window is not None:
+                        self._wizard_window.tick()
                 except Exception:  # noqa: BLE001
                     log.exception("Main loop iteration failed")
                 time.sleep(0.008)
@@ -142,6 +147,12 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
                 self.open_diagnostics()
             elif action == "set_prediction":
                 self.set_prediction_enabled(bool(arg))
+            elif action == "set_autocorrect":
+                self.set_autocorrect_enabled(bool(arg))
+            elif action == "set_auto_zwnj":
+                self.set_auto_zwnj_enabled(bool(arg))
+            elif action == "toggle_pause":
+                self.toggle_pause()
             elif action == "quick_stats":
                 self._show_quick_text_stats()
             elif action == "show_update":
@@ -176,28 +187,58 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
         lang = current_language()
         tag = (lang.tag if lang else "en").upper()
         self.recent_events.append(
-            {
-                "time": now_str,
-                "vk": vk_str,
-                "char": char,
-                "layout": tag,
-                "action": action,
-            }
+            {"time": now_str, "vk": vk_str, "char": char, "layout": tag, "action": action}
         )
 
     def _on_settings_saved(self, cfg: Config) -> None:
         self.cfg = cfg
         self.predictor = DictPredictor.from_config(cfg)
         self.snippets = SnippetEngine.from_config(cfg)
+        if hasattr(self.overlay, "set_theme_mode"):
+            self.overlay.set_theme_mode(cfg.theme_mode)
         log.info("Settings updated")
 
     def set_prediction_enabled(self, enabled: bool) -> None:
         self.cfg.prediction_enabled = enabled
-        from ravan.core.config import save_config
-
         save_config(self.cfg)
         if not enabled:
             self.overlay.hide()
+
+    def set_autocorrect_enabled(self, enabled: bool) -> None:
+        self.cfg.autocorrect_enabled = enabled
+        save_config(self.cfg)
+
+    def set_auto_zwnj_enabled(self, enabled: bool) -> None:
+        self.cfg.auto_zwnj = enabled
+        save_config(self.cfg)
+
+    def toggle_pause(self, minutes: int = 10) -> None:
+        self.is_paused = not getattr(self, "is_paused", False)
+        from ravan.core.i18n import t
+
+        if self.is_paused:
+            self.overlay.hide()
+            if self._pause_timer:
+                self._pause_timer.cancel()
+            self._pause_timer = threading.Timer(minutes * 60, self._auto_resume)
+            self._pause_timer.daemon = True
+            self._pause_timer.start()
+            if hasattr(self.tray, "set_paused"):
+                self.tray.set_paused(True, minutes)
+            msg = t("tray.paused_msg", "Ravaan paused for {min} minutes.", min=minutes)
+            self.tray.notify(msg, title="Ravaan")
+        else:
+            if self._pause_timer:
+                self._pause_timer.cancel()
+                self._pause_timer = None
+            if hasattr(self.tray, "set_paused"):
+                self.tray.set_paused(False)
+            msg = t("tray.resumed_msg", "Ravaan resumed.")
+            self.tray.notify(msg, title="Ravaan")
+
+    def _auto_resume(self) -> None:
+        if getattr(self, "is_paused", False):
+            self._ui_queue.put(("toggle_pause", None))
 
     def _undo_last_autocorrect(self) -> bool:
         if self._last_autocorrect is None:

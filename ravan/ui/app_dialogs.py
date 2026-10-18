@@ -68,11 +68,14 @@ class AppDialogsMixin:
         dialog.show()
 
     def _show_onboarding(self: Any) -> None:
-        self.cfg.has_seen_onboarding = True
-        from ravan.core.config import save_config
-        from ravan.core.i18n import t
+        if getattr(self, "_wizard_window", None) is not None and self._wizard_window.open:
+            return
+        from ravan.ui.wizard import FirstRunWizard
 
-        save_config(self.cfg)
-        msg = t("onboarding.body", "Welcome to Ravaan!")
-        title = t("onboarding.title", "Welcome to Ravaan (روان)!")
-        self.tray.notify(msg, title=title)
+        parent = getattr(self.overlay, "_root", None)
+        self._wizard_window = FirstRunWizard(
+            self.cfg,
+            on_complete=None,
+            parent=parent,
+        )
+        self._wizard_window.show()

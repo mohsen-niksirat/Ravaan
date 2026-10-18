@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import ctypes
 import logging
 import tkinter as tk
 from typing import Any
 
 from ravan.core.normalizer import en_to_fa_digits
 from ravan.platform import winapi as wapi
+from ravan.ui.theme import apply_popup_window_attributes, get_active_palette, get_ui_font
 
 log = logging.getLogger(__name__)
 
@@ -24,31 +24,21 @@ class StatsPopupWindow:
     def show(self, stats: dict[str, Any], x: int = 100, y: int = 100) -> None:
         self.close()
 
-        is_dark = True
-        try:
-            is_dark = wapi.is_windows_dark_mode()
-        except Exception:
-            pass
-
-        bg = "#202124" if is_dark else "#ffffff"
-        fg = "#e8eaed" if is_dark else "#202124"
-        card_bg = "#2d2f31" if is_dark else "#f1f3f4"
-        accent = "#8ab4f8" if is_dark else "#1a73e8"
-        border = "#3c4043" if is_dark else "#dadce0"
-
+        palette = get_active_palette()
         parent = self._parent or tk._default_root
         win = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
         self._root = win
         win.withdraw()
         win.title("Text Stats — Ravaan")
-        win.attributes("-topmost", True)
-        win.overrideredirect(True)
-        try:
-            win.attributes("-alpha", 0.96)
-        except tk.TclError:
-            pass
 
-        frame = tk.Frame(win, bg=bg, highlightbackground=border, highlightthickness=1, padx=14, pady=12)
+        frame = tk.Frame(
+            win,
+            bg=palette.bg,
+            highlightbackground=palette.border,
+            highlightthickness=1,
+            padx=14,
+            pady=12,
+        )
         frame.pack(fill="both", expand=True)
 
         from ravan.core.i18n import is_rtl, t
@@ -59,14 +49,15 @@ class StatsPopupWindow:
         footer_anchor = "w" if rtl else "e"
 
         # Header
-        hdr = tk.Frame(frame, bg=bg)
+        hdr = tk.Frame(frame, bg=palette.bg)
         hdr.pack(fill="x", pady=(0, 8))
+        f_hdr = get_ui_font(size=10, bold=True, rtl=rtl)
         tk.Label(
             hdr,
             text=t("stats.header", "📊 Text Statistics"),
-            font=("Segoe UI", 10, "bold"),
-            bg=bg,
-            fg=accent,
+            font=f_hdr,
+            bg=palette.bg,
+            fg=palette.accent,
         ).pack(side=align_label)
 
         # Stats Cards
@@ -78,7 +69,11 @@ class StatsPopupWindow:
         ratio = stats.get("ratio_str", "—")
 
         words_val = en_to_fa_digits(str(words)) if rtl else str(words)
-        chars_val = f"{en_to_fa_digits(str(chars))}  [{t('stats.no_spaces', 'without spaces: {count}', count=en_to_fa_digits(str(no_space)))}]" if rtl else f"{chars}  [{t('stats.no_spaces', 'without spaces: {count}', count=no_space)}]"
+        chars_val = (
+            f"{en_to_fa_digits(str(chars))}  [{t('stats.no_spaces', 'without spaces: {count}', count=en_to_fa_digits(str(no_space)))}]"
+            if rtl
+            else f"{chars}  [{t('stats.no_spaces', 'without spaces: {count}', count=no_space)}]"
+        )
         time_val = en_to_fa_digits(time_str) if rtl else time_str
 
         rows = [
@@ -88,23 +83,27 @@ class StatsPopupWindow:
             (t("stats.language_ratio", "Language Ratio:"), ratio),
         ]
 
-        body = tk.Frame(frame, bg=card_bg, padx=10, pady=8)
+        body = tk.Frame(frame, bg=palette.card_bg, padx=10, pady=8)
         body.pack(fill="x", pady=2)
 
+        f_label = get_ui_font(size=9, bold=False, rtl=rtl)
+        f_val = get_ui_font(size=9, bold=True, rtl=rtl)
+
         for label_text, val_text in rows:
-            r_frm = tk.Frame(body, bg=card_bg)
+            r_frm = tk.Frame(body, bg=palette.card_bg)
             r_frm.pack(fill="x", pady=2)
-            tk.Label(r_frm, text=label_text, font=("Segoe UI", 9), bg=card_bg, fg=fg).pack(side=align_label)
+            tk.Label(r_frm, text=label_text, font=f_label, bg=palette.card_bg, fg=palette.fg).pack(side=align_label)
             tk.Label(
-                r_frm, text=val_text, font=("Segoe UI Semibold", 9), bg=card_bg, fg=accent
+                r_frm, text=val_text, font=f_val, bg=palette.card_bg, fg=palette.accent
             ).pack(side=align_val)
 
+        f_footer = get_ui_font(size=8, bold=False, rtl=rtl)
         footer = tk.Label(
             frame,
             text=t("stats.footer", "Press Esc or click to close • Ravaan"),
-            font=("Segoe UI", 8),
-            bg=bg,
-            fg="#70757a" if is_dark else "#80868b",
+            font=f_footer,
+            bg=palette.bg,
+            fg=palette.subtext,
         )
         footer.pack(anchor=footer_anchor, pady=(6, 0))
 
@@ -115,31 +114,14 @@ class StatsPopupWindow:
         win.update_idletasks()
         w = win.winfo_reqwidth()
         h = win.winfo_reqheight()
-        sw = win.winfo_screenwidth()
-        sh = win.winfo_screenheight()
 
-        px = max(20, min(int(x), sw - w - 20))
-        py = max(20, min(int(y), sh - h - 20))
+        m_left, m_top, m_right, m_bottom = wapi.get_monitor_work_area(x, y)
+        px = max(m_left + 12, min(int(x), m_right - w - 12))
+        py = max(m_top + 12, min(int(y), m_bottom - h - 12))
+
         win.geometry(f"+{px}+{py}")
         win.deiconify()
-
-        try:
-            hwnd = int(win.frame(), 16)
-            if hwnd:
-                wapi.user32.SetWindowPos(
-                    hwnd,
-                    wapi.HWND_TOPMOST,
-                    px,
-                    py,
-                    w,
-                    h,
-                    wapi.SWP_NOACTIVATE | wapi.SWP_SHOWWINDOW,
-                )
-                # DWM rounded corners
-                val = ctypes.c_int(2)
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 33, ctypes.byref(val), ctypes.sizeof(val))
-        except Exception:
-            pass
+        apply_popup_window_attributes(win, palette)
 
         self._dismiss_job = win.after(6000, self.close)
 

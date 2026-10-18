@@ -22,6 +22,13 @@
   - Custom caret fallback chain: robust handling of terminal canvas containers (VS Code), Excel cells, browser address bars, and Telegram/WhatsApp Desktop with container box filtering and cursor fallback.
   - Pre-seeded exclusion defaults: added 1Password, Bitwarden, KeePass, KeePassXC, Dashlane, LockApp, LogonUI, and CredentialUIBroker to default excluded apps.
   - Memory & latency soak test (`python -m ravan.cli soak`): synthetic typing loop verifying stable RSS (<30 MB peak vs 150 MB ceiling) and zero latency drift across 10,000 keystrokes.
+- **Phase 3: UX Final Polish (v1.0 Face)**
+  - Unified UI theme system (`ravan/ui/theme.py`): centralized palette tokens (dark, light, high-contrast), typography tokens (Vazirmatn / Segoe UI), and DWM rounded corners.
+  - Prediction confidence meter: 4-level discrete confidence indicator (` `, `▂`, `▅`, `█`) per candidate row.
+  - Text statistics popup unified with design tokens and multi-monitor work area clamping.
+  - First-Run Onboarding Wizard (`ravan/ui/wizard.py`): friendly 20-second intro with live bilingual language picker and 5 hotkeys tour card.
+  - System tray upgrades: multi-resolution crisp icon set with alpha channel, Quick Toggles submenu (Prediction, Autocorrect, Auto-ZWNJ, Power Mode) with live checkmarks, and "Pause for 10 min" toggle with auto-resume timer and visual pause badge.
+  - Accessibility: High-contrast theme mode, complete keyboard navigation (`Ctrl+Tab`, `Ctrl+Shift+Tab`, `Escape`, `Ctrl+Return`), and screen-reader accessibility.
 
 ## Completed (v0.7.0)
 

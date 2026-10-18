@@ -42,6 +42,7 @@ class Snippet:
 
 @dataclass
 class Theme:
+    name: str = "dark"
     background_color: list[int] = field(default_factory=lambda: [30, 30, 30, 230])
     text_color: list[int] = field(default_factory=lambda: [240, 240, 240, 255])
     highlight_color: list[int] = field(default_factory=lambda: [70, 130, 180, 255])
@@ -51,6 +52,7 @@ class Theme:
     @classmethod
     def dark(cls) -> Theme:
         return cls(
+            name="dark",
             background_color=[32, 33, 36, 235],
             text_color=[241, 243, 244, 255],
             highlight_color=[66, 133, 244, 255],
@@ -61,11 +63,23 @@ class Theme:
     @classmethod
     def light(cls) -> Theme:
         return cls(
+            name="light",
             background_color=[255, 255, 255, 240],
             text_color=[32, 33, 36, 255],
             highlight_color=[26, 115, 232, 255],
             font_size=14.0,
             corner_radius=8.0,
+        )
+
+    @classmethod
+    def high_contrast(cls) -> Theme:
+        return cls(
+            name="high_contrast",
+            background_color=[0, 0, 0, 255],
+            text_color=[255, 255, 255, 255],
+            highlight_color=[255, 255, 0, 255],
+            font_size=15.0,
+            corner_radius=4.0,
         )
 
 
@@ -117,6 +131,8 @@ class Config:
     power_mode_duration_min: int = 0
     clip_history_ignore_passwords: bool = True
     clip_history_retention_days: int = 7
+    popup_offset_x: int = 0
+    popup_offset_y: int = 0
 
 
     def is_excluded(
@@ -264,9 +280,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
 
     return Config(
         convert_hotkey=_hotkey_from_dict(data.get("convert_hotkey"), HotkeySpec("F12")),
-        lang_indicator_hotkey=_hotkey_from_dict(
-            data.get("lang_indicator_hotkey"), HotkeySpec("L", ["Alt"])
-        ),
+        lang_indicator_hotkey=_hotkey_from_dict(data.get("lang_indicator_hotkey"), HotkeySpec("L", ["Alt"])),
         autocorrect_enabled=bool(data.get("autocorrect_enabled", True)),
         prediction_enabled=bool(data.get("prediction_enabled", True)),
         quickpick_digits=bool(data.get("quickpick_digits", True)),
@@ -284,30 +298,18 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         auto_zwnj_enabled=bool(data.get("auto_zwnj_enabled", True)),
         shift_space_zwnj=bool(data.get("shift_space_zwnj", True)),
         clipboard_history_enabled=bool(data.get("clipboard_history_enabled", True)),
-        clipboard_history_hotkey=_hotkey_from_dict(
-            data.get("clipboard_history_hotkey"), HotkeySpec("V", ["Alt"])
-        ),
-        normalize_hotkey=_hotkey_from_dict(
-            data.get("normalize_hotkey"), HotkeySpec("F12", ["Ctrl"])
-        ),
-        case_hotkey=_hotkey_from_dict(
-            data.get("case_hotkey"), HotkeySpec("F12", ["Shift"])
-        ),
+        clipboard_history_hotkey=_hotkey_from_dict(data.get("clipboard_history_hotkey"), HotkeySpec("V", ["Alt"])),
+        normalize_hotkey=_hotkey_from_dict(data.get("normalize_hotkey"), HotkeySpec("F12", ["Ctrl"])),
+        case_hotkey=_hotkey_from_dict(data.get("case_hotkey"), HotkeySpec("F12", ["Shift"])),
         inline_calc_enabled=bool(data.get("inline_calc_enabled", True)),
         sound_feedback_enabled=bool(data.get("sound_feedback_enabled", False)),
-        undo_autocorrect_hotkey=_hotkey_from_dict(
-            data.get("undo_autocorrect_hotkey"), HotkeySpec("Z", ["Ctrl", "Shift"])
-        ),
+        undo_autocorrect_hotkey=_hotkey_from_dict(data.get("undo_autocorrect_hotkey"), HotkeySpec("Z", ["Ctrl", "Shift"])),
         fix_punctuation_spacing=bool(data.get("fix_punctuation_spacing", True)),
         autocorrect_mode=str(data.get("autocorrect_mode", "safe")).lower(),
-        ignored_words=[
-            str(w).strip() for w in data.get("ignored_words", []) if str(w).strip()
-        ],
+        ignored_words=[str(w).strip() for w in data.get("ignored_words", []) if str(w).strip()],
         theme_mode=str(data.get("theme_mode", "auto")),
         has_seen_onboarding=bool(data.get("has_seen_onboarding", False)),
-        quick_stats_hotkey=_hotkey_from_dict(
-            data.get("quick_stats_hotkey"), HotkeySpec("S", ["Alt"])
-        ),
+        quick_stats_hotkey=_hotkey_from_dict(data.get("quick_stats_hotkey"), HotkeySpec("S", ["Alt"])),
         cloud_sync_enabled=bool(data.get("cloud_sync_enabled", False)),
         gist_token=gist_tok,
         gist_id=str(data.get("gist_id", "")),
@@ -319,12 +321,12 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         webdav_username=str(data.get("webdav_username", "")),
         webdav_password=webdav_pwd,
         sync_interval_min=_bounded_int(data, "sync_interval_min", 0, 0, 1440),
-        power_mode_hotkey=_hotkey_from_dict(
-            data.get("power_mode_hotkey"), HotkeySpec("P", ["Ctrl", "Alt"])
-        ),
+        power_mode_hotkey=_hotkey_from_dict(data.get("power_mode_hotkey"), HotkeySpec("P", ["Ctrl", "Alt"])),
         power_mode_duration_min=_bounded_int(data, "power_mode_duration_min", 0, 0, 1440),
         clip_history_ignore_passwords=bool(data.get("clip_history_ignore_passwords", True)),
         clip_history_retention_days=_bounded_int(data, "clip_history_retention_days", 7, 1, 365),
+        popup_offset_x=_bounded_int(data, "popup_offset_x", 0, -2000, 2000),
+        popup_offset_y=_bounded_int(data, "popup_offset_y", 0, -2000, 2000),
     )
 
 

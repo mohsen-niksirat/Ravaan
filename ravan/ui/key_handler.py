@@ -56,6 +56,13 @@ class KeyHandlerMixin:
         char = vk_to_unicode(vk, event.scan_code) or ""
         self._record_event("Key pressed", vk=vk, char=char)
 
+        if getattr(self, "is_paused", False):
+            if hasattr(self.cfg, "power_mode_hotkey") and matches_hotkey(
+                vk, self.cfg.power_mode_hotkey
+            ):
+                self._ui_queue.put(("toggle_pause", None))
+            return
+
         # ── Clipboard popup navigation ──
         if self.overlay.clipboard_open:
             if vk == w.VK_ESCAPE:

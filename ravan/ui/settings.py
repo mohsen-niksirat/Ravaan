@@ -182,6 +182,29 @@ class SettingsWindow:
         ttk.Button(btns, text=t("settings.btn_cancel", "Cancel"), command=self._close).pack(side=btn_side, padx=4)
         ttk.Button(btns, text=t("settings.btn_save", "Save Settings"), command=self._save).pack(side=btn_side, padx=4)
 
+        def _next_tab(_e: Any = None) -> str:
+            tabs = nb.tabs()
+            if tabs:
+                cur = nb.index("current")
+                nb.select(tabs[(cur + 1) % len(tabs)])
+            return "break"
+
+        def _prev_tab(_e: Any = None) -> str:
+            tabs = nb.tabs()
+            if tabs:
+                cur = nb.index("current")
+                nb.select(tabs[(cur - 1 + len(tabs)) % len(tabs)])
+            return "break"
+
+        self._root.bind("<Control-Tab>", _next_tab)
+        self._root.bind("<Control-Shift-Tab>", _prev_tab)
+        try:
+            self._root.bind("<Control-ISO_Left_Tab>", _prev_tab)
+        except tk.TclError:
+            pass
+        self._root.bind("<Escape>", lambda _: self._close())
+        self._root.bind("<Control-Return>", lambda _: self._save())
+
     def _on_language_changed(self, _event: object = None) -> None:
         if not hasattr(self, "_ui_language_var"):
             return

@@ -169,7 +169,11 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
     ttk.Label(frm, text=t("settings.theme_mode", "Theme Mode:")).grid(row=row, column=0, sticky=align, **pad)
     win._theme_mode_var = tk.StringVar(value=getattr(win.cfg, "theme_mode", "auto"))
     theme_box = ttk.Combobox(
-        frm, textvariable=win._theme_mode_var, values=["auto", "dark", "light"], state="readonly", width=12
+        frm,
+        textvariable=win._theme_mode_var,
+        values=["auto", "dark", "light", "high_contrast"],
+        state="readonly",
+        width=14,
     )
     theme_box.grid(row=row, column=1, sticky="w", **pad)
     row += 1

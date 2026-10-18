@@ -10,6 +10,13 @@
     "open_logs": "Open logs folder",
     "diagnostics": "Diagnostics…",
     "word_prediction": "Word prediction",
+    "pause_10m": "⏸ Pause for 10 min",
+    "resume": "▶ Resume Ravaan",
+    "paused_msg": "Ravaan paused for {min} minutes.",
+    "resumed_msg": "Ravaan resumed.",
+    "quick_toggles": "Quick Toggles",
+    "autocorrect": "Autocorrect",
+    "auto_zwnj": "Auto-ZWNJ",
     "quit": "Quit"
   },
   "settings": {

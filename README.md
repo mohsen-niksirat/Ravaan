@@ -33,6 +33,13 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 | M23 | Performance Profiling (< 500ms startup) & Hook Latency Monitoring | Diagnostic logs |
 | M24 | Interactive Window Picker (3s countdown) | Settings → Excluded Apps |
 | M25 | Automatic Update Checker & CLI flags | `--check-updates` & tray menu |
+| M26 | Full Bilingual UI Localization (fa / en) & Mirrored RTL | Settings → General |
+| M27 | Prediction Quality (Trigrams, Continuations, Learning Engine v2) | `python -m ravan.cli bench` |
+| M28 | Cloud Sync 2.0 (Generic WebDAV, 3-way merge, conflict resolution) | Settings → Sync |
+| M29 | Windows Installer (Inno Setup), Auto-Updater & `ravan://` Protocol | GitHub Releases |
+| M30 | Power User (Math v2, Keystroke Macro, Focus Power Mode, Profile CLI) | `Ctrl+Alt+P` / CLI |
+| M31 | Windows QA Matrix, Selftest Diagnostic, Soak Test Harness | `python -m ravan.cli selftest` |
+| M32 | UX Polish (Design Tokens, Wizard, Tray Toggles, Confidence Meter) | First Launch / Tray |
 
 ### Convert Selection or Last Word (`F12`)
 

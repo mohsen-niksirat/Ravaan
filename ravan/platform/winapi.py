@@ -376,9 +376,7 @@ def get_current_process_rss_mb() -> float:
 
         psapi = ctypes.WinDLL("psapi", use_last_error=True)
         psapi.GetProcessMemoryInfo.argtypes = [
-            wintypes.HANDLE,
-            ctypes.POINTER(PROCESS_MEMORY_COUNTERS),
-            wintypes.DWORD,
+            wintypes.HANDLE, ctypes.POINTER(PROCESS_MEMORY_COUNTERS), wintypes.DWORD
         ]
         psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
         kernel32.GetCurrentProcess.restype = wintypes.HANDLE

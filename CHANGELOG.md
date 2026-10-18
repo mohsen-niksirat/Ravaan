@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Pre-seeded exclusion defaults: added 1Password, Bitwarden, KeePass, KeePassXC, Dashlane, LockApp, LogonUI, and CredentialUIBroker to default excluded apps.
   - Memory & latency soak test (`python -m ravan.cli soak`): synthetic typing loop verifying stable RSS (<30 MB peak vs 150 MB ceiling) and zero latency drift across 10,000 keystrokes.
 
+- **UX Final Polish (Phase 3)**:
+  - Unified UI theme system (`ravan/ui/theme.py`) providing cohesive design tokens (`Palette`: dark, light, high-contrast), typography stack with Vazirmatn for Persian, and DWM window attributes with rounded corners.
+  - Frequency-scaled subtle confidence bar meter per candidate in prediction popup.
+  - Refactored text statistics popup (`StatsPopupWindow`) to eliminate style drift and use unified palette and multi-monitor work area clamping.
+  - Friendly First-Run Onboarding Wizard (`FirstRunWizard` in `ravan/ui/wizard.py`): single-screen, 20-second modal featuring live UI language switching, 5 essential hotkeys tour card, and full keyboard navigation (Return/Escape).
+  - Upgraded system tray: multi-resolution crisp icon set with alpha transparency, Quick Toggles submenu (Prediction, Autocorrect, Auto-ZWNJ, Power Mode) with live checkmarks, and "Pause for 10 min" toggle with auto-resume timer and visual pause badge.
+  - Accessibility enhancements: high-contrast theme picker in Settings, complete keyboard navigation (`Ctrl+Tab`, `Ctrl+Shift+Tab`, `Escape`, `Ctrl+Return`), and screen-reader accessible control structures.
+
 ## [0.7.0] - 2026-10-18
 
 ### Added
