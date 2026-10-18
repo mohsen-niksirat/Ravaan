@@ -71,6 +71,16 @@ def get_macro_values() -> dict[str, str]:
     }
 
 
+def _fetch_clipboard() -> str:
+    """Safely obtain current clipboard text without hard-failing on non-Windows platforms."""
+    try:
+        from ravan.platform.clipboard import get_clipboard_text
+
+        return get_clipboard_text() or ""
+    except Exception:
+        return ""
+
+
 def render_template(template: str) -> str:
     """Replace {{placeholder}} with dynamic date/time/uuid/math values."""
     if "{{" not in template:
@@ -84,12 +94,7 @@ def render_template(template: str) -> str:
         return res if res is not None else match.group(0)
 
     if "{{clipboard}}" in template.lower() or "{{clip}}" in template.lower():
-        try:
-            from ravan.platform.clipboard import get_clipboard_text
-
-            clip_val = get_clipboard_text() or ""
-        except Exception:
-            clip_val = ""
+        clip_val = _fetch_clipboard()
         template = re.sub(
             r"\{\{\s*(?:clipboard|clip)\s*\}\}",
             clip_val,

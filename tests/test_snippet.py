@@ -182,7 +182,7 @@ def test_cursor_pipe_placeholder():
 def test_clipboard_template_placeholder():
     from unittest.mock import patch
 
-    with patch("ravan.platform.clipboard.get_clipboard_text", return_value="https://example.com"):
+    with patch("ravan.core.snippet._fetch_clipboard", return_value="https://example.com"):
         res = render_template("Visit: {{clipboard}} today!")
         assert res == "Visit: https://example.com today!"
 

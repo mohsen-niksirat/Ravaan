@@ -4,42 +4,46 @@ from __future__ import annotations
 
 import ctypes
 import logging
+import sys
 import time
 from ctypes import wintypes
-
-from ravan.platform import winapi as w
-from ravan.platform.inject import send_shortcut
 
 log = logging.getLogger(__name__)
 
 CF_UNICODETEXT = 13
 GMEM_MOVEABLE = 0x0002
 
-user32 = ctypes.windll.user32
-kernel32 = ctypes.windll.kernel32
+if sys.platform == "win32":
+    user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
 
-kernel32.GlobalAlloc.argtypes = [wintypes.UINT, ctypes.c_size_t]
-kernel32.GlobalAlloc.restype = wintypes.HGLOBAL
-kernel32.GlobalLock.argtypes = [wintypes.HGLOBAL]
-kernel32.GlobalLock.restype = wintypes.LPVOID
-kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
-kernel32.GlobalUnlock.restype = wintypes.BOOL
-kernel32.GlobalFree.argtypes = [wintypes.HGLOBAL]
-kernel32.GlobalFree.restype = wintypes.HGLOBAL
+    kernel32.GlobalAlloc.argtypes = [wintypes.UINT, ctypes.c_size_t]
+    kernel32.GlobalAlloc.restype = wintypes.HGLOBAL
+    kernel32.GlobalLock.argtypes = [wintypes.HGLOBAL]
+    kernel32.GlobalLock.restype = wintypes.LPVOID
+    kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
+    kernel32.GlobalUnlock.restype = wintypes.BOOL
+    kernel32.GlobalFree.argtypes = [wintypes.HGLOBAL]
+    kernel32.GlobalFree.restype = wintypes.HGLOBAL
 
-user32.OpenClipboard.argtypes = [wintypes.HWND]
-user32.OpenClipboard.restype = wintypes.BOOL
-user32.CloseClipboard.argtypes = []
-user32.CloseClipboard.restype = wintypes.BOOL
-user32.EmptyClipboard.argtypes = []
-user32.EmptyClipboard.restype = wintypes.BOOL
-user32.GetClipboardData.argtypes = [wintypes.UINT]
-user32.GetClipboardData.restype = wintypes.HANDLE
-user32.SetClipboardData.argtypes = [wintypes.UINT, wintypes.HANDLE]
-user32.SetClipboardData.restype = wintypes.HANDLE
+    user32.OpenClipboard.argtypes = [wintypes.HWND]
+    user32.OpenClipboard.restype = wintypes.BOOL
+    user32.CloseClipboard.argtypes = []
+    user32.CloseClipboard.restype = wintypes.BOOL
+    user32.EmptyClipboard.argtypes = []
+    user32.EmptyClipboard.restype = wintypes.BOOL
+    user32.GetClipboardData.argtypes = [wintypes.UINT]
+    user32.GetClipboardData.restype = wintypes.HANDLE
+    user32.SetClipboardData.argtypes = [wintypes.UINT, wintypes.HANDLE]
+    user32.SetClipboardData.restype = wintypes.HANDLE
+else:
+    user32 = None
+    kernel32 = None
 
 
 def _open_clipboard(retries: int = 5, delay: float = 0.01) -> bool:
+    if user32 is None:
+        return False
     for _ in range(retries):
         if user32.OpenClipboard(None):
             return True
@@ -98,6 +102,12 @@ def try_convert_selection(converter) -> bool:
     Returns True if text was selected, converted, and pasted.
     Returns False if no selection was present.
     """
+    if sys.platform != "win32":
+        return False
+
+    from ravan.platform import winapi as w
+    from ravan.platform.inject import send_shortcut
+
     old_clip = get_clipboard_text()
 
     # Clear clipboard temporarily with an empty or unique marker so we know if copy succeeded
