@@ -31,6 +31,8 @@ def update_cfg_from_ui(win: Any) -> None:
         win.cfg.webdav_password = win._webdav_password_var.get().strip()
     if hasattr(win, "_cloud_sync_var"):
         win.cfg.cloud_sync_enabled = win._cloud_sync_var.get()
+    if hasattr(win, "_sync_learning_var"):
+        win.cfg.sync_learning_profile = win._sync_learning_var.get()
     if hasattr(win, "_sync_interval_var"):
         try:
             win.cfg.sync_interval_min = int(win._sync_interval_var.get())
@@ -175,6 +177,16 @@ def do_sync_pull(win: Any) -> None:
                     if isinstance(s, dict) and s.get("trigger")
                 ]
                 win._update_snip_display()
+
+                if res.get("learning_profile") and getattr(win.cfg, "sync_learning_profile", False):
+                    try:
+                        from ravan.core.learning import UserLearningEngine
+
+                        engine = UserLearningEngine()
+                        engine.import_profile(res["learning_profile"], merge=True)
+                        engine.save()
+                    except Exception as err:
+                        log.warning("Could not merge pulled learning profile: %s", err)
 
                 ts = res.get("timestamp", "")
                 win.cfg.last_sync_time = ts

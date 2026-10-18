@@ -154,6 +154,16 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
     ).grid(row=row, column=0, columnspan=2, sticky=align, **pad)
     row += 1
 
+    win._sync_learning_var = tk.BooleanVar(
+        value=getattr(win.cfg, "sync_learning_profile", False)
+    )
+    ttk.Checkbutton(
+        frm,
+        text=t("settings.sync_learning", "Include learned typing profile in cloud sync"),
+        variable=win._sync_learning_var,
+    ).grid(row=row, column=0, columnspan=2, sticky=align, **pad)
+    row += 1
+
     ttk.Label(frm, text=t("settings.sync_interval_label", "Sync Interval:")).grid(
         row=row, column=0, sticky=align, **pad
     )

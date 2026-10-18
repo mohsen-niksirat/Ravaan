@@ -160,6 +160,8 @@ def save_settings_window(win: Any) -> None:
         cfg.webdav_password = win._webdav_password_var.get().strip()
     if hasattr(win, "_cloud_sync_var"):
         cfg.cloud_sync_enabled = win._cloud_sync_var.get()
+    if hasattr(win, "_sync_learning_var"):
+        cfg.sync_learning_profile = win._sync_learning_var.get()
     if hasattr(win, "_sync_interval_var"):
         try:
             cfg.sync_interval_min = int(win._sync_interval_var.get())

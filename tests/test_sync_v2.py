@@ -31,7 +31,7 @@ def test_config_schema_migration():
         "convert_hotkey": {"key": "F12", "modifiers": []},
     }
     migrated = migrate_config_dict(dict(v1_data))
-    assert migrated["schema_version"] == 2
+    assert migrated["schema_version"] == 3
     assert migrated["sync_backend"] == "gist"
     assert migrated["sync_interval_min"] == 0
     assert migrated["webdav_url"] == ""
@@ -49,7 +49,7 @@ def test_config_corruption_recovery(tmp_path):
         assert len(corrupt_files) == 1
         # And fresh valid config was created
         assert cfg_file.is_file()
-        assert json.loads(cfg_file.read_text(encoding="utf-8"))["schema_version"] == 2
+        assert json.loads(cfg_file.read_text(encoding="utf-8"))["schema_version"] == 3
 
 
 def test_config_corruption_non_dict_root(tmp_path):

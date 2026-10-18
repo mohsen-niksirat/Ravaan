@@ -40,6 +40,7 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
 | M30 | Power User (Math v2, Keystroke Macro, Focus Power Mode, Profile CLI) | `Ctrl+Alt+P` / CLI |
 | M31 | Windows QA Matrix, Selftest Diagnostic, Soak Test Harness | `python -m ravan.cli selftest` |
 | M32 | UX Polish (Design Tokens, Wizard, Tray Toggles, Confidence Meter) | First Launch / Tray |
+| M33 | Data Manifest, Privacy Architecture & Migration Engine | [DATA.md](DATA.md) |
 
 ### Convert Selection or Last Word (`F12`)
 

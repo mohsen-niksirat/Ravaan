@@ -119,8 +119,9 @@ def push_to_gist(
     user_words: list[str],
     snippets: list[dict[str, Any]],
     timeout: float = 8.0,
+    learning_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Push local user words and snippets to GitHub Gist."""
+    """Push local user words, snippets, and optional learning profile to GitHub Gist."""
     tok = token.strip()
     gid = gist_id.strip()
     if not tok or not gid:
@@ -128,16 +129,22 @@ def push_to_gist(
 
     make_local_backup(user_words, snippets)
 
+    payload_files = {
+        "user_words.txt": {
+            "content": "\n".join(user_words) + ("\n" if user_words else "")
+        },
+        "snippets.json": {
+            "content": json.dumps(snippets, ensure_ascii=False, indent=2)
+        },
+    }
+    if learning_profile is not None:
+        payload_files["learning_profile.json"] = {
+            "content": json.dumps(learning_profile, ensure_ascii=False, indent=2)
+        }
+
     payload = {
         "description": "Ravaan Sync — User dictionary and snippets",
-        "files": {
-            "user_words.txt": {
-                "content": "\n".join(user_words) + ("\n" if user_words else "")
-            },
-            "snippets.json": {
-                "content": json.dumps(snippets, ensure_ascii=False, indent=2)
-            },
-        },
+        "files": payload_files,
     }
     data_bytes = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -230,11 +237,19 @@ def pull_from_gist(
     except Exception:  # noqa: BLE001
         snippets = []
 
+    learning_profile = None
+    if "learning_profile.json" in files:
+        try:
+            learning_profile = json.loads(files["learning_profile.json"].get("content", "{}"))
+        except Exception:  # noqa: BLE001
+            pass
+
     now_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return {
         "ok": True,
         "user_words": user_words,
         "snippets": snippets,
+        "learning_profile": learning_profile,
         "error": None,
         "timestamp": now_iso,
     }
@@ -293,8 +308,17 @@ def push_sync(
     user_words: list[str],
     snippets: list[dict[str, Any]],
     timeout: float = 8.0,
+    learning_profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Dispatch push to configured sync backend (gist or webdav)."""
+    if learning_profile is None and getattr(cfg, "sync_learning_profile", False):
+        try:
+            from ravan.core.learning import UserLearningEngine
+
+            learning_profile = UserLearningEngine().export_profile()
+        except Exception:  # noqa: BLE001
+            learning_profile = None
+
     backend = getattr(cfg, "sync_backend", "gist").lower()
     if backend == "webdav":
         from ravan.core.webdav import WebDAVClient
@@ -304,7 +328,9 @@ def push_sync(
             username=getattr(cfg, "webdav_username", ""),
             password=getattr(cfg, "webdav_password", ""),
         )
-        return client.push(user_words, snippets, timeout=timeout)
+        return client.push(
+            user_words, snippets, timeout=timeout, learning_profile=learning_profile
+        )
 
     return push_to_gist(
         token=getattr(cfg, "gist_token", ""),
@@ -312,6 +338,7 @@ def push_sync(
         user_words=user_words,
         snippets=snippets,
         timeout=timeout,
+        learning_profile=learning_profile,
     )
 
 

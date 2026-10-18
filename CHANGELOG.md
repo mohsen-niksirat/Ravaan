@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Upgraded system tray: multi-resolution crisp icon set with alpha transparency, Quick Toggles submenu (Prediction, Autocorrect, Auto-ZWNJ, Power Mode) with live checkmarks, and "Pause for 10 min" toggle with auto-resume timer and visual pause badge.
   - Accessibility enhancements: high-contrast theme picker in Settings, complete keyboard navigation (`Ctrl+Tab`, `Ctrl+Shift+Tab`, `Escape`, `Ctrl+Return`), and screen-reader accessible control structures.
 
+- **Data & Migration Completeness (Phase 4)**:
+  - Central Data Manifest (`ravan/core/data_manifest.py`) registering all user data files, schemas, privacy classes, and aggregate disk usage summary (`get_storage_summary`).
+  - Learning Profile Citable Artifact (`ravan/core/learning.py`) with version 3 schema and statistical metadata headers (`total_words`, `total_bigrams`, `total_trigrams`, `apps_tracked`, `top_words`).
+  - Upgraded Config Schema to version 3 with `sync_learning_profile` toggle and backward-compatible migration.
+  - Cloud Sync for Learning Profile: optional, opt-in synchronization of aggregated typing profile across machines via both WebDAV and GitHub Gist.
+  - Multi-version migration test suite (`tests/test_migration_fixtures.py`) verifying lossless migration from v0.4, v0.5, and v0.7 to v1.0 (schema 3).
+  - Data & Privacy Documentation (`DATA.md`) covering file inventory, DPAPI encryption guarantees, zero-telemetry policy, and safe reset procedures.
+
 ## [0.7.0] - 2026-10-18
 
 ### Added

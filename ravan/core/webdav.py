@@ -42,8 +42,9 @@ class WebDAVClient:
         user_words: list[str],
         snippets: list[dict[str, Any]],
         timeout: float = 8.0,
+        learning_profile: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Push user words and snippets to WebDAV server."""
+        """Push user words, snippets, and optional learning profile to WebDAV server."""
         if not self.url:
             return {"ok": False, "error": "Missing WebDAV server URL"}
 
@@ -57,10 +58,15 @@ class WebDAVClient:
         words_content = ("\n".join(user_words) + ("\n" if user_words else "")).encode("utf-8")
         snip_content = json.dumps(snippets, ensure_ascii=False, indent=2).encode("utf-8")
 
-        for filename, data in (
+        items_to_push: list[tuple[str, bytes]] = [
             ("user_words.txt", words_content),
             ("snippets.json", snip_content),
-        ):
+        ]
+        if learning_profile is not None:
+            learn_bytes = json.dumps(learning_profile, ensure_ascii=False, indent=2).encode("utf-8")
+            items_to_push.append(("learning_profile.json", learn_bytes))
+
+        for filename, data in items_to_push:
             target_url = f"{self.url}/{filename}"
             req = urllib.request.Request(
                 target_url,
@@ -152,11 +158,31 @@ class WebDAVClient:
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "error": _sanitize_error(str(exc), self.password)}
 
+        # 3. Fetch optional learning_profile.json
+        learning_profile: dict[str, Any] | None = None
+        learn_url = f"{self.url}/learning_profile.json"
+        req = urllib.request.Request(learn_url, headers=headers, method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                if resp.status == 200:
+                    raw_learn = json.loads(resp.read().decode("utf-8"))
+                    if isinstance(raw_learn, dict):
+                        learning_profile = raw_learn
+        except urllib.error.HTTPError as err:
+            if err.code != 404:
+                return {
+                    "ok": False,
+                    "error": _sanitize_error(f"HTTP {err.code}: {err.reason}", self.password),
+                }
+        except Exception:  # noqa: BLE001
+            learning_profile = None
+
         now_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return {
             "ok": True,
             "user_words": words,
             "snippets": snippets,
+            "learning_profile": learning_profile,
             "error": None,
             "timestamp": now_iso,
         }

@@ -377,19 +377,14 @@ def build_about_section(frm: ttk.Frame) -> None:
     justify = "right" if rtl else "left"
 
     ttk.Label(frm, text=t("settings.about_title", "Ravaan (روان)"), font=("Segoe UI", 14, "bold")).pack(anchor=anchor, pady=(6, 2))
-    ttk.Label(frm, text=t("settings.about_subtitle", "Windows typing assistant for bilingual Persian/English typists"), font=("Segoe UI", 10)).pack(
-        anchor=anchor, pady=(0, 4)
-    )
-    ttk.Label(frm, text=t("settings.about_version", "Version {version} — MIT License", version=__version__), foreground="gray").pack(
-        anchor=anchor, pady=(0, 4)
-    )
-    ttk.Label(frm, text=t("settings.about_github", "GitHub: https://github.com/mohsen-niksirat/Ravaan"), foreground="#1a73e8").pack(
-        anchor=anchor, pady=(0, 8)
-    )
+    ttk.Label(frm, text=t("settings.about_subtitle", "Windows typing assistant for bilingual Persian/English typists"), font=("Segoe UI", 10)).pack(anchor=anchor, pady=(0, 4))
+    ttk.Label(frm, text=t("settings.about_version", "Version {version} — MIT License", version=__version__), foreground="gray").pack(anchor=anchor, pady=(0, 4))
+    ttk.Label(frm, text=t("settings.about_github", "GitHub: https://github.com/mohsen-niksirat/Ravaan"), foreground="#1a73e8").pack(anchor=anchor, pady=(0, 4))
+    ttk.Label(frm, text=t("settings.about_data_privacy", "Data & Privacy: 100% local-first, DPAPI-encrypted (see DATA.md)"), foreground="#555555").pack(anchor=anchor, pady=(0, 8))
 
-    ttk.Separator(frm, orient="horizontal").pack(fill="x", pady=8)
-    ttk.Label(
-        frm,
-        text=t("settings.about_features", "Key Features:\n• Layout Conversion (F12)\n• Word Prediction & Autocorrect\n• Smart Half-Space (ZWNJ)\n• Clipboard History (Alt+V)\n• Quick Text Stats (Alt+S)\n• Math & Jalali Macros\n• Snippets 2.0 & Cloud Sync"),
-        justify=justify,
-    ).pack(anchor=anchor, pady=4)
+    ttk.Separator(frm, orient="horizontal").pack(fill="x", pady=6)
+    features_text = t(
+        "settings.about_features",
+        "Key Features:\n• Layout Conversion (F12)\n• Word Prediction & Autocorrect\n• Smart Half-Space (ZWNJ)\n• Clipboard History (Alt+V)\n• Quick Text Stats (Alt+S)\n• Math & Jalali Macros\n• Snippets 2.0 & Cloud Sync\n• Data Manifest & Zero Telemetry",
+    )
+    ttk.Label(frm, text=features_text, justify=justify).pack(anchor=anchor, pady=4)

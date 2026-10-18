@@ -74,6 +74,7 @@ class UserLearningEngine:
         self.trigrams: dict[str, dict[str, float]] = {}
         self.app_word_counts: dict[str, dict[str, float]] = {}
         self.last_decay_time: float = time.time()
+        self.half_life_days: float = 30.0
         self._top_cache: list[str] | None = None
         self._seed_defaults()
         if auto_load:
@@ -257,11 +258,24 @@ class UserLearningEngine:
         return factor
 
     def export_profile(self, target_path: Path | str | None = None) -> dict[str, Any]:
-        """Export learned vocabulary, n-grams, and app profiles as a dictionary and optional JSON."""
+        """Export learned vocabulary, n-grams, and app profiles as a citable artifact."""
+        top_words = [
+            w for w, _ in sorted(self.word_counts.items(), key=lambda it: it[1], reverse=True)[:10]
+        ]
+        stats = {
+            "total_words": len(self.word_counts),
+            "total_bigrams": sum(len(v) for v in self.transitions.values()),
+            "total_trigrams": sum(len(v) for v in self.trigrams.values()),
+            "apps_tracked": len(self.app_word_counts),
+            "decay_half_life_days": self.half_life_days,
+            "top_words": top_words,
+        }
         data: dict[str, Any] = {
+            "artifact": "ravaan_learning_profile",
             "version": 3,
             "exported_at": time.time(),
             "last_decay_time": self.last_decay_time,
+            "stats": stats,
             "word_counts": self.word_counts,
             "transitions": self.transitions,
             "trigrams": self.trigrams,

@@ -29,6 +29,12 @@
   - First-Run Onboarding Wizard (`ravan/ui/wizard.py`): friendly 20-second intro with live bilingual language picker and 5 hotkeys tour card.
   - System tray upgrades: multi-resolution crisp icon set with alpha channel, Quick Toggles submenu (Prediction, Autocorrect, Auto-ZWNJ, Power Mode) with live checkmarks, and "Pause for 10 min" toggle with auto-resume timer and visual pause badge.
   - Accessibility: High-contrast theme mode, complete keyboard navigation (`Ctrl+Tab`, `Ctrl+Shift+Tab`, `Escape`, `Ctrl+Return`), and screen-reader accessibility.
+- **Phase 4: Data & Migration Completeness**
+  - Data Manifest (`ravan/core/data_manifest.py`): single-source-of-truth registry for all user data files, schemas, privacy classifications, and aggregate disk usage summary (`get_storage_summary`).
+  - Learning Profile Citable Artifact (`ravan/core/learning.py`): version 3 schema with statistical metadata headers (`total_words`, `total_bigrams`, `total_trigrams`, `apps_tracked`, `top_words`).
+  - Cloud Sync for Learning Profile: optional, opt-in synchronization of aggregated typing profile across machines via both WebDAV and GitHub Gist.
+  - Multi-version migration test suite (`tests/test_migration_fixtures.py`): verifying lossless migration from v0.4, v0.5, and v0.7 to v1.0 (schema 3).
+  - Data & Privacy Documentation (`DATA.md`): file inventory, DPAPI encryption guarantees, zero-telemetry policy, and safe reset procedures.
 
 ## Completed (v0.7.0)
 

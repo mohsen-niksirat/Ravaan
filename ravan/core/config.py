@@ -14,15 +14,8 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 DEFAULT_EXCLUDED_APPS = [
-    "explorer.exe",
-    "1password.exe",
-    "bitwarden.exe",
-    "keepass.exe",
-    "keepassxc.exe",
-    "dashlane.exe",
-    "lockapp.exe",
-    "logonui.exe",
-    "credentialuibroker.exe",
+    "explorer.exe", "1password.exe", "bitwarden.exe", "keepass.exe", "keepassxc.exe",
+    "dashlane.exe", "lockapp.exe", "logonui.exe", "credentialuibroker.exe",
 ]
 
 
@@ -121,7 +114,8 @@ class Config:
     gist_id: str = ""
     last_sync_time: str = ""
     ui_language: str = "auto"  # "auto" | "en" | "fa"
-    schema_version: int = 2
+    schema_version: int = 3
+    sync_learning_profile: bool = False
     sync_backend: str = "gist"  # "gist" | "webdav"
     webdav_url: str = ""
     webdav_username: str = ""
@@ -247,12 +241,18 @@ def migrate_config_dict(data: dict[str, Any]) -> dict[str, Any]:
     """Perform schema version migration on config dictionary."""
     ver = int(data.get("schema_version", 1))
     if ver < 2:
-        data["schema_version"] = 2
         data.setdefault("sync_backend", "gist")
         data.setdefault("webdav_url", "")
         data.setdefault("webdav_username", "")
         data.setdefault("webdav_password", "")
         data.setdefault("sync_interval_min", 0)
+    if ver < 3:
+        data["schema_version"] = 3
+        data.setdefault("sync_learning_profile", False)
+        data.setdefault("theme_mode", "auto")
+        data.setdefault("has_seen_onboarding", False)
+        data.setdefault("popup_offset_x", 0)
+        data.setdefault("popup_offset_y", 0)
     return data
 
 
@@ -315,7 +315,8 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         gist_id=str(data.get("gist_id", "")),
         last_sync_time=str(data.get("last_sync_time", "")),
         ui_language=str(data.get("ui_language", "auto")),
-        schema_version=int(data.get("schema_version", 2)),
+        schema_version=int(data.get("schema_version", 3)),
+        sync_learning_profile=bool(data.get("sync_learning_profile", False)),
         sync_backend=str(data.get("sync_backend", "gist")),
         webdav_url=str(data.get("webdav_url", "")),
         webdav_username=str(data.get("webdav_username", "")),
