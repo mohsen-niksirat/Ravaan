@@ -126,21 +126,28 @@ def test_macro_recorder_and_serialization():
     assert len(parsed["events"]) == 2
 
 
-def test_macro_player_dry_run():
+def test_macro_player_dry_run(monkeypatch):
+    injected: list[str] = []
+    monkeypatch.setattr("ravan.core.macro.inject_text", lambda text: injected.append(text))
+    monkeypatch.setattr(w.user32, "SendInput", lambda *args, **kwargs: 1)
+
     events = [
         {"vk": ord("A"), "char": "A", "delay_ms": 10.0},
         {"vk": ord("B"), "char": "B", "delay_ms": 10.0},
     ]
     macro_data = {"events": events, "preserve_timing": False}
 
-    suppressed = []
+    suppressed: list[float] = []
 
     def _on_suppress(dur: float) -> None:
         suppressed.append(dur)
 
-    MacroPlayer.play(macro_data, on_suppress=_on_suppress)
+    t = MacroPlayer.play(macro_data, on_suppress=_on_suppress)
     assert len(suppressed) == 1
     assert suppressed[0] > 0
+    if t is not None:
+        t.join(timeout=2.0)
+    assert injected == ["A", "B"]
 
 
 def test_power_mode_configuration_and_toggle(monkeypatch):
@@ -176,10 +183,12 @@ def test_power_mode_configuration_and_toggle(monkeypatch):
 
 
 def test_zip_export_and_import(tmp_path, monkeypatch):
-    # Mock config_dir to tmp_path
+    # Mock config_dir to tmp_path across config, backup_zip, and data_manifest
     mock_appdata = tmp_path / "RavanAppdata"
     mock_appdata.mkdir(parents=True)
+    monkeypatch.setattr("ravan.core.config.config_dir", lambda: mock_appdata)
     monkeypatch.setattr("ravan.core.backup_zip.config_dir", lambda: mock_appdata)
+    monkeypatch.setattr("ravan.core.data_manifest.config_dir", lambda: mock_appdata)
 
     # Populate mock user data
     (mock_appdata / "user_words.txt").write_text("سیب\nگلابی\n", encoding="utf-8")

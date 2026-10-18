@@ -101,12 +101,12 @@ class MacroPlayer:
     def play(
         macro_data: dict[str, Any],
         on_suppress: Any = None,
-    ) -> None:
+    ) -> threading.Thread | None:
         """Play back recorded macro events in a background thread."""
         events = macro_data.get("events", [])
         preserve_timing = bool(macro_data.get("preserve_timing", False))
         if not events:
-            return
+            return None
 
         def _run() -> None:
             # Estimate duration for input hook suppression
@@ -141,4 +141,6 @@ class MacroPlayer:
 
         import ctypes
 
-        threading.Thread(target=_run, name="ravan-macro-player", daemon=True).start()
+        t = threading.Thread(target=_run, name="ravan-macro-player", daemon=True)
+        t.start()
+        return t
