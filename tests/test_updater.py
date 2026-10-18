@@ -115,3 +115,122 @@ def test_check_for_updates_empty_tag():
         assert res["error"] is None
         assert "No published releases" in res["release_notes"]
 
+
+def test_is_prerelease():
+    from ravan.core.updater import is_prerelease
+
+    assert is_prerelease("1.0.0-rc1") is True
+    assert is_prerelease("v1.0.0-rc2") is True
+    assert is_prerelease("v1.0.0-beta") is True
+    assert is_prerelease("1.0.0-alpha.1") is True
+    assert is_prerelease("0.7.0") is False
+    assert is_prerelease("v1.0.0") is False
+
+
+def test_compare_versions():
+    from ravan.core.updater import compare_versions
+
+    assert compare_versions("1.0.0", "0.7.0") > 0
+    assert compare_versions("1.0.0-rc1", "0.7.0") > 0
+    assert compare_versions("1.0.0-rc2", "1.0.0-rc1") > 0
+    assert compare_versions("1.0.0", "1.0.0-rc2") > 0
+    assert compare_versions("1.0.0-rc1", "1.0.0") < 0
+    assert compare_versions("1.0.0", "1.0.0") == 0
+
+
+def test_check_for_updates_prerelease_ignored_for_stable_user():
+    fake_body = json.dumps({
+        "tag_name": "v1.0.0-rc1",
+        "prerelease": True,
+        "html_url": "https://github.com/mohsen-niksirat/Ravaan/releases/tag/v1.0.0-rc1",
+        "body": "Release candidate 1",
+    }).encode("utf-8")
+
+    mock_resp = MagicMock()
+    mock_resp.status = 200
+    mock_resp.read.return_value = fake_body
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        res = check_for_updates(current_ver="0.7.0")
+        # Stable users should NOT be offered -rc1
+        assert res["has_update"] is False
+
+
+def test_check_for_updates_prerelease_offered_when_allowed():
+    fake_body = json.dumps({
+        "tag_name": "v1.0.0-rc1",
+        "prerelease": True,
+        "html_url": "https://github.com/mohsen-niksirat/Ravaan/releases/tag/v1.0.0-rc1",
+        "body": "Release candidate 1",
+    }).encode("utf-8")
+
+    mock_resp = MagicMock()
+    mock_resp.status = 200
+    mock_resp.read.return_value = fake_body
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        res = check_for_updates(current_ver="0.7.0", allow_prereleases=True)
+        assert res["has_update"] is True
+        assert res["latest_version"] == "1.0.0-rc1"
+
+
+def test_check_for_updates_prerelease_user_gets_newer_rc():
+    fake_body = json.dumps([
+        {
+            "tag_name": "v1.0.0-rc2",
+            "prerelease": True,
+            "html_url": "https://github.com/mohsen-niksirat/Ravaan/releases/tag/v1.0.0-rc2",
+            "body": "Release candidate 2",
+        },
+        {
+            "tag_name": "v1.0.0-rc1",
+            "prerelease": True,
+            "html_url": "https://github.com/mohsen-niksirat/Ravaan/releases/tag/v1.0.0-rc1",
+            "body": "Release candidate 1",
+        },
+    ]).encode("utf-8")
+
+    mock_resp = MagicMock()
+    mock_resp.status = 200
+    mock_resp.read.return_value = fake_body
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        res = check_for_updates(current_ver="1.0.0-rc1")
+        assert res["has_update"] is True
+        assert res["latest_version"] == "1.0.0-rc2"
+
+
+def test_check_for_updates_multiple_releases_stable_fallback():
+    fake_body = json.dumps([
+        {
+            "tag_name": "v1.0.0-rc1",
+            "prerelease": True,
+            "html_url": "https://github.com/mohsen-niksirat/Ravaan/releases/tag/v1.0.0-rc1",
+            "body": "Release candidate 1",
+        },
+        {
+            "tag_name": "v0.7.0",
+            "prerelease": False,
+            "html_url": "https://github.com/mohsen-niksirat/Ravaan/releases/tag/v0.7.0",
+            "body": "Stable 0.7.0",
+        },
+    ]).encode("utf-8")
+
+    mock_resp = MagicMock()
+    mock_resp.status = 200
+    mock_resp.read.return_value = fake_body
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        # User on 0.6.0 should skip rc1 and update to 0.7.0
+        res = check_for_updates(current_ver="0.6.0")
+        assert res["has_update"] is True
+        assert res["latest_version"] == "0.7.0"
+
+        # User on 0.7.0 should skip rc1 and stay on 0.7.0
+        res2 = check_for_updates(current_ver="0.7.0")
+        assert res2["has_update"] is False
+

@@ -7,11 +7,10 @@ on:
 
 permissions:
   contents: write
-  id-token: write
-  attestations: write
 
 jobs:
-  build-release:
+  build:
+    name: Build Artifacts & Package
     runs-on: windows-latest
 
     steps:
@@ -38,29 +37,100 @@ jobs:
         run: |
           pyinstaller --clean -y ravan.spec
 
+      - name: Package portable ZIP
+        shell: powershell
+        run: |
+          $ver = "${{ github.ref_name }}".TrimStart("v")
+          Compress-Archive -Path dist/Ravaan.exe, README.md, LICENSE -DestinationPath "dist/Ravaan-$ver-portable.zip" -Force
+
       - name: Install Inno Setup
         run: |
           choco install innosetup --no-progress
 
       - name: Build Setup Installer
+        shell: powershell
         run: |
           $ver = "${{ github.ref_name }}".TrimStart("v")
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="$ver" installer/setup.iss
 
-      - name: Generate Checksums
+      - name: Generate Checksums & Release Notes
+        shell: powershell
         run: |
-          python scripts/generate_hashes.py | Out-File -FilePath checksums.txt -Encoding utf8
-          Get-Content checksums.txt
+          $ver = "${{ github.ref_name }}".TrimStart("v")
+          python scripts/generate_hashes.py --version "$ver" --write-notes dist/release_notes.md | Out-File -FilePath dist/checksums.txt -Encoding utf8
+          Get-Content dist/checksums.txt
 
-      - name: Publish GitHub Release Draft
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            dist/Ravaan-*-portable.zip
+            dist/Ravaan-Setup-*.exe
+            dist/checksums.txt
+            dist/release_notes.md
+
+  smoke-check:
+    name: Release Smoke Check
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts
+
+      - name: Verify and execute portable binary
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $zip = Get-ChildItem artifacts/Ravaan-*-portable.zip | Select-Object -First 1
+          if (-not $zip) {
+              Write-Error "Portable zip artifact not found in artifacts/"
+              exit 1
+          }
+          Write-Host "Extracting $($zip.FullName)..."
+          Expand-Archive -Path $zip.FullName -DestinationPath smoke_test -Force
+          
+          if (-not (Test-Path "smoke_test/Ravaan.exe")) {
+              Write-Error "Ravaan.exe not found in extracted archive!"
+              exit 1
+          }
+
+          Write-Host "Executing smoke check: smoke_test\Ravaan.exe --check-updates --version"
+          $proc = Start-Process -FilePath "smoke_test\Ravaan.exe" -ArgumentList "--check-updates", "--version" -PassThru -Wait
+          Write-Host "Process exited with code: $($proc.ExitCode)"
+          if ($proc.ExitCode -ne 0) {
+              Write-Error "Smoke check failed with non-zero exit code: $($proc.ExitCode)"
+              exit 1
+          }
+          Write-Host "Smoke check passed successfully!"
+
+  publish:
+    name: Publish Release
+    needs: smoke-check
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist
+
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/Ravaan.exe
+            dist/Ravaan-*-portable.zip
             dist/Ravaan-Setup-*.exe
-            checksums.txt
+            dist/checksums.txt
           name: Ravaan ${{ github.ref_name }}
-          draft: true
-          prerelease: false
+          body_path: dist/release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           append_body: true

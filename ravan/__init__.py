@@ -1,4 +1,4 @@
 """Ravan (روان) — Windows typing assistant."""
 
-__version__ = "0.7.0"
+__version__ = "1.0.0-rc1"
 

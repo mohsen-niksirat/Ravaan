@@ -1,5 +1,14 @@
 # Roadmap
 
+## Completed (v1.0.0-rc1)
+
+- **Phase 0: Release Engineering Pipeline & Pre-Release Hardening**
+  - Multi-artifact GitHub Actions release workflow publishing both `Ravaan-1.0.0-rc1-portable.zip` and `Ravaan-Setup-1.0.0-rc1.exe`.
+  - Windows binary release smoke check job downloading portable zip and executing `Ravaan.exe --check-updates --version` before publishing.
+  - In-app updater hardened with pre-release channel awareness (stable users protected from `-rc` releases).
+  - Bilingual release notes template (`docs/RELEASE_NOTES_TEMPLATE.md`) with automated SHA256 checksum tables, elevated app warnings, and migration guide.
+  - Multi-flag CLI diagnostic execution support.
+
 ## Completed (v0.7.0)
 
 - **M30: Power-User Features: Math v2, Macro Recorder & Power Mode (Focus Typing)**

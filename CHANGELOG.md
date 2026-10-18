@@ -5,6 +5,16 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-rc1] - 2026-10-18
+
+### Added
+- **Release Engineering & Packaging Pipeline**:
+  - Multi-artifact CI publishing attaching both portable ZIP (`Ravaan-1.0.0-rc1-portable.zip`) and Inno Setup installer (`Ravaan-Setup-1.0.0-rc1.exe`).
+  - Automated release smoke testing running real Windows binaries (`Ravaan.exe --check-updates --version`) on clean GitHub runners before publishing.
+  - Smart pre-release channel filtering in the in-app updater: stable users are never offered `-rc` builds, while pre-release testers receive newer candidates.
+  - Bilingual release notes template (`docs/RELEASE_NOTES_TEMPLATE.md`) with automated SHA256 tables, known limitations, and upgrade notes.
+  - Combined CLI argument execution support for diagnostic commands (`--check-updates --version`).
+
 ## [0.7.0] - 2026-10-18
 
 ### Added

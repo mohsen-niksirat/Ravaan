@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import sys
 from pathlib import Path
@@ -41,14 +42,38 @@ def format_markdown_table(checksums: list[tuple[str, str, int]]) -> str:
     return "\n".join(lines)
 
 
-def main() -> int:
-    results = generate_checksums()
-    if not results:
-        print("No distribution artifacts found in dist/")
-        return 0
+def render_release_notes(version: str, table_md: str) -> str:
+    """Render release notes using docs/RELEASE_NOTES_TEMPLATE.md."""
+    repo_dir = Path(__file__).resolve().parent.parent
+    tmpl_path = repo_dir / "docs" / "RELEASE_NOTES_TEMPLATE.md"
+    if tmpl_path.is_file():
+        content = tmpl_path.read_text(encoding="utf-8")
+        content = content.replace("{{VERSION}}", version)
+        content = content.replace("{{CHECKSUM_TABLE}}", table_md)
+        return content
+
+    return f"# Ravaan v{version}\n\n## Checksums\n\n{table_md}\n"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Generate artifact checksums and release notes.")
+    parser.add_argument("--version", default="1.0.0-rc1", help="Release version string")
+    parser.add_argument("--write-notes", default=None, help="Path to write rendered release notes")
+    parser.add_argument("--dist", default=None, help="Custom dist directory")
+    args = parser.parse_args(argv)
+
+    dist_path = Path(args.dist) if args.dist else None
+    results = generate_checksums(dist_path)
+    table_md = format_markdown_table(results) if results else "*(No artifacts found)*"
+
+    if args.write_notes:
+        notes_path = Path(args.write_notes)
+        notes_path.parent.mkdir(parents=True, exist_ok=True)
+        rendered = render_release_notes(args.version, table_md)
+        notes_path.write_text(rendered, encoding="utf-8")
 
     print("\nSHA256 Checksums:\n")
-    print(format_markdown_table(results))
+    print(table_md)
     print()
     return 0
 

@@ -284,9 +284,9 @@ Ravaan provides three distribution channels depending on your workflow:
 - **Protocol handler**: Automatically registers the `ravan://` URL protocol for deep links.
 - **Clean uninstall**: Uninstaller removes the application cleanly while preserving your personal dictionaries, snippets, and settings in `%APPDATA%\Ravan`.
 
-### 2. Standalone Portable (`Ravaan.exe`)
-- Single-file zero-install executable.
-- Download `Ravaan.exe` from [GitHub Releases](https://github.com/mohsen-niksirat/Ravaan/releases), place it in any folder, and double-click to run.
+### 2. Standalone Portable ZIP (`Ravaan-x.y.z-portable.zip`)
+- Zero-install portable package containing `Ravaan.exe`, documentation, and license.
+- Download `Ravaan-x.y.z-portable.zip` from [GitHub Releases](https://github.com/mohsen-niksirat/Ravaan/releases), extract to any directory, and launch `Ravaan.exe` directly.
 
 ### 3. From Source (Development)
 ```bash
@@ -376,8 +376,9 @@ ravan/
    - ایجاد خودکار میانبر منوی استارت و امکان فعال‌سازی اجرای خودکار هنگام روشن شدن ویندوز.
    - ثبت خودکار پروتکل اینترنتی `ravan://` جهت باز کردن سریع بخش‌ها و پیوندهای مستقیم.
    - حذف کامل و امن (Uninstall) بدون دست‌خوردن تنظیمات، واژگان شخصی و کلمات اختصاری در `%APPDATA%\Ravan`.
-2. **نسخهٔ پرتابل بدون نیاز به نصب (`Ravaan.exe`):**
-   - تک‌فایل اجرایی مستقل؛ تنها فایل را از صفحهٔ انتشار گیت‌هاب دانلود کرده و در هر پوشه‌ای اجرا کنید.
+2. **نسخهٔ پرتابل بدون نیاز به نصب (`Ravaan-x.y.z-portable.zip`):**
+   - بسته فشرده بدون نیاز به نصب شامل فایل اجرایی `Ravaan.exe`، مستندات و لایسنس.
+   - فایل zip را از صفحهٔ انتشار گیت‌هاب دانلود کرده، در هر پوشه‌ای استخراج نموده و `Ravaan.exe` را مستقیماً اجرا کنید.
 3. **نصب از سورس کد (محیط توسعه):**
    ```bash
    git clone https://github.com/mohsen-niksirat/Ravaan.git

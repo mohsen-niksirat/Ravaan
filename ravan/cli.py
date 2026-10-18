@@ -62,24 +62,24 @@ def main(argv: list[str] | None = None) -> int:
     p_import.add_argument("--merge", action="store_true", help="Merge dictionaries and snippets")
 
     args = parser.parse_args(argv)
-    if args.version:
-        from ravan import __version__
+    if args.version or args.check_updates:
+        if args.version:
+            from ravan import __version__
 
-        print(__version__)
-        return 0
+            print(__version__)
 
-    if args.check_updates:
-        from ravan.core.updater import check_for_updates
+        if args.check_updates:
+            from ravan.core.updater import check_for_updates
 
-        res = check_for_updates()
-        if res.get("error"):
-            print(f"Error checking updates: {res['error']}", file=sys.stderr)
-            return 1
-        if res["has_update"]:
-            print(f"Update available: v{res['latest_version']} (current: v{res['current_version']})")
-            print(f"Download: {res['release_url']}")
-        else:
-            print(f"Ravaan is up to date (version {res['current_version']}).")
+            res = check_for_updates()
+            if res.get("error"):
+                print(f"Error checking updates: {res['error']}", file=sys.stderr)
+                return 1
+            if res["has_update"]:
+                print(f"Update available: v{res['latest_version']} (current: v{res['current_version']})")
+                print(f"Download: {res['release_url']}")
+            else:
+                print(f"Ravaan is up to date (version {res['current_version']}).")
         return 0
 
     if not args.cmd:

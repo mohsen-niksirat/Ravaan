@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import subprocess
 import tempfile
 import urllib.error
@@ -17,7 +18,53 @@ from ravan import __version__
 log = logging.getLogger(__name__)
 
 REPO_NAME = "mohsen-niksirat/Ravaan"
-API_URL = f"https://api.github.com/repos/{REPO_NAME}/releases/latest"
+API_URL = f"https://api.github.com/repos/{REPO_NAME}/releases"
+
+
+def is_prerelease(v: str) -> bool:
+    """Return True if version string denotes a pre-release (e.g. -rc1, -beta, -alpha)."""
+    clean = v.strip().lstrip("v").lower()
+    return any(marker in clean for marker in ("-rc", "-beta", "-alpha", "-dev", "-pre"))
+
+
+def parse_version_tuple(v: str) -> tuple[int, int, int, int, int]:
+    """Parse version string into a comparable tuple:
+    (major, minor, patch, stage, rc_num).
+
+    Stable releases get stage=1. Pre-releases get stage=0 (rc), -1 (beta), -2 (alpha).
+    """
+    clean = v.strip().lstrip("v")
+    base, sep, tag = clean.partition("-")
+    nums: list[int] = []
+    for part in base.split("."):
+        digits = "".join(ch for ch in part if ch.isdigit())
+        nums.append(int(digits) if digits else 0)
+    while len(nums) < 3:
+        nums.append(0)
+
+    if not sep or not tag:
+        return (nums[0], nums[1], nums[2], 1, 0)
+
+    tag_clean = tag.lower()
+    rc_digits = "".join(ch for ch in tag_clean if ch.isdigit())
+    rc_num = int(rc_digits) if rc_digits else 1
+    stage = 0
+    if "alpha" in tag_clean:
+        stage = -2
+    elif "beta" in tag_clean:
+        stage = -1
+    return (nums[0], nums[1], nums[2], stage, rc_num)
+
+
+def compare_versions(v1: str, v2: str) -> int:
+    """Compare two version strings. Returns 1 if v1 > v2, 0 if equal, -1 if v1 < v2."""
+    t1 = parse_version_tuple(v1)
+    t2 = parse_version_tuple(v2)
+    if t1 > t2:
+        return 1
+    if t1 < t2:
+        return -1
+    return 0
 
 
 def parse_version(v: str) -> tuple[int, ...]:
@@ -70,14 +117,20 @@ def find_installer_asset(assets: list[dict[str, Any]]) -> dict[str, Any] | None:
 def check_for_updates(
     current_ver: str = __version__,
     timeout: float = 6.0,
+    allow_prereleases: bool = False,
 ) -> dict[str, Any]:
     """Check GitHub releases API for latest published release."""
+    headers = {
+        "User-Agent": f"Ravaan-App/{current_ver}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+    gh_token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if gh_token:
+        headers["Authorization"] = f"Bearer {gh_token}"
+
     req = urllib.request.Request(
         API_URL,
-        headers={
-            "User-Agent": f"Ravaan-App/{current_ver}",
-            "Accept": "application/vnd.github.v3+json",
-        },
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -93,7 +146,7 @@ def check_for_updates(
                     "installer_name": None,
                     "error": f"HTTP {response.status}",
                 }
-            data = json.loads(response.read().decode("utf-8"))
+            raw_data = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as err:
         if err.code == 404:
             log.info("No releases found on GitHub for %s", REPO_NAME)
@@ -147,8 +200,22 @@ def check_for_updates(
             "error": str(exc),
         }
 
-    tag = str(data.get("tag_name", "")).strip()
-    if not tag:
+    releases = raw_data if isinstance(raw_data, list) else [raw_data]
+    current_is_prerelease = is_prerelease(current_ver)
+
+    eligible: list[dict[str, Any]] = []
+    for r in releases:
+        if not isinstance(r, dict) or r.get("draft"):
+            continue
+        tag = str(r.get("tag_name", "")).strip()
+        if not tag:
+            continue
+        is_rel_prerelease = bool(r.get("prerelease")) or is_prerelease(tag)
+        if is_rel_prerelease and not current_is_prerelease and not allow_prereleases:
+            continue
+        eligible.append(r)
+
+    if not eligible:
         return {
             "has_update": False,
             "current_version": current_ver,
@@ -161,20 +228,24 @@ def check_for_updates(
             "error": None,
         }
 
-    html_url = str(data.get("html_url", f"https://github.com/{REPO_NAME}/releases"))
-    body = str(data.get("body", "")).strip()
+    best_release = max(
+        eligible,
+        key=lambda r: parse_version_tuple(str(r.get("tag_name", ""))),
+    )
+
+    tag = str(best_release.get("tag_name", "")).strip()
+    html_url = str(best_release.get("html_url", f"https://github.com/{REPO_NAME}/releases"))
+    body = str(best_release.get("body", "")).strip()
     summary = extract_changelog_summary(body)
 
-    assets = data.get("assets", [])
+    assets = best_release.get("assets", [])
     installer = find_installer_asset(assets)
     installer_url = (
         str(installer.get("browser_download_url")) if installer else None
     )
     installer_name = str(installer.get("name")) if installer else None
 
-    latest_tuple = parse_version(tag)
-    current_tuple = parse_version(current_ver)
-    has_update = latest_tuple > current_tuple
+    has_update = compare_versions(tag, current_ver) > 0
 
     return {
         "has_update": has_update,
