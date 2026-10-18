@@ -115,6 +115,14 @@ class AppPollingMixin:
     def _maybe_predict(self: Any) -> None:
         if not self._pending_predict or not self.cfg.prediction_enabled:
             return
+        if getattr(self, "power_mode_active", False):
+            self._pending_predict = False
+            return
+        from ravan.platform.focus import is_password_focused
+
+        if is_password_focused():
+            self._pending_predict = False
+            return
         if self._is_excluded():
             return
         elapsed_ms = (time.monotonic() - self._last_key_time) * 1000

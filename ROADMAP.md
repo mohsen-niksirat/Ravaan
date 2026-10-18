@@ -1,5 +1,35 @@
 # Roadmap
 
+## Completed (v0.7.0)
+
+- **M30: Power-User Features: Math v2, Macro Recorder & Power Mode (Focus Typing)**
+  - Inline Math v2: support percentages (`%` / `٪`), discount/markup (`500+10%`), rounding macros (`1200*1.09=2`), and currency formatting (`=t` Toman, `=r` Rial). Automatic suppression inside password fields.
+  - Keystroke Macro Recorder: record key sequences until Esc, save with custom trigger (e.g. `//m1`), replay via snippet expansion, optional timing preservation, and clear warning about elevated/admin apps.
+  - Power Mode / Focus Typing (`Ctrl+Alt+P`): one-touch toggle suppressing all popups with dimmed tray icon and optional duration timer.
+  - CLI Profile Backup & Migration: `python -m ravan.cli export` and `python -m ravan.cli import [--merge]` for complete profile ZIP archives.
+- **M29: Inno Setup Windows Installer & Auto-Update Engine**
+  - Clean non-admin per-user installer (`Ravaan-Setup-0.7.0.exe`) with Start Menu shortcuts and optional startup entry.
+  - In-app background update checker with changelog summary, non-intrusive tray balloon, and 1-click download/install with mutex handoff.
+  - `ravan://` deep-linking URL protocol registration (`ravan://settings`, `ravan://stats`, `ravan://snippet`).
+- **M28: Cloud Sync 2.0 & Settings Robustness**
+  - Generic WebDAV backend (Nextcloud / ownCloud) alongside GitHub Gist.
+  - Three-way dictionary merge and interactive snippet conflict prompt (keep local, remote, or both).
+  - Background sync polling debounced after typing bursts with offline backoff.
+  - Schema migration versioning and corrupt config auto-recovery.
+  - Settings window search box filter and per-tab reset to defaults.
+- **M27: Prediction Quality: Sentence Model & Learning Engine v2**
+  - Trigram model with backoff smoothing and interpolation. Top-3 hit rate > 80% on held-out benchmarks (`python -m ravan.cli bench`).
+  - Next-word multi-word sentence predictions.
+  - Learning engine v2 with half-life frequency decay, per-app weighting, and profile export/import (`python -m ravan.cli learn`).
+  - Layout conversion (F12) quality: mixed-direction support, punctuation protection, and repeated F12 multi-word expansion.
+- **M26: Full Bilingual UI Localization (fa / en)**
+  - 100% extraction of UI strings into `en.json` and `fa.json` with `t(key)` helper.
+  - Native Persian phrasing with correct half-spaces (نیم‌فاصله‌گذاری درست).
+  - RTL correctness for Persian UI (mirrored layout and right-aligned labels).
+  - Live language switcher in Settings (Auto / English / فارسی).
+
+---
+
 ## Completed (v0.5.0)
 
 - **M25: Quick Text Statistics (Alt+S — Milestone M15)**

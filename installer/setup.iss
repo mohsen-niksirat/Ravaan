@@ -3,7 +3,7 @@
 ; Leaves %APPDATA%\Ravan intact upon uninstall to preserve user dictionaries and settings.
 
 #ifndef MyAppVersion
-#define MyAppVersion "0.5.0"
+#define MyAppVersion "0.7.0"
 #endif
 
 #define MyAppName "Ravaan"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from typing import Any
 
@@ -259,4 +260,125 @@ class AppActionsMixin:
         if not hasattr(self, "_stats_popup") or self._stats_popup is None:
             self._stats_popup = StatsPopupWindow(parent=getattr(self.overlay, "_root", None))
         self._stats_popup.show(stats, x=caret.x, y=caret.y + caret.height + 6)
+
+    def toggle_power_mode(self: Any, duration_min: int | None = None) -> bool:
+        """Toggle Power Mode (Focus Typing) to suppress all popups."""
+        self.power_mode_active = not getattr(self, "power_mode_active", False)
+        from ravan.core.i18n import t
+
+        if self.power_mode_active:
+            self.overlay.hide()
+            from ravan.ui.app import set_popup_visible
+
+            set_popup_visible(False)
+            if hasattr(self, "_stats_popup") and self._stats_popup is not None:
+                self._stats_popup.hide()
+            if hasattr(self.tray, "set_power_mode"):
+                self.tray.set_power_mode(True)
+
+            mins = (
+                duration_min
+                if duration_min is not None
+                else getattr(self.cfg, "power_mode_duration_min", 0)
+            )
+            if mins > 0:
+                if (
+                    hasattr(self, "_power_mode_timer")
+                    and self._power_mode_timer is not None
+                ):
+                    self._power_mode_timer.cancel()
+                self._power_mode_timer = threading.Timer(
+                    mins * 60, self._auto_disable_power_mode
+                )
+                self._power_mode_timer.daemon = True
+                self._power_mode_timer.start()
+                msg = t(
+                    "power_mode.enabled_timed",
+                    "Power Mode active ({mins} min): popups suppressed.",
+                    mins=mins,
+                )
+            else:
+                msg = t(
+                    "power_mode.enabled",
+                    "Power Mode active: popups suppressed for focus typing.",
+                )
+            self.tray.notify(msg, title=t("power_mode.title", "Focus Typing"))
+        else:
+            if hasattr(self, "_power_mode_timer") and self._power_mode_timer:
+                self._power_mode_timer.cancel()
+                self._power_mode_timer = None
+            if hasattr(self.tray, "set_power_mode"):
+                self.tray.set_power_mode(False)
+            msg = t("power_mode.disabled", "Power Mode disabled: popups restored.")
+            self.tray.notify(msg, title=t("power_mode.title", "Focus Typing"))
+
+        return self.power_mode_active
+
+    def _auto_disable_power_mode(self: Any) -> None:
+        """Callback when Power Mode duration timer expires."""
+        if getattr(self, "power_mode_active", False):
+            self.toggle_power_mode()
+
+    def start_macro_recording(self: Any) -> None:
+        """Start recording user keystrokes for a macro snippet."""
+        if not hasattr(self, "macro_recorder") or self.macro_recorder is None:
+            from ravan.core.macro import MacroRecorder
+
+            self.macro_recorder = MacroRecorder()
+        self.macro_recorder.start()
+        from ravan.core.i18n import t
+
+        self.tray.notify(
+            t(
+                "macro.recording_started",
+                "Macro recording started. Type keystrokes and press Esc to finish.",
+            ),
+            title=t("macro.recording_title", "Recording Macro…"),
+        )
+
+    def stop_macro_recording(self: Any) -> None:
+        """Stop recording macro and open save dialog."""
+        if not hasattr(self, "macro_recorder") or not self.macro_recorder.is_recording:
+            return
+        events = self.macro_recorder.stop()
+        from ravan.core.i18n import t
+
+        if not events:
+            self.tray.notify(
+                t("macro.cancelled", "Macro recording cancelled (no keystrokes).")
+            )
+            return
+
+        def _show_dialog() -> None:
+            from ravan.ui.macro_dialog import MacroSaveDialog
+
+            dlg = MacroSaveDialog(
+                parent=getattr(self.overlay, "_root", None),
+                events=events,
+                existing_snippets=self.cfg.snippets,
+                on_save=self._on_macro_saved,
+            )
+            dlg.show()
+
+        if getattr(self.overlay, "_root", None):
+            self.overlay._root.after(0, _show_dialog)
+
+    def _on_macro_saved(self: Any, snippet: Any) -> None:
+        """Callback when user saves a macro snippet from dialog."""
+        from ravan.core.config import save_config
+        from ravan.core.i18n import t
+        from ravan.core.snippet import SnippetEngine
+
+        self.cfg.snippets = [
+            s for s in self.cfg.snippets if s.trigger != snippet.trigger
+        ] + [snippet]
+        save_config(self.cfg)
+        self.snippets = SnippetEngine.from_config(self.cfg)
+        self.tray.notify(
+            t(
+                "macro.saved_notice",
+                "Macro '{trigger}' saved successfully!",
+                trigger=snippet.trigger,
+            )
+        )
 

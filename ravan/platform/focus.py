@@ -190,3 +190,68 @@ def enumerate_visible_windows() -> list[dict[str, Any]]:
     w.user32.EnumWindows(cb, 0)
     return results
 
+
+_mock_password_focused: bool | None = None
+
+
+def set_mock_password_focused(value: bool | None) -> None:
+    """Mock hook for testing password field detection."""
+    global _mock_password_focused
+    _mock_password_focused = value
+
+
+def is_password_focused() -> bool:
+    """Return True if the focused control is a password input field.
+
+    Checks:
+    1. Test mock override if active.
+    2. Classic Win32 EM_GETPASSWORDCHAR and ES_PASSWORD window style.
+    3. UI Automation IUIAutomationElement.CurrentIsPassword property.
+    """
+    if _mock_password_focused is not None:
+        return _mock_password_focused
+
+    # 1. Win32 GUI Thread Info check
+    try:
+        hwnd_fg = w.user32.GetForegroundWindow()
+        if hwnd_fg:
+            tid = w.user32.GetWindowThreadProcessId(hwnd_fg, None)
+            if tid:
+                gui_info = w.GUITHREADINFO()
+                gui_info.cbSize = ctypes.sizeof(w.GUITHREADINFO)
+                if w.user32.GetGUIThreadInfo(tid, ctypes.byref(gui_info)):
+                    hwnd_focus = gui_info.hwndFocus
+                    if hwnd_focus:
+                        # EM_GETPASSWORDCHAR = 0x00D2
+                        w.user32.SendMessageW.argtypes = [
+                            wintypes.HWND,
+                            wintypes.UINT,
+                            wintypes.WPARAM,
+                            wintypes.LPARAM,
+                        ]
+                        w.user32.SendMessageW.restype = wintypes.LPARAM
+                        pw_char = w.user32.SendMessageW(hwnd_focus, 0x00D2, 0, 0)
+                        if pw_char != 0:
+                            return True
+
+                        # Check ES_PASSWORD (0x0020) style on edit control
+                        style = w.user32.GetWindowLongW(hwnd_focus, -16)  # GWL_STYLE
+                        if style & 0x0020:
+                            return True
+    except Exception:
+        pass
+
+    # 2. UI Automation check (browsers, Electron, WPF/UWP)
+    try:
+        from ravan.platform.caret import _cached_uia_automation
+
+        automation = _cached_uia_automation
+        if automation is not None:
+            elem = automation.GetFocusedElement()
+            if elem is not None and getattr(elem, "CurrentIsPassword", False):
+                return True
+    except Exception:
+        pass
+
+    return False
+

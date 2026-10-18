@@ -2,6 +2,8 @@
   "app_name": "Ravaan",
   "tray": {
     "show_language": "Show language (Alt+L)",
+    "power_mode": "Power Mode (Focus Typing)",
+    "record_macro": "Record Macro…",
     "settings": "Settings…",
     "snippet_editor": "Snippet Editor…",
     "check_updates": "Check for updates…",
@@ -179,5 +181,31 @@
     "btn_install": "⬇ Download & Install",
     "btn_browser": "🌐 View on GitHub",
     "btn_later": "Later"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "macro": {
+    "dialog_title": "Save Keystroke Macro",
+    "header": "Macro Recorded ({count} keystrokes)",
+    "trigger_label": "Snippet Trigger (e.g. //m1):",
+    "preserve_timings": "Preserve playback delays / timings",
+    "elevated_warning": "⚠️ Notice: Some games and elevated/admin applications block synthetic keystroke injection.",
+    "save_btn": "Save Macro",
+    "recording_started": "Macro recording started. Type keystrokes and press Esc to finish.",
+    "recording_title": "Recording Macro…",
+    "cancelled": "Macro recording cancelled (no keystrokes).",
+    "saved_notice": "Macro '{trigger}' saved successfully!"
+  },
+  "power_mode": {
+    "title": "Focus Typing",
+    "enabled": "Power Mode active: popups suppressed for focus typing.",
+    "enabled_timed": "Power Mode active ({mins} min): popups suppressed.",
+    "disabled": "Power Mode disabled: popups restored."
+  },
+  "calc": {
+    "toman": "Toman",
+    "rial": "Rial"
   }
 }

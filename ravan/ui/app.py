@@ -22,16 +22,16 @@ from ravan.platform.hook import KeyboardHook, set_popup_visible
 from ravan.platform.inject import replace_last_n_with
 from ravan.platform.lang import current_language
 from ravan.ui.app_actions import AppActionsMixin
+from ravan.ui.app_dialogs import AppDialogsMixin
 from ravan.ui.app_polling import AppPollingMixin
 from ravan.ui.key_handler import KeyHandlerMixin
 from ravan.ui.log_setup import setup_logging
 from ravan.ui.overlay import OverlayWindow
-from ravan.ui.tray import TrayIcon
 
 log = logging.getLogger(__name__)
 
 
-class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
+class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixin):
     def __init__(self, cfg: Config | None = None, overlay: OverlayWindow | None = None) -> None:
         w.enable_dpi_awareness()
         self.cfg = cfg or load_config()
@@ -48,16 +48,9 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         self.overlay = overlay if overlay is not None else OverlayWindow(self.cfg.theme)
         self.hook = KeyboardHook()
         self._ui_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
-        self.tray = TrayIcon(
-            on_quit=lambda: self._ui_queue.put(("quit", None)),
-            on_show_lang=lambda: self._ui_queue.put(("show_lang", None)),
-            on_settings=lambda: self._ui_queue.put(("settings", None)),
-            on_snippets=lambda: self._ui_queue.put(("snippets", None)),
-            on_diagnostics=lambda: self._ui_queue.put(("diagnostics", None)),
-            on_toggle_prediction=lambda val: self._ui_queue.put(("set_prediction", val)),
-            is_prediction_enabled=lambda: self.cfg.prediction_enabled,
-            on_update_found=lambda info: self._ui_queue.put(("show_update", info)),
-        )
+        from ravan.ui.app_tray import create_app_tray
+
+        self.tray = create_app_tray(self)
         self._settings_window = None
         self._diagnostics_window = None
         self._snippet_window = None
@@ -153,18 +146,12 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
                 self._show_quick_text_stats()
             elif action == "show_update":
                 self._show_update_dialog(arg)
-
-    def _show_update_dialog(self, release_info: dict[str, Any]) -> None:
-        from ravan.ui.update_dialog import UpdateDialog
-
-        def on_exit() -> None:
-            if hasattr(self, "_single_instance") and self._single_instance:
-                self._single_instance.release()
-            self.stop()
-
-        dialog = UpdateDialog(release_info, on_ready_to_exit=on_exit)
-        dialog.show()
-
+            elif action == "toggle_power_mode":
+                self.toggle_power_mode()
+            elif action == "start_macro_recording":
+                self.start_macro_recording()
+            elif action == "stop_macro_recording":
+                self.stop_macro_recording()
 
     def stop(self) -> None:
         if threading.current_thread() is not threading.main_thread():
@@ -182,47 +169,6 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
             self.overlay.destroy()
         except Exception:  # noqa: BLE001
             pass
-
-    # ── Tray actions ────────────────────────────────────────────────
-
-    def open_settings(self) -> None:
-        if self._settings_window is not None and self._settings_window.open:
-            return
-        from ravan.ui.settings import SettingsWindow
-
-        self._settings_window = SettingsWindow(
-            self.cfg, on_saved=self._on_settings_saved
-        )
-        self._settings_window.show()
-
-    def open_snippet_editor(self) -> None:
-        if self._snippet_window is not None and self._snippet_window.open:
-            return
-        from ravan.ui.snippet_editor import SnippetEditorWindow
-
-        self._snippet_window = SnippetEditorWindow(
-            self.cfg.snippets, on_saved=self._on_snippets_saved
-        )
-        self._snippet_window.show()
-
-    def _on_snippets_saved(self, snippets: list[Any]) -> None:
-        self.cfg.snippets = snippets
-        from ravan.core.config import save_config
-
-        save_config(self.cfg)
-        from ravan.core.i18n import t
-
-        self.tray.notify(t("notifications.snippets_saved", "Saved {count} snippets", count=len(snippets)))
-
-    def open_diagnostics(self) -> None:
-        if self._diagnostics_window is not None and self._diagnostics_window.open:
-            return
-        from ravan.ui.diagnostics import DiagnosticsWindow
-
-        self._diagnostics_window = DiagnosticsWindow(
-            snapshot_fn=self._get_diagnostics_snapshot
-        )
-        self._diagnostics_window.show()
 
     def _record_event(self, action: str, vk: int = 0, char: str = "") -> None:
         now_str = datetime.now().strftime("%H:%M:%S.%f")[:-3]
@@ -283,16 +229,6 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         self.tray.notify(msg)
         return True
 
-    def _show_onboarding(self) -> None:
-        self.cfg.has_seen_onboarding = True
-        from ravan.core.config import save_config
-        from ravan.core.i18n import t
-
-        save_config(self.cfg)
-        msg = t("onboarding.body", "Welcome to Ravaan!")
-        title = t("onboarding.title", "Welcome to Ravaan (روان)!")
-        self.tray.notify(msg, title=title)
-
     def _on_word_completed(self, word: str, delimiter: str = "") -> bool:
         if not word:
             return False
@@ -302,6 +238,26 @@ class RavanApp(AppActionsMixin, AppPollingMixin, KeyHandlerMixin):
         res = self.snippets.expand_with_cursor(word)
         if res is not None:
             expansion, cursor_offset = res
+            from ravan.core.macro import is_macro_snippet, parse_macro_snippet
+
+            if is_macro_snippet(expansion):
+                macro_data = parse_macro_snippet(expansion)
+                if macro_data:
+                    del_len = len(word) + len(delimiter)
+                    self._suppress_until = time.monotonic() + 0.1
+                    replace_last_n_with(del_len, "")
+                    for _ in range(del_len):
+                        if self.journal._chars:
+                            self.journal._chars.pop()
+                    from ravan.core.macro import MacroPlayer
+
+                    MacroPlayer.play(
+                        macro_data,
+                        on_suppress=lambda d: setattr(
+                            self, "_suppress_until", time.monotonic() + d
+                        ),
+                    )
+                    return True
             self._replace_word(
                 word, expansion, delimiter=delimiter, cursor_offset=cursor_offset
             )

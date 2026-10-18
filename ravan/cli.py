@@ -55,6 +55,11 @@ def main(argv: list[str] | None = None) -> int:
     p_learn.add_argument("action", choices=["stats", "export", "import"])
     p_learn.add_argument("path", nargs="?", default="")
     p_learn.add_argument("--overwrite", action="store_true", help="Overwrite existing model on import")
+    p_export = sub.add_parser("export", help="Export all user data to a ZIP archive")
+    p_export.add_argument("path", nargs="?", default="", help="Destination ZIP file path")
+    p_import = sub.add_parser("import", help="Import user data from a ZIP archive")
+    p_import.add_argument("path", help="Source ZIP archive path")
+    p_import.add_argument("--merge", action="store_true", help="Merge dictionaries and snippets")
 
     args = parser.parse_args(argv)
     if args.version:
@@ -303,6 +308,27 @@ def main(argv: list[str] | None = None) -> int:
             engine.save()
             print(f"Imported {count} words and patterns from {args.path}")
             return 0
+
+    if args.cmd == "export":
+        from ravan.core.backup_zip import export_user_data
+
+        target = export_user_data(args.path if args.path else None)
+        print(f"Exported user data archive: {target}")
+        return 0
+
+    if args.cmd == "import":
+        from ravan.core.backup_zip import import_user_data
+
+        try:
+            res = import_user_data(args.path, merge=args.merge)
+            print(f"Import successful! Restored {len(res['restored_files'])} items:")
+            for f in res["restored_files"]:
+                print(f"  • {f}")
+            print(f"Safety backup saved at: {res['backup_created']}")
+            return 0
+        except Exception as exc:
+            print(f"Import failed: {exc}", file=sys.stderr)
+            return 1
 
     return 1
 

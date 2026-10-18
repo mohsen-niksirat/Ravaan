@@ -1,14 +1,16 @@
-"""Safe, zero-dependency inline mathematical evaluator.
+"""Safe, zero-dependency inline mathematical evaluator (Math v2).
 
 Uses Python's AST parser to guarantee security (no eval/exec).
 Supports arithmetic operators (+, -, *, /, //, %, ^, **),
-parentheses, floats, integers, and Persian digits.
+parentheses, floats, integers, Persian digits, percentage calculations (%),
+rounding macros (=N), and currency-aware output (=t Toman, =r Rial).
 """
 
 from __future__ import annotations
 
 import ast
 import operator
+import re
 from typing import Any
 
 from ravan.core.normalizer import en_to_fa_digits, fa_to_en_digits
@@ -25,12 +27,36 @@ _SAFE_OPS: dict[type, Any] = {
     ast.UAdd: operator.pos,
 }
 
-_MATH_CHARS = set("0123456789۰۱۲۳۴۵۶۷۸۹+-*/^%() .٫,")
+_MATH_CHARS = set("0123456789۰۱۲۳۴۵۶۷۸۹+-*/^%٪() .٫,")
+
+
+def _preprocess_percentages(expr: str) -> str:
+    """Transform percentage expressions into valid Python arithmetic.
+
+    - Discount/Markup: '500 + 10%' -> '500 + (500 * (10 / 100))'
+    - General Percentage: '100 * 20%' -> '100 * (20 / 100)'
+    - Standalone: '50%' -> '(50 / 100)'
+    """
+    cleaned = expr.replace("٪", "%")
+    # Discount or markup pattern: <number> [+-] <number>%
+    cleaned = re.sub(
+        r"(\d+(?:\.\d+)?)\s*([+-])\s*(\d+(?:\.\d+)?)\%",
+        r"\1 \2 (\1 * (\3 / 100))",
+        cleaned,
+    )
+    # Any remaining <number>%
+    cleaned = re.sub(
+        r"(\d+(?:\.\d+)?)\%",
+        r"(\1 / 100)",
+        cleaned,
+    )
+    return cleaned
 
 
 def safe_eval(expr: str) -> float | int | None:
     """Safely evaluate an arithmetic expression string using AST traversal."""
-    cleaned = expr.replace("^", "**").replace("٫", ".").replace(",", "")
+    cleaned = _preprocess_percentages(expr)
+    cleaned = cleaned.replace("^", "**").replace("٫", ".").replace(",", "")
     try:
         node = ast.parse(cleaned, mode="eval")
     except Exception:
@@ -75,19 +101,70 @@ def safe_eval(expr: str) -> float | int | None:
     return res
 
 
-def calculate(expr: str) -> str | None:
-    """Evaluate an expression, preserving Persian digits if input contained them."""
-    has_persian = any("\u06f0" <= c <= "\u06f9" for c in expr)
-    normalized_expr = fa_to_en_digits(expr)
+def parse_calc_query(text: str) -> tuple[str, int | None, str | None]:
+    """Parse text ending with optional rounding macro (=N) or currency (=t/=r).
+
+    Returns:
+        (expr_part, decimals, currency)
+    """
+    cleaned = text.strip()
+    if "=" in cleaned:
+        expr_part, suffix = cleaned.rsplit("=", 1)
+        suffix = suffix.strip()
+        # Rounding macro e.g. =2 or =۰
+        suffix_en = fa_to_en_digits(suffix)
+        if suffix_en.isdigit() and len(suffix_en) <= 2:
+            return expr_part.strip(), int(suffix_en), None
+        # Currency macros
+        if suffix.lower() in ("t", "ت"):
+            return expr_part.strip(), None, "toman"
+        if suffix.lower() in ("r", "ر"):
+            return expr_part.strip(), None, "rial"
+        if not suffix:
+            return expr_part.strip(), None, None
+    return cleaned, None, None
+
+
+def calculate(
+    expr: str,
+    decimals: int | None = None,
+    currency: str | None = None,
+) -> str | None:
+    """Evaluate expression, supporting rounding (=N) and currency (toman/rial)."""
+    has_persian = any("\u06f0" <= c <= "\u06f9" for c in expr) or any(c in "تر٪" for c in expr)
+
+    # Check if expr includes trailing macro (=2, =t, =r)
+    expr_clean, parsed_dec, parsed_curr = parse_calc_query(expr)
+    target_decimals = decimals if decimals is not None else parsed_dec
+    target_currency = currency if currency is not None else parsed_curr
+
+    normalized_expr = fa_to_en_digits(expr_clean)
     val = safe_eval(normalized_expr)
     if val is None:
         return None
 
-    if isinstance(val, float):
-        # Round cleanly to 6 decimal places and strip trailing zeros
-        formatted = f"{val:.6f}".rstrip("0").rstrip(".")
+    if target_decimals is not None:
+        if target_decimals == 0:
+            formatted = str(round(val))
+        else:
+            formatted = f"{val:.{target_decimals}f}"
+    elif target_currency in ("toman", "t", "ت"):
+        if isinstance(val, int) or (isinstance(val, float) and val.is_integer()):
+            num_str = f"{int(val):,}"
+        else:
+            num_str = f"{val:,.2f}".rstrip("0").rstrip(".")
+        formatted = f"{num_str} تومان"
+    elif target_currency in ("rial", "r", "ر"):
+        if isinstance(val, int) or (isinstance(val, float) and val.is_integer()):
+            num_str = f"{int(val):,}"
+        else:
+            num_str = f"{val:,.2f}".rstrip("0").rstrip(".")
+        formatted = f"{num_str} ریال"
     else:
-        formatted = str(val)
+        if isinstance(val, float):
+            formatted = f"{val:.6f}".rstrip("0").rstrip(".")
+        else:
+            formatted = str(val)
 
     if has_persian:
         return en_to_fa_digits(formatted)
@@ -95,7 +172,7 @@ def calculate(expr: str) -> str | None:
 
 
 def extract_math_expression(text: str) -> str | None:
-    """Extract a trailing math expression from the text preceding an '=' trigger."""
+    """Extract a trailing math expression from text preceding an '=' trigger."""
     if not text:
         return None
     i = len(text)
@@ -107,8 +184,8 @@ def extract_math_expression(text: str) -> str | None:
 
     # Must contain at least one digit
     has_digit = any(c.isdigit() or ("\u06f0" <= c <= "\u06f9") for c in expr)
-    # Must contain at least one binary operator between numbers (not just a leading sign)
-    has_binary_op = any(c in "+-*/^%" for c in expr.lstrip("+-"))
+    # Must contain at least one binary operator between numbers (or % percentage)
+    has_binary_op = any(c in "+-*/^%٪" for c in expr.lstrip("+-"))
     if not (has_digit and has_binary_op):
         return None
 
@@ -121,3 +198,34 @@ def extract_math_expression(text: str) -> str | None:
         return None
 
     return expr
+
+
+def extract_math_query(text: str) -> tuple[str, int | None, str | None, int] | None:
+    """Extract full math query with optional rounding/currency suffix.
+
+    Returns:
+        (expr_part, decimals, currency, matched_length)
+    """
+    if not text:
+        return None
+
+    # Match pattern: <math_chars>=<suffix>
+    m = re.search(r"([0-9۰-۹\+\-\*\/\^\%٪\(\)\s\.\,٫]+)=([0-9۰-۹tTrRتر]?)$", text)
+    if not m:
+        return None
+
+    expr_cand = m.group(1).strip()
+    suffix = m.group(2).strip()
+
+    valid_expr = extract_math_expression(expr_cand)
+    if not valid_expr:
+        # Check if expr_cand is a single number followed by currency or rounding e.g. 12000=t
+        has_digit = any(c.isdigit() or ("\u06f0" <= c <= "\u06f9") for c in expr_cand)
+        if has_digit and suffix and safe_eval(fa_to_en_digits(expr_cand)) is not None:
+            valid_expr = expr_cand
+        else:
+            return None
+
+    _, dec, curr = parse_calc_query(f"{valid_expr}={suffix}")
+    matched_len = len(valid_expr) + 1 + len(suffix)
+    return valid_expr, dec, curr, matched_len

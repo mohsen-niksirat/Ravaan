@@ -151,6 +151,35 @@ Helps with keyboard-language awareness, wrong-layout conversion, autocomplete, a
   - Automatic timestamped local backups (`.bak`) before any remote pull/push.
   - Periodic background sync interval (optional) or manual 1-click **Sync Now**.
 
+### Power-User Features: Math v2, Macro Recorder & Power Mode
+
+1. **Inline Math v2 (`%`, `=N`, `=t`, `=r`)**:
+   - **Percentages**: Evaluate discounts, markups, or multiplications inline (e.g. `500+10%=` → `550`, `100*20%=` → `20`, or Persian `۵۰۰+۱۰٪=` → `۵۵۰`).
+   - **Rounding Macros (`=N`)**: Explicit decimal control e.g. `10/3=2` → `3.33`, `1200*1.09=2` → `1308.00`, `10/3=0` → `3`.
+   - **Currency Formatting**: Format numbers directly into currency: `=t` or `=ت` formats as Toman (`12000=t` → `12,000 تومان`), `=r` or `=ر` formats as Rial (`120000=r` → `120,000 ریال`).
+   - **Password Protection**: Inline math evaluation, autocorrect, and word prediction are automatically suspended inside password input fields for security.
+
+2. **Macro Recorder (M23)**:
+   - Record short keystroke sequences: start from System Tray → **Record Macro…**, type your keystrokes, and press **Esc** to finish.
+   - Saves directly as a snippet trigger (e.g. `//m1`).
+   - Choose whether to preserve actual typing delays/timings or replay instantly.
+   - Built-in notification and safety notice regarding elevated applications.
+
+3. **Power Mode / Focus Typing (`Ctrl+Alt+P`) (M24)**:
+   - One-touch toggle via `Ctrl+Alt+P` or System Tray menu.
+   - Suppresses all popups (prediction card, language chip, text statistics) for clean, distraction-free typing during meetings and screen sharing sessions.
+   - Dims the tray icon and updates its tooltip. Supports optional timed duration.
+
+4. **CLI Profile Backup & Migration (`export` / `import`)**:
+   - Export your entire Ravaan profile (config, dictionary, snippets, and learned models) into a single compressed ZIP archive:
+     ```bash
+     python -m ravan.cli export my_backup.zip
+     ```
+   - Restore or merge on another PC:
+     ```bash
+     python -m ravan.cli import my_backup.zip --merge
+     ```
+
 ### Interactive Window Picker & Elevated Process Detection
 
 - **Pick Window (3s countdown)**: In Settings → Excluded Apps, click **Pick Window…** and switch to any target application window. Ravaan captures its `.exe` process name or window class (`class:<name>`) automatically.

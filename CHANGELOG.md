@@ -5,6 +5,34 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-10-18
+
+### Added
+- **Power-User Features (M22–M24)**:
+  - **Inline Math v2**: full percentage arithmetic (`500+10%=` → `550`, `100*20%=` → `20`, `۵۰۰+۱۰٪=` → `۵۵۰`), explicit rounding macros (`10/3=2` → `3.33`), and instant currency formatting (`12000=t` → `12,000 تومان`, `120000=r` → `120,000 ریال`).
+  - **Password Input Shield**: Automatic detection and suppression of math evaluation, autocorrect, and word prediction inside password fields across classic Win32 and UI Automation.
+  - **Keystroke Macro Recorder (M23)**: Record arbitrary key sequences from System Tray or hotkey, stop with `Esc`, and save with custom snippet trigger (e.g. `//m1`) with optional delay preservation. Includes safety notices for elevated apps.
+  - **Power Mode / Focus Typing (M24)**: Instant `Ctrl+Alt+P` toggle that suppresses all floating popups (predictions, language chip, text statistics) with dimmed tray icon and optional duration timer for distraction-free typing.
+  - **CLI Backup & Migration**: `python -m ravan.cli export` archives all user configuration, custom vocabulary, and learned models into a single ZIP; `python -m ravan.cli import [--merge]` restores or merges profiles with automatic pre-import safety backups.
+- **Installer, Auto-Update & Distribution**:
+  - Inno Setup 6 installer (`Ravaan-Setup-0.7.0.exe`) for per-user non-admin installation with Start Menu and startup entries.
+  - In-app updater (`ravan/core/updater.py`, `ravan/ui/update_dialog.py`) with changelog summaries, tray balloons, and one-click mutex handoff.
+  - Windows deep linking via `ravan://` URL protocol (`ravan://settings`, `ravan://stats`, `ravan://snippet`).
+- **Cloud Sync 2.0 & Settings Robustness**:
+  - Generic WebDAV backend supporting Nextcloud and ownCloud.
+  - Three-way dictionary union and interactive snippet conflict prompt.
+  - Background sync polling with 15s burst debounce and offline backoff.
+  - Config schema versioning (`schema_version: 2`) and corrupt config auto-recovery.
+  - Settings window search box filter and per-tab reset to defaults.
+- **Prediction Quality & Learning Engine v2**:
+  - Trigram model with backoff smoothing and interpolation (> 80% top-3 accuracy).
+  - Next-word multi-word sentence continuations (`[بعدی]`).
+  - Learning engine v2 with half-life frequency decay and per-app vocabulary weighting.
+  - Multi-word repeated F12 conversion and punctuation protection.
+- **Full Bilingual UI Localization (fa / en)**:
+  - Native Persian phrasing with correct half-spaces (نیم‌فاصله‌گذاری استاندارد).
+  - Mirrored RTL layout for Persian UI with live language switching in Settings.
+
 ## [0.5.0] - 2026-10-18
 
 ### Added

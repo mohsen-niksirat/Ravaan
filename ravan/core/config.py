@@ -117,6 +117,10 @@ class Config:
     webdav_username: str = ""
     webdav_password: str = ""
     sync_interval_min: int = 0  # 0 (off), 15, 60 min
+    power_mode_hotkey: HotkeySpec = field(
+        default_factory=lambda: HotkeySpec(key="P", modifiers=["Ctrl", "Alt"])
+    )
+    power_mode_duration_min: int = 0
 
 
     def is_excluded(
@@ -311,6 +315,10 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         webdav_username=str(data.get("webdav_username", "")),
         webdav_password=str(data.get("webdav_password", "")),
         sync_interval_min=_bounded_int(data, "sync_interval_min", 0, 0, 1440),
+        power_mode_hotkey=_hotkey_from_dict(
+            data.get("power_mode_hotkey"), HotkeySpec("P", ["Ctrl", "Alt"])
+        ),
+        power_mode_duration_min=_bounded_int(data, "power_mode_duration_min", 0, 0, 1440),
     )
 
 
