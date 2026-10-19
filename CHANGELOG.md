@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Phase 0
 
+### Added
+- Added baseline performance benchmark script `scripts/benchmark_baseline.py` measuring cold start latency, in-process initialization, idle RAM, hook callback latency, and prediction throughput.
+
 ### Changed
 - Standardized canonical user configuration directory to `%APPDATA%\Ravaan`.
 - Added automatic, non-destructive migration engine `migrate_legacy_appdata()` migrating legacy `%APPDATA%\Ravan` artifacts.
