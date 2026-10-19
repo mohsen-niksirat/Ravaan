@@ -7,9 +7,15 @@ import sys
 
 
 def main(argv: list[str] | None = None) -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            pass
+
     parser = argparse.ArgumentParser(
         prog="ravan",
-        description="Ravan (روان) — Windows typing assistant",
+        description="Ravaan (روان) — Windows typing assistant",
     )
     parser.add_argument(
         "--version",
@@ -57,9 +63,8 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Ravaan is up to date (version {res['current_version']}).")
         return 0
 
-
     if sys.platform != "win32":
-        print("Ravan currently supports Windows only.", file=sys.stderr)
+        print("Ravaan currently supports Windows only.", file=sys.stderr)
         return 1
 
     from ravan.platform import winapi as wapi
@@ -68,9 +73,9 @@ def main(argv: list[str] | None = None) -> int:
 
     from ravan.platform.singleinstance import SingleInstance
 
-    guard = SingleInstance("Ravan")
+    guard = SingleInstance("Ravaan")
     if not guard.acquired:
-        print("Ravan is already running (tray icon).", file=sys.stderr)
+        print("Ravaan is already running (tray icon).", file=sys.stderr)
         return 1
 
     from ravan.ui.app import RavanApp

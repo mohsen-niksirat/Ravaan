@@ -5,6 +5,14 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 0
+
+### Changed
+- Standardized canonical user configuration directory to `%APPDATA%\Ravaan`.
+- Added automatic, non-destructive migration engine `migrate_legacy_appdata()` migrating legacy `%APPDATA%\Ravan` artifacts.
+- Standardized single instance mutex to `Ravaan` while guarding against conflicts with legacy instances.
+- Reconfigured CLI/main stdout to UTF-8 on Windows to eliminate `UnicodeEncodeError` in console output.
+
 ## [2.0.0] - 2026-10-19
 
 ### Added

@@ -1,6 +1,6 @@
 ; Inno Setup 6 Script for Ravaan (روان)
 ; Produces a per-user, non-admin installer with optional startup, desktop icon, and ravan:// protocol handler.
-; Leaves %APPDATA%\Ravan intact upon uninstall to preserve user dictionaries and settings.
+; Leaves %APPDATA%\Ravaan intact upon uninstall to preserve user dictionaries and settings.
 
 #ifndef MyAppVersion
 #define MyAppVersion "2.0.0"

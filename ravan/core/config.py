@@ -144,10 +144,60 @@ def is_app_excluded(
 
 
 
+def migrate_legacy_appdata(base_appdata: Path | None = None) -> bool:
+    """Migrate legacy %APPDATA%/Ravan directory to canonical %APPDATA%/Ravaan."""
+    if base_appdata is None:
+        env_appdata = os.environ.get("APPDATA")
+        base_appdata = Path(env_appdata) if env_appdata else Path.home() / "AppData" / "Roaming"
+
+    legacy_dir = base_appdata / "Ravan"
+    canonical_dir = base_appdata / "Ravaan"
+
+    if not legacy_dir.is_dir() or legacy_dir == canonical_dir:
+        return False
+
+    canonical_dir.mkdir(parents=True, exist_ok=True)
+    migrated_any = False
+
+    for item in legacy_dir.iterdir():
+        if item.name.startswith("MIGRATED_TO_RAVAAN"):
+            continue
+        dest = canonical_dir / item.name
+        if not dest.exists():
+            try:
+                import shutil
+
+                if item.is_dir():
+                    shutil.copytree(item, dest)
+                else:
+                    shutil.copy2(item, dest)
+                migrated_any = True
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Failed migrating legacy file %s to %s: %s", item, dest, exc)
+
+    if migrated_any:
+        log.info("Migrated legacy user data from %s to %s", legacy_dir, canonical_dir)
+        try:
+            note = legacy_dir / "MIGRATED_TO_RAVAAN.txt"
+            note.write_text(
+                "Ravaan user settings and data migrated to %APPDATA%\\Ravaan.\n"
+                "This folder is kept as a legacy backup.\n",
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+
+    return migrated_any
+
+
 def config_dir() -> Path:
     env_appdata = os.environ.get("APPDATA")
     appdata = Path(env_appdata) if env_appdata else Path.home() / "AppData" / "Roaming"
-    return appdata / "Ravan"
+    canonical = appdata / "Ravaan"
+    legacy = appdata / "Ravan"
+    if legacy.is_dir() and not canonical.exists():
+        migrate_legacy_appdata(appdata)
+    return canonical
 
 
 def config_path() -> Path:

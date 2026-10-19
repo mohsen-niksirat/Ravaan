@@ -90,3 +90,33 @@ def test_cli_ignore_command(tmp_path):
                 assert res == 1
 
 
+def test_legacy_appdata_migration(tmp_path):
+    from ravan.core.config import migrate_legacy_appdata
+
+    legacy_dir = tmp_path / "Ravan"
+    legacy_dir.mkdir(parents=True, exist_ok=True)
+    (legacy_dir / "config.json").write_text('{"test": true}', encoding="utf-8")
+    (legacy_dir / "user_words.txt").write_text("سلام\nروان\n", encoding="utf-8")
+
+    sub_dir = legacy_dir / "snippets"
+    sub_dir.mkdir()
+    (sub_dir / "custom.txt").write_text("hello", encoding="utf-8")
+
+    # Run migration
+    migrated = migrate_legacy_appdata(tmp_path)
+    assert migrated is True
+
+    canonical_dir = tmp_path / "Ravaan"
+    assert canonical_dir.is_dir()
+    assert (canonical_dir / "config.json").read_text(encoding="utf-8") == '{"test": true}'
+    assert (canonical_dir / "user_words.txt").read_text(encoding="utf-8") == "سلام\nروان\n"
+    assert (canonical_dir / "snippets" / "custom.txt").read_text(encoding="utf-8") == "hello"
+
+    # Migration marker exists in legacy
+    assert (legacy_dir / "MIGRATED_TO_RAVAAN.txt").is_file()
+
+    # Second run does not re-migrate existing files
+    assert migrate_legacy_appdata(tmp_path) is False
+
+
+
