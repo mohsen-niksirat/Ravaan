@@ -20,17 +20,17 @@ from ravan.ui.theme import get_active_palette, get_ui_font
 log = logging.getLogger(__name__)
 
 _HOTKEYS_FA = [
-    ("F12", "تغییر چیدمان متن اشتباه تایپ‌شده (fa ↔ en)"),
+    ("Pause", "تغییر چیدمان متن اشتباه تایپ‌شده (fa ↔ en)"),
     ("Shift + Space", "درج نیم‌فاصله هوشمند (ZWNJ)"),
-    ("Alt + L", "تصحیح چیدمان آخرین کلمهٔ تایپ‌شده"),
+    ("Alt + L", "نمایش نشانگر زبان نزدیک نشانگر متن"),
     ("Alt + V", "تاریخچه و جست‌وجوی کلیپ‌بورد"),
     ("Ctrl + Alt + P", "مکث موقت یا ادامهٔ فعالیت روان"),
 ]
 
 _HOTKEYS_EN = [
-    ("F12", "Reverse layout of mis-typed text (fa ↔ en)"),
+    ("Pause", "Reverse layout of mis-typed text (fa ↔ en)"),
     ("Shift + Space", "Insert zero-width non-joiner (smart ZWNJ)"),
-    ("Alt + L", "Fix layout of last typed word"),
+    ("Alt + L", "Show language indicator near caret"),
     ("Alt + V", "Clipboard history and search"),
     ("Ctrl + Alt + P", "Pause or resume Ravaan"),
 ]

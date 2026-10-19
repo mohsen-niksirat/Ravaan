@@ -5,6 +5,14 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 1
+
+### Changed
+- Reassigned default layout conversion hotkey to `Pause` (avoiding F12 conflicts with Chrome/Edge DevTools and VS Code). Added `VK_PAUSE` mapping in `ravan/platform/keys.py` and `ravan/platform/winapi.py`.
+- Reassigned default quick text statistics hotkey to `Ctrl+Alt+S` (avoiding Alt+S conflicts in office and graphics applications).
+- Added duplicate hotkey detection in Settings to prevent configuration conflicts.
+- Updated English and Persian localizations (`en.json`, `fa.json`) and onboarding hints to reflect new default hotkeys.
+
 ## [Unreleased] - Phase 0
 
 ### Added

@@ -19,6 +19,8 @@ _MODIFIER_VKS = {
 
 _KEY_NAME_TO_VK = {
     "f12": w.VK_F12,
+    "pause": w.VK_PAUSE,
+    "break": w.VK_PAUSE,
     "escape": w.VK_ESCAPE,
     "esc": w.VK_ESCAPE,
     "enter": w.VK_RETURN,

@@ -83,7 +83,9 @@ def test_instantiate_core_classes_no_gui():
 
     # 1. Config
     cfg = Config()
-    assert cfg.convert_hotkey.key == "F12"
+    assert cfg.convert_hotkey.key == "Pause"
+    assert cfg.quick_stats_hotkey.key == "S"
+    assert cfg.quick_stats_hotkey.modifiers == ["Ctrl", "Alt"]
 
     # 2. LayoutMapper
     mapper = LayoutMapper()

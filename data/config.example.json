@@ -1,5 +1,5 @@
 {
-  "convert_hotkey": { "key": "F12", "modifiers": [] },
+  "convert_hotkey": { "key": "Pause", "modifiers": [] },
   "lang_indicator_hotkey": { "key": "L", "modifiers": ["Alt"] },
   "autocorrect_enabled": true,
   "prediction_enabled": true,

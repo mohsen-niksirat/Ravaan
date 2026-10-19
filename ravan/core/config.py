@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class Config:
-    convert_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", []))
+    convert_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Pause", []))
     lang_indicator_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("L", ["Alt"]))
     autocorrect_enabled: bool = True
     prediction_enabled: bool = True
@@ -54,7 +54,7 @@ class Config:
     ignored_words: list[str] = field(default_factory=list)
     theme_mode: str = "auto"  # "auto" | "dark" | "light"
     has_seen_onboarding: bool = False
-    quick_stats_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("S", ["Alt"]))
+    quick_stats_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("S", ["Ctrl", "Alt"]))
     cloud_sync_enabled: bool = False
     gist_token: str = ""
     gist_id: str = ""
@@ -297,7 +297,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         log.info("Migrated plaintext sync credentials to DPAPI encryption.")
 
     return Config(
-        convert_hotkey=_hotkey_from_dict(data.get("convert_hotkey"), HotkeySpec("F12")),
+        convert_hotkey=_hotkey_from_dict(data.get("convert_hotkey"), HotkeySpec("Pause")),
         lang_indicator_hotkey=_hotkey_from_dict(data.get("lang_indicator_hotkey"), HotkeySpec("L", ["Alt"])),
         autocorrect_enabled=bool(data.get("autocorrect_enabled", True)),
         prediction_enabled=bool(data.get("prediction_enabled", True)),
@@ -327,7 +327,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         ignored_words=[str(w).strip() for w in data.get("ignored_words", []) if str(w).strip()],
         theme_mode=str(data.get("theme_mode", "auto")),
         has_seen_onboarding=bool(data.get("has_seen_onboarding", False)),
-        quick_stats_hotkey=_hotkey_from_dict(data.get("quick_stats_hotkey"), HotkeySpec("S", ["Alt"])),
+        quick_stats_hotkey=_hotkey_from_dict(data.get("quick_stats_hotkey"), HotkeySpec("S", ["Ctrl", "Alt"])),
         cloud_sync_enabled=bool(data.get("cloud_sync_enabled", False)),
         gist_token=gist_tok,
         gist_id=str(data.get("gist_id", "")),

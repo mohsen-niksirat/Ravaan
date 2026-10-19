@@ -44,13 +44,13 @@ def build_hotkeys_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
     row += 1
 
     entries_spec = [
-        (t("settings.hotkey_convert", "Convert last word:"), "_convert_var", win.cfg.convert_hotkey, "e.g. F12"),
+        (t("settings.hotkey_convert", "Convert last word:"), "_convert_var", win.cfg.convert_hotkey, "e.g. Pause"),
         (t("settings.hotkey_lang", "Show language chip:"), "_lang_var", win.cfg.lang_indicator_hotkey, "e.g. Alt+L"),
         (t("settings.hotkey_clip", "Clipboard history:"), "_clip_var", win.cfg.clipboard_history_hotkey, "e.g. Alt+V"),
         (t("settings.hotkey_norm", "Normalize text:"), "_norm_var", win.cfg.normalize_hotkey, "e.g. Ctrl+F12"),
         (t("settings.hotkey_case", "Cycle text case:"), "_case_var", win.cfg.case_hotkey, "e.g. Shift+F12"),
         (t("settings.hotkey_undo", "Undo last autocorrect:"), "_undo_var", win.cfg.undo_autocorrect_hotkey, "e.g. Ctrl+Shift+Z"),
-        (t("settings.hotkey_stats", "Quick text stats:"), "_stats_var", getattr(win.cfg, "quick_stats_hotkey", None) or win.cfg.quick_stats_hotkey, "e.g. Alt+S"),
+        (t("settings.hotkey_stats", "Quick text stats:"), "_stats_var", getattr(win.cfg, "quick_stats_hotkey", None) or win.cfg.quick_stats_hotkey, "e.g. Ctrl+Alt+S"),
     ]
 
     for label_text, var_attr, hotkey_spec, hint in entries_spec:
@@ -385,6 +385,6 @@ def build_about_section(frm: ttk.Frame) -> None:
     ttk.Separator(frm, orient="horizontal").pack(fill="x", pady=6)
     features_text = t(
         "settings.about_features",
-        "Key Features:\n• Layout Conversion (F12)\n• Word Prediction & Autocorrect\n• Smart Half-Space (ZWNJ)\n• Clipboard History (Alt+V)\n• Quick Text Stats (Alt+S)\n• Math & Jalali Macros\n• Snippets 2.0 & Cloud Sync\n• Data Manifest & Zero Telemetry",
+        "Key Features:\n• Layout Conversion (Pause)\n• Word Prediction & Autocorrect\n• Smart Half-Space (ZWNJ)\n• Clipboard History (Alt+V)\n• Quick Text Stats (Ctrl+Alt+S)\n• Math & Jalali Macros\n• Snippets 2.0 & Cloud Sync\n• Data Manifest & Zero Telemetry",
     )
     ttk.Label(frm, text=features_text, justify=justify).pack(anchor=anchor, pady=4)

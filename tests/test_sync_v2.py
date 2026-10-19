@@ -294,7 +294,7 @@ def test_settings_reset_tab_defaults():
 
         # Reset hotkeys
         reset_tab_defaults(win, "hotkeys")
-        assert win._convert_var.get() == "F12"
+        assert win._convert_var.get() == "Pause"
 
         # Reset exclusions
         reset_tab_defaults(win, "exclusions")

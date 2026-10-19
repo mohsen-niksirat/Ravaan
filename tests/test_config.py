@@ -119,4 +119,61 @@ def test_legacy_appdata_migration(tmp_path):
     assert migrate_legacy_appdata(tmp_path) is False
 
 
+def test_default_hotkeys_and_pause_vk():
+    from ravan.core.config import Config
+    from ravan.platform import winapi as w
+    from ravan.platform.keys import key_name_to_vk
+
+    cfg = Config()
+    assert cfg.convert_hotkey.key == "Pause"
+    assert cfg.convert_hotkey.modifiers == []
+    assert cfg.quick_stats_hotkey.key == "S"
+    assert cfg.quick_stats_hotkey.modifiers == ["Ctrl", "Alt"]
+
+    # Pause and break map to VK_PAUSE
+    assert key_name_to_vk("pause") == w.VK_PAUSE
+    assert key_name_to_vk("break") == w.VK_PAUSE
+    assert key_name_to_vk("PAUSE") == w.VK_PAUSE
+
+    # Roundtrip with text
+    spec = text_to_hotkey("Pause")
+    assert spec is not None
+    assert spec.key == "Pause"
+    assert hotkey_to_text(spec) == "Pause"
+
+
+def test_settings_save_duplicate_hotkey_prevention():
+    from unittest.mock import patch
+
+    from ravan.core.config import Config
+    from ravan.ui.settings_save import save_settings_window
+
+    class FakeVar:
+        def __init__(self, val=""):
+            self._val = val
+
+        def get(self):
+            return self._val
+
+    class DummyWin:
+        def __init__(self):
+            self.cfg = Config()
+            self._root = None
+            self.on_saved = None
+            # Set duplicate hotkeys: convert and clipboard both Pause
+            self._convert_var = FakeVar("Pause")
+            self._lang_var = FakeVar("Alt+L")
+            self._clip_var = FakeVar("Pause")  # duplicate!
+            self._norm_var = FakeVar("Ctrl+F12")
+            self._case_var = FakeVar("Shift+F12")
+            self._undo_var = FakeVar("Ctrl+Shift+Z")
+            self._stats_var = FakeVar("Ctrl+Alt+S")
+
+    win = DummyWin()
+    with patch("tkinter.messagebox.showwarning") as mock_warn:
+        save_settings_window(win)
+        mock_warn.assert_called_once()
+        assert "Duplicate hotkeys" in mock_warn.call_args[0][1]
+
+
 

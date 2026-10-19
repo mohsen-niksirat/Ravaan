@@ -113,7 +113,7 @@
     "about_subtitle": "Windows typing assistant for bilingual Persian/English typists",
     "about_version": "Version {version} — MIT License",
     "about_github": "GitHub: https://github.com/mohsen-niksirat/Ravaan",
-    "about_features": "Key Features:\n• Layout Conversion (F12)\n• Word Prediction & Autocorrect\n• Smart Half-Space (ZWNJ)\n• Clipboard History (Alt+V)\n• Quick Text Stats (Alt+S)\n• Math & Jalali Macros\n• Snippets 2.0 & Cloud Sync"
+    "about_features": "Key Features:\n• Layout Conversion (Pause)\n• Word Prediction & Autocorrect\n• Smart Half-Space (ZWNJ)\n• Clipboard History (Alt+V)\n• Quick Text Stats (Ctrl+Alt+S)\n• Math & Jalali Macros\n• Snippets 2.0 & Cloud Sync"
   },
   "stats": {
     "header": "📊 Text Statistics",
@@ -166,7 +166,7 @@
   },
   "onboarding": {
     "title": "Welcome to Ravaan (روان)!",
-    "body": "Welcome to Ravaan!\nKey shortcuts:\n• F12: Switch layout (FA ↔ EN)\n• Alt+V: Clipboard history\n• Shift+Space: Smart half-space\n• Alt+L: Show active language\n• Alt+S: Quick text statistics\n• Ctrl+Shift+Z: Undo autocorrect"
+    "body": "Welcome to Ravaan!\nKey shortcuts:\n• Pause: Switch layout (FA ↔ EN)\n• Alt+V: Clipboard history\n• Shift+Space: Smart half-space\n• Alt+L: Show active language\n• Ctrl+Alt+S: Quick text statistics\n• Ctrl+Shift+Z: Undo autocorrect"
   },
   "notifications": {
     "autocorrect_undone": "Reverted to '{orig}'",
