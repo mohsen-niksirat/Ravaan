@@ -11,7 +11,7 @@ from collections import deque
 from datetime import datetime
 from typing import Any
 
-from ravan.core.config import Config, load_config, save_config
+from ravan.core.config import Config, load_config
 from ravan.core.events import Candidate
 from ravan.core.journal import KeystrokeJournal
 from ravan.core.layout import LayoutMapper
@@ -21,9 +21,13 @@ from ravan.platform import winapi as w
 from ravan.platform.hook import KeyboardHook, set_popup_visible
 from ravan.platform.inject import replace_last_n_with
 from ravan.platform.lang import current_language
+from ravan.ui.app_accent import AppAccentMixin
 from ravan.ui.app_actions import AppActionsMixin
+from ravan.ui.app_ai import AppAIMixin
+from ravan.ui.app_autofix import AppAutofixMixin
 from ravan.ui.app_dialogs import AppDialogsMixin
 from ravan.ui.app_polling import AppPollingMixin
+from ravan.ui.app_voice import AppVoiceMixin
 from ravan.ui.key_handler import KeyHandlerMixin
 from ravan.ui.log_setup import setup_logging
 from ravan.ui.overlay import OverlayWindow
@@ -31,7 +35,16 @@ from ravan.ui.overlay import OverlayWindow
 log = logging.getLogger(__name__)
 
 
-class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixin):
+class RavanApp(
+    AppAccentMixin,
+    AppActionsMixin,
+    AppAIMixin,
+    AppAutofixMixin,
+    AppDialogsMixin,
+    AppPollingMixin,
+    AppVoiceMixin,
+    KeyHandlerMixin,
+):
     def __init__(self, cfg: Config | None = None, overlay: OverlayWindow | None = None) -> None:
         w.enable_dpi_awareness()
         self.cfg = cfg or load_config()
@@ -73,6 +86,10 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
         self._own_pid = os.getpid()
         self.is_paused = False
         self._pause_timer: threading.Timer | None = None
+        self._init_autofix()
+        self._init_accent()
+        self._init_ai()
+        self._init_voice()
 
     def start(self) -> None:
         t0 = time.perf_counter()
@@ -128,41 +145,6 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
         finally:
             self.stop()
 
-    def _drain_ui_actions(self) -> None:
-        while True:
-            try:
-                action, arg = self._ui_queue.get_nowait()
-            except queue.Empty:
-                break
-            if action == "quit":
-                self.stop()
-                break
-            elif action == "show_lang":
-                self._show_lang_indicator()
-            elif action == "settings":
-                self.open_settings()
-            elif action == "snippets":
-                self.open_snippet_editor()
-            elif action == "diagnostics":
-                self.open_diagnostics()
-            elif action == "set_prediction":
-                self.set_prediction_enabled(bool(arg))
-            elif action == "set_autocorrect":
-                self.set_autocorrect_enabled(bool(arg))
-            elif action == "set_auto_zwnj":
-                self.set_auto_zwnj_enabled(bool(arg))
-            elif action == "toggle_pause":
-                self.toggle_pause()
-            elif action == "quick_stats":
-                self._show_quick_text_stats()
-            elif action == "show_update":
-                self._show_update_dialog(arg)
-            elif action == "toggle_power_mode":
-                self.toggle_power_mode()
-            elif action == "start_macro_recording":
-                self.start_macro_recording()
-            elif action == "stop_macro_recording":
-                self.stop_macro_recording()
 
     def stop(self) -> None:
         if threading.current_thread() is not threading.main_thread():
@@ -196,49 +178,12 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
         self.snippets = SnippetEngine.from_config(cfg)
         if hasattr(self.overlay, "set_theme_mode"):
             self.overlay.set_theme_mode(cfg.theme_mode)
+        if hasattr(self, "autofix") and self.autofix is not None:
+            self.autofix.mode = getattr(cfg, "autofix_mode", "safe")
+            self.autofix.load_blacklist(getattr(cfg, "autofix_blacklist", []))
+            self.autofix.app_modes = dict(getattr(cfg, "autofix_app_modes", {}))
+        self._init_accent()
         log.info("Settings updated")
-
-    def set_prediction_enabled(self, enabled: bool) -> None:
-        self.cfg.prediction_enabled = enabled
-        save_config(self.cfg)
-        if not enabled:
-            self.overlay.hide()
-
-    def set_autocorrect_enabled(self, enabled: bool) -> None:
-        self.cfg.autocorrect_enabled = enabled
-        save_config(self.cfg)
-
-    def set_auto_zwnj_enabled(self, enabled: bool) -> None:
-        self.cfg.auto_zwnj = enabled
-        save_config(self.cfg)
-
-    def toggle_pause(self, minutes: int = 10) -> None:
-        self.is_paused = not getattr(self, "is_paused", False)
-        from ravan.core.i18n import t
-
-        if self.is_paused:
-            self.overlay.hide()
-            if self._pause_timer:
-                self._pause_timer.cancel()
-            self._pause_timer = threading.Timer(minutes * 60, self._auto_resume)
-            self._pause_timer.daemon = True
-            self._pause_timer.start()
-            if hasattr(self.tray, "set_paused"):
-                self.tray.set_paused(True, minutes)
-            msg = t("tray.paused_msg", "Ravaan paused for {min} minutes.", min=minutes)
-            self.tray.notify(msg, title="Ravaan")
-        else:
-            if self._pause_timer:
-                self._pause_timer.cancel()
-                self._pause_timer = None
-            if hasattr(self.tray, "set_paused"):
-                self.tray.set_paused(False)
-            msg = t("tray.resumed_msg", "Ravaan resumed.")
-            self.tray.notify(msg, title="Ravaan")
-
-    def _auto_resume(self) -> None:
-        if getattr(self, "is_paused", False):
-            self._ui_queue.put(("toggle_pause", None))
 
     def _undo_last_autocorrect(self) -> bool:
         if self._last_autocorrect is None:
@@ -270,26 +215,68 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
         self.tray.notify(msg)
         return True
 
+    def _erase_word_and_delimiter(self, word: str, delimiter: str = "") -> None:
+        del_len = len(word) + len(delimiter)
+        self._suppress_until = time.monotonic() + 0.1
+        replace_last_n_with(del_len, "")
+        for _ in range(del_len):
+            if self.journal._chars:
+                self.journal._chars.pop()
+
     def _on_word_completed(self, word: str, delimiter: str = "") -> bool:
-        if not word:
-            return False
-        if self._is_excluded():
+        if not word or self._is_excluded():
             return False
 
-        res = self.snippets.expand_with_cursor(word)
-        if res is not None:
-            expansion, cursor_offset = res
+        app_name = getattr(self, "_current_exe", "")
+        snip_match = self.snippets.find_matching_snippet(word, app_name)
+        if snip_match is not None:
+            snippet, repl_text = snip_match
+            if getattr(snippet, "is_image", False):
+                self._erase_word_and_delimiter(word, delimiter)
+                from ravan.platform.clipboard import set_clipboard_image
+
+                if set_clipboard_image(snippet.replacement):
+                    from ravan.platform.inject import send_ctrl_v
+
+                    send_ctrl_v()
+                return True
+
+            from ravan.core.snippet import (
+                extract_form_fields,
+                parse_cursor_placeholder,
+                render_template,
+            )
+
+            fields = extract_form_fields(repl_text)
+            if fields:
+                self._erase_word_and_delimiter(word, delimiter)
+                from ravan.ui.form_dialog import QuickFormDialog
+
+                def _on_form_submit(rendered_text: str) -> None:
+                    cl, off = parse_cursor_placeholder(rendered_text)
+                    self._suppress_until = time.monotonic() + 0.08
+                    replace_last_n_with(0, cl, cursor_offset=off)
+                    for c in cl:
+                        self.journal.push(c)
+
+                QuickFormDialog(
+                    parent=getattr(self.overlay, "_root", None),
+                    template=repl_text,
+                    fields=fields,
+                    on_submit=_on_form_submit,
+                    theme_mode=getattr(self.cfg, "theme_mode", "auto"),
+                ).show()
+                return True
+
+            expansion, cursor_offset = parse_cursor_placeholder(
+                render_template(repl_text)
+            )
             from ravan.core.macro import is_macro_snippet, parse_macro_snippet
 
             if is_macro_snippet(expansion):
                 macro_data = parse_macro_snippet(expansion)
                 if macro_data:
-                    del_len = len(word) + len(delimiter)
-                    self._suppress_until = time.monotonic() + 0.1
-                    replace_last_n_with(del_len, "")
-                    for _ in range(del_len):
-                        if self.journal._chars:
-                            self.journal._chars.pop()
+                    self._erase_word_and_delimiter(word, delimiter)
                     from ravan.core.macro import MacroPlayer
 
                     MacroPlayer.play(
@@ -304,27 +291,38 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
             )
             return True
 
-        if not self.cfg.autocorrect_enabled:
-            return False
+        res = self.snippets.expand_with_cursor(word, app_name=app_name)
+        if res is not None:
+            expansion, cursor_offset = res
+            self._replace_word(
+                word, expansion, delimiter=delimiter, cursor_offset=cursor_offset
+            )
+            return True
 
         lang_tag = self._active_layout_tag
         prev_context = (
             self.journal.previous_context(2)
             if hasattr(self.journal, "previous_context")
-            else (
-                self.journal.previous_word()
-                if hasattr(self.journal, "previous_word")
-                else None
-            )
+            else getattr(self.journal, "previous_word", lambda: None)()
         )
-        cand = self.predictor.correct(word, lang=lang_tag)
-        if cand is not None and cand.text != word:
-            log.info("Autocorrect %r → %r (lang: %s)", word, cand.text, lang_tag)
-            self._last_autocorrect = (word, cand.text, time.monotonic(), delimiter)
-            self._record_event(f"Autocorrect '{word}' -> '{cand.text}'", char=cand.text)
-            self._replace_word(word, cand.text, delimiter=delimiter)
-            self.predictor.record_selection(cand.text, context=prev_context)
+        if self.cfg.autocorrect_enabled:
+            cand = self.predictor.correct(word, lang=lang_tag)
+            if cand is not None and cand.text != word:
+                log.info("Autocorrect %r → %r (lang: %s)", word, cand.text, lang_tag)
+                self._last_autocorrect = (word, cand.text, time.monotonic(), delimiter)
+                self._record_event(f"Autocorrect '{word}' -> '{cand.text}'", char=cand.text)
+                self._replace_word(word, cand.text, delimiter=delimiter)
+                self.predictor.record_selection(cand.text, context=prev_context)
+                return True
+
+        if self._maybe_autofix_word(word, delimiter=delimiter):
             return True
+
+        if getattr(self.cfg, "translit_enabled", False):
+            if hasattr(self, "_maybe_translit_word") and self._maybe_translit_word(
+                word, delimiter=delimiter
+            ):
+                return True
 
         if word:
             self.predictor.record_selection(word, context=prev_context)
@@ -337,33 +335,25 @@ class RavanApp(AppActionsMixin, AppDialogsMixin, AppPollingMixin, KeyHandlerMixi
         prev_context = (
             self.journal.previous_context(2)
             if hasattr(self.journal, "previous_context")
-            else (
-                self.journal.previous_word()
-                if hasattr(self.journal, "previous_word")
-                else None
-            )
+            else getattr(self.journal, "previous_word", lambda: None)()
         )
         log.info("Accepted suggestion: %r → %r (kind=%s)", word, cand.text, cand.kind)
         self._record_event(f"Accepted candidate '{cand.text}'", char=cand.text)
         app_name = getattr(self, "_current_exe", None)
         self.predictor.record_selection(cand.text, context=prev_context, app_name=app_name)
 
-        if cand.kind == CandidateKind.SENTENCE:
-            del_len = cand.replace_len if cand.replace_len is not None else len(word)
+        if cand.kind in (CandidateKind.SENTENCE, CandidateKind.NEXT_WORD) or not word:
+            del_len = (
+                (cand.replace_len if cand.replace_len is not None else len(word))
+                if cand.kind == CandidateKind.SENTENCE
+                else 0
+            )
             self._suppress_until = time.monotonic() + 0.08
             replace_text = cand.text + " "
             replace_last_n_with(del_len, replace_text)
             for _ in range(del_len):
                 if self.journal._chars:
                     self.journal._chars.pop()
-            for ch in replace_text:
-                self.journal.push(ch)
-            self.overlay.hide()
-            set_popup_visible(False)
-        elif cand.kind == CandidateKind.NEXT_WORD or not word:
-            self._suppress_until = time.monotonic() + 0.08
-            replace_text = cand.text + " "
-            replace_last_n_with(0, replace_text)
             for ch in replace_text:
                 self.journal.push(ch)
             self.overlay.hide()

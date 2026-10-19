@@ -49,9 +49,17 @@ def make_local_backup(
 
         cfg = load_config()
         snips_to_save = [
-            {"trigger": s.trigger, "replacement": s.replacement, "enabled": s.enabled}
+            {
+                "trigger": s.trigger,
+                "replacement": s.replacement,
+                "enabled": s.enabled,
+                "is_regex": getattr(s, "is_regex", False),
+                "app_filter": getattr(s, "app_filter", ""),
+                "is_image": getattr(s, "is_image", False),
+            }
             for s in cfg.snippets
         ]
+
 
     data = {
         "timestamp": datetime.now().isoformat(),
@@ -102,10 +110,14 @@ def restore_backup(
                 trigger=str(s.get("trigger", "")),
                 replacement=str(s.get("replacement", "")),
                 enabled=bool(s.get("enabled", True)),
+                is_regex=bool(s.get("is_regex", False)),
+                app_filter=str(s.get("app_filter", "")),
+                is_image=bool(s.get("is_image", False)),
             )
             for s in snips
             if isinstance(s, dict) and s.get("trigger")
         ]
+
         save_config(cfg)
         return words, snips
     except Exception as exc:  # noqa: BLE001

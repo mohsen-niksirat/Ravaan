@@ -11,69 +11,15 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ravan.core.config_migration import migrate_config_dict
+from ravan.core.config_types import (
+    DEFAULT_EXCLUDED_APPS,
+    HotkeySpec,
+    Snippet,
+    Theme,
+)
+
 log = logging.getLogger(__name__)
-
-DEFAULT_EXCLUDED_APPS = [
-    "explorer.exe", "1password.exe", "bitwarden.exe", "keepass.exe", "keepassxc.exe",
-    "dashlane.exe", "lockapp.exe", "logonui.exe", "credentialuibroker.exe",
-]
-
-
-@dataclass
-class HotkeySpec:
-    key: str
-    modifiers: list[str] = field(default_factory=list)
-
-
-@dataclass
-class Snippet:
-    trigger: str
-    replacement: str
-    enabled: bool = True
-
-
-
-@dataclass
-class Theme:
-    name: str = "dark"
-    background_color: list[int] = field(default_factory=lambda: [30, 30, 30, 230])
-    text_color: list[int] = field(default_factory=lambda: [240, 240, 240, 255])
-    highlight_color: list[int] = field(default_factory=lambda: [70, 130, 180, 255])
-    font_size: float = 14.0
-    corner_radius: float = 6.0
-
-    @classmethod
-    def dark(cls) -> Theme:
-        return cls(
-            name="dark",
-            background_color=[32, 33, 36, 235],
-            text_color=[241, 243, 244, 255],
-            highlight_color=[66, 133, 244, 255],
-            font_size=14.0,
-            corner_radius=8.0,
-        )
-
-    @classmethod
-    def light(cls) -> Theme:
-        return cls(
-            name="light",
-            background_color=[255, 255, 255, 240],
-            text_color=[32, 33, 36, 255],
-            highlight_color=[26, 115, 232, 255],
-            font_size=14.0,
-            corner_radius=8.0,
-        )
-
-    @classmethod
-    def high_contrast(cls) -> Theme:
-        return cls(
-            name="high_contrast",
-            background_color=[0, 0, 0, 255],
-            text_color=[255, 255, 255, 255],
-            highlight_color=[255, 255, 0, 255],
-            font_size=15.0,
-            corner_radius=4.0,
-        )
 
 
 @dataclass
@@ -127,7 +73,35 @@ class Config:
     clip_history_retention_days: int = 7
     popup_offset_x: int = 0
     popup_offset_y: int = 0
+    autofix_mode: str = "safe"  # "off" | "safe" | "aggressive"
+    autofix_app_modes: dict[str, str] = field(default_factory=dict)
+    autofix_blacklist: list[list[str]] = field(default_factory=list)
+    global_undo_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Pause", ["Ctrl", "Shift"]))
+    auto_layout_switch: bool = False
+    auto_layout_mode: str = "fix_only"  # "fix_only" | "switch_only" | "fix_and_switch"
+    translit_enabled: bool = False
+    translit_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("T", ["Ctrl", "Alt"]))
+    suggestion_accept_arrow: str = "right"  # "right" | "left" | "none"
+    continuation_suggestions_enabled: bool = True
+    quick_accent_enabled: bool = False
+    quick_accent_hold_ms: int = 300
+    ai_assistant_enabled: bool = False
+    ai_assistant_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("G", ["Ctrl", "Shift"]))
+    ai_provider: str = "ollama"
+    ai_endpoint_url: str = "http://localhost:11434"
+    ai_api_key: str = ""
+    ai_model: str = ""
+    ai_replace_selection: bool = False
+    voice_dictation_enabled: bool = False
+    voice_dictation_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("V", ["Ctrl", "Alt"]))
 
+    @property
+    def auto_zwnj(self) -> bool:
+        return self.auto_zwnj_enabled
+
+    @auto_zwnj.setter
+    def auto_zwnj(self, val: bool) -> None:
+        self.auto_zwnj_enabled = bool(val)
 
     def is_excluded(
         self,
@@ -171,7 +145,8 @@ def is_app_excluded(
 
 
 def config_dir() -> Path:
-    appdata = Path.home() / "AppData" / "Roaming"
+    env_appdata = os.environ.get("APPDATA")
+    appdata = Path(env_appdata) if env_appdata else Path.home() / "AppData" / "Roaming"
     return appdata / "Ravan"
 
 
@@ -221,12 +196,20 @@ def _hotkey_from_dict(data: Any, default: HotkeySpec) -> HotkeySpec:
 def _theme_from_dict(data: Any) -> Theme:
     if not isinstance(data, dict):
         return Theme()
+    try:
+        font_size = max(6.0, min(float(data.get("font_size", 14.0)), 72.0))
+    except (TypeError, ValueError):
+        font_size = 14.0
+    try:
+        corner_radius = max(0.0, min(float(data.get("corner_radius", 6.0)), 32.0))
+    except (TypeError, ValueError):
+        corner_radius = 6.0
     return Theme(
         background_color=list(data.get("background_color", [30, 30, 30, 230])),
         text_color=list(data.get("text_color", [240, 240, 240, 255])),
         highlight_color=list(data.get("highlight_color", [70, 130, 180, 255])),
-        font_size=max(6.0, min(float(data.get("font_size", 14.0)), 72.0)),
-        corner_radius=max(0.0, min(float(data.get("corner_radius", 6.0)), 32.0)),
+        font_size=font_size,
+        corner_radius=corner_radius,
     )
 
 
@@ -237,25 +220,6 @@ def _bounded_int(data: dict[str, Any], key: str, default: int, low: int, high: i
         return default
 
 
-def migrate_config_dict(data: dict[str, Any]) -> dict[str, Any]:
-    """Perform schema version migration on config dictionary."""
-    ver = int(data.get("schema_version", 1))
-    if ver < 2:
-        data.setdefault("sync_backend", "gist")
-        data.setdefault("webdav_url", "")
-        data.setdefault("webdav_username", "")
-        data.setdefault("webdav_password", "")
-        data.setdefault("sync_interval_min", 0)
-    if ver < 3:
-        data["schema_version"] = 3
-        data.setdefault("sync_learning_profile", False)
-        data.setdefault("theme_mode", "auto")
-        data.setdefault("has_seen_onboarding", False)
-        data.setdefault("popup_offset_x", 0)
-        data.setdefault("popup_offset_y", 0)
-    return data
-
-
 def config_from_dict(raw_data: dict[str, Any]) -> Config:
     data = migrate_config_dict(dict(raw_data))
     snippets = [
@@ -263,6 +227,9 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
             trigger=str(s["trigger"]),
             replacement=str(s["replacement"]),
             enabled=bool(s.get("enabled", True)),
+            is_regex=bool(s.get("is_regex", False)),
+            app_filter=str(s.get("app_filter", "")),
+            is_image=bool(s.get("is_image", False)),
         )
         for s in data.get("snippets", [])
         if isinstance(s, dict) and s.get("trigger") and "replacement" in s
@@ -275,7 +242,8 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
 
     gist_tok, g_mig = unprotect_secret(str(data.get("gist_token", "")))
     webdav_pwd, w_mig = unprotect_secret(str(data.get("webdav_password", "")))
-    if g_mig or w_mig:
+    ai_key, a_mig = unprotect_secret(str(data.get("ai_api_key", "")))
+    if g_mig or w_mig or a_mig:
         log.info("Migrated plaintext sync credentials to DPAPI encryption.")
 
     return Config(
@@ -315,7 +283,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         gist_id=str(data.get("gist_id", "")),
         last_sync_time=str(data.get("last_sync_time", "")),
         ui_language=str(data.get("ui_language", "auto")),
-        schema_version=int(data.get("schema_version", 3)),
+        schema_version=_bounded_int(data, "schema_version", 3, 1, 100),
         sync_learning_profile=bool(data.get("sync_learning_profile", False)),
         sync_backend=str(data.get("sync_backend", "gist")),
         webdav_url=str(data.get("webdav_url", "")),
@@ -328,6 +296,27 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         clip_history_retention_days=_bounded_int(data, "clip_history_retention_days", 7, 1, 365),
         popup_offset_x=_bounded_int(data, "popup_offset_x", 0, -2000, 2000),
         popup_offset_y=_bounded_int(data, "popup_offset_y", 0, -2000, 2000),
+        autofix_mode=str(data.get("autofix_mode", "safe")).lower(),
+        autofix_app_modes=dict(data.get("autofix_app_modes", {})),
+        autofix_blacklist=list(data.get("autofix_blacklist", [])),
+        global_undo_hotkey=_hotkey_from_dict(data.get("global_undo_hotkey"), HotkeySpec("Pause", ["Ctrl", "Shift"])),
+        auto_layout_switch=bool(data.get("auto_layout_switch", False)),
+        auto_layout_mode=str(data.get("auto_layout_mode", "fix_only")),
+        translit_enabled=bool(data.get("translit_enabled", False)),
+        translit_hotkey=_hotkey_from_dict(data.get("translit_hotkey"), HotkeySpec("T", ["Ctrl", "Alt"])),
+        suggestion_accept_arrow=str(data.get("suggestion_accept_arrow", "right")),
+        continuation_suggestions_enabled=bool(data.get("continuation_suggestions_enabled", True)),
+        quick_accent_enabled=bool(data.get("quick_accent_enabled", False)),
+        quick_accent_hold_ms=_bounded_int(data, "quick_accent_hold_ms", 300, 100, 2000),
+        ai_assistant_enabled=bool(data.get("ai_assistant_enabled", False)),
+        ai_assistant_hotkey=_hotkey_from_dict(data.get("ai_assistant_hotkey"), HotkeySpec("G", ["Ctrl", "Shift"])),
+        ai_provider=str(data.get("ai_provider", "ollama")),
+        ai_endpoint_url=str(data.get("ai_endpoint_url", "http://localhost:11434")),
+        ai_api_key=ai_key,
+        ai_model=str(data.get("ai_model", "")),
+        ai_replace_selection=bool(data.get("ai_replace_selection", False)),
+        voice_dictation_enabled=bool(data.get("voice_dictation_enabled", False)),
+        voice_dictation_hotkey=_hotkey_from_dict(data.get("voice_dictation_hotkey"), HotkeySpec("V", ["Ctrl", "Alt"])),
     )
 
 
@@ -339,6 +328,8 @@ def config_to_dict(cfg: Config) -> dict[str, Any]:
         d["gist_token"] = protect_secret(d["gist_token"])
     if d.get("webdav_password"):
         d["webdav_password"] = protect_secret(d["webdav_password"])
+    if d.get("ai_api_key"):
+        d["ai_api_key"] = protect_secret(d["ai_api_key"])
     return d
 
 
@@ -379,6 +370,7 @@ def save_config(cfg: Config) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     # Replace atomically so an interruption cannot leave invalid JSON behind.
     fd, temporary = tempfile.mkstemp(prefix="config.", suffix=".tmp", dir=path.parent)
+    replaced = False
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(config_to_dict(cfg), handle, ensure_ascii=False, indent=2)
@@ -386,8 +378,11 @@ def save_config(cfg: Config) -> None:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
+        replaced = True
     finally:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
+        if not replaced:
+            try:
+                os.unlink(temporary)
+            except OSError:
+                pass
+

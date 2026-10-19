@@ -142,6 +142,7 @@ class WebDAVClient:
                     raw = json.loads(resp.read().decode("utf-8"))
                     snippets = [
                         {
+                            **s,
                             "trigger": str(s.get("trigger", "")).strip(),
                             "replacement": str(s.get("replacement", "")),
                             "enabled": bool(s.get("enabled", True)),

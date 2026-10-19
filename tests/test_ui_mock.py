@@ -70,9 +70,14 @@ def test_snippet_editor_save_dispatches_callback():
 def test_settings_window_build_and_state():
     import tkinter as tk
 
+    import pytest
+
     cfg = Config()
     saved = []
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
     root.withdraw()
     try:
         sw = SettingsWindow(cfg, on_saved=lambda c: saved.append(c))

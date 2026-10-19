@@ -1,11 +1,11 @@
-# Ravaan (روان) — v1.0.0
+# Ravaan (روان) — v2.0.0
 
 > **The lightweight, privacy-first, bilingual Persian/English typing copilot for Windows.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d4.svg)](https://microsoft.com/windows)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg)](https://python.org)
-[![Version: 1.0.0](https://img.shields.io/badge/Release-v1.0.0%20Stable-success.svg)](https://github.com/mohsen-niksirat/Ravaan/releases/tag/v1.0.0)
+[![Version: 2.0.0](https://img.shields.io/badge/Release-v2.0.0%20Stable-success.svg)](https://github.com/mohsen-niksirat/Ravaan/releases/tag/v2.0.0)
 
 Ravaan helps typists with keyboard-language awareness, wrong-layout conversion (F12), real-time word/sentence prediction, intelligent half-spaces (ZWNJ), text snippets, math evaluation, and clipboard history — seamlessly in any Windows app.
 
@@ -15,12 +15,12 @@ Ravaan helps typists with keyboard-language awareness, wrong-layout conversion (
 
 ## Installation
 
-### 1. Windows Installer (`Ravaan-Setup-1.0.0.exe`) — Recommended
+### 1. Windows Installer (`Ravaan-Setup-2.0.0.exe`) — Recommended
 - **Non-admin per-user installation**: installs cleanly into `%LOCALAPPDATA%\Programs\Ravaan` without requiring UAC administrator prompts.
 - **System integration**: creates Start Menu shortcuts, optional launch at startup, and registers `ravan://` deep links.
 - **Safe uninstaller**: cleanly uninstalls while preserving your custom vocabulary and settings in `%APPDATA%\Ravan\`.
 
-### 2. Portable Package (`Ravaan-1.0.0-portable.zip`)
+### 2. Portable Package (`Ravaan-2.0.0-portable.zip`)
 - **Zero-installation portable build**: includes standalone `Ravaan.exe` and documentation.
 - Simply extract to any folder or USB drive and run.
 
@@ -71,6 +71,15 @@ python -m ravan
 | M31 | Windows QA Matrix, Selftest Diagnostic, Soak Test Harness | `python -m ravan.cli selftest` |
 | M32 | UX Polish (Design Tokens, Wizard, Tray Toggles, Confidence Meter) | First Launch / Tray |
 | M33 | Data Manifest, Privacy Architecture & Migration Engine | [DATA.md](DATA.md) |
+| M34 | Automatic Wrong-Layout Correction (Punto/Caramba parity) | Automatic on space/punct |
+| M35 | Undo & Confidence Toast UX (50-step undo stack, auto-blacklist) | `Backspace` or `Ctrl+Z` / `Ctrl+Shift+Z` |
+| M36 | Auto Layout Switch on Detection (Active layout switching) | Automatic |
+| M37 | Transliteration Mode (Finglish → Persian typing) | `Alt+Shift+F` or `Alt+T` |
+| M38 | Live Suggestions Upgrade (Right Arrow accept, continuations) | `→` / `Shift+Enter` |
+| M39 | Snippets 3.0 (Regex triggers, interactive forms, images, app filter) | snippet triggers / `pack` CLI |
+| M40 | Quick Accent / Persian Letter Picker (Diacritics & ZWNJ) | Hold key (300ms) or `Ctrl+Space` |
+| M41 | AI Text Assistant (Rewrite, Grammar & ZWNJ, Translate, Summarize) | `Ctrl+Shift+G` |
+| M42 | Voice Dictation (Push-to-Talk Speech-to-Text with local Whisper) | `Ctrl+Alt+V` |
 
 ### Convert Selection or Last Word (`F12`)
 
@@ -223,6 +232,78 @@ python -m ravan
 - **Pick Window (3s countdown)**: In Settings → Excluded Apps, click **Pick Window…** and switch to any target application window. Ravaan captures its `.exe` process name or window class (`class:<name>`) automatically.
 - **Elevation Status Warning**: Real-time detection warns you if foreground apps run with Administrator privileges while Ravaan runs standard user, preventing unexpected hook deadlocks.
 
+### Automatic Wrong-Layout Correction & Toast Undo (M34, M35, M36)
+
+- **Zero-Key Correction**: Types `o,vn` while your keyboard is accidentally set to English? When you press Space or punctuation, Ravaan immediately detects that `o,vn` is invalid English but maps to valid Persian `خورد`, deletes the mistyped letters, and injects `خورد ` automatically.
+- **Active Layout Switching**: Upon detecting wrong layout, Ravaan seamlessly switches your active Windows keyboard layout via `WM_INPUTLANGCHANGEREQUEST` so you can keep typing without manual layout toggling.
+- **Toast Notification & Instant Undo**: Displays a non-intrusive floating toast near the caret (`خورد ← o,vn [Undo]`).
+  - Press `Backspace`, `Ctrl+Z`, or `Ctrl+Shift+Z` (or click Undo on the toast) to instantly revert the text and restore the previous layout.
+  - Undoing the same correction 3 times automatically adds the word to an ignore list to prevent false positives.
+- **Safe Mode**: Suppressed automatically inside password fields, numeric inputs, terminals, and IME composition.
+
+### Transliteration Mode (Finglish → Persian) (M37)
+
+- Type Persian using English Latin letters (e.g., `salam` → `سلام`, `khob` → `خوب`, `dastet dard nakone` → `دستت درد نکنه`).
+- Toggle on/off via `Alt+Shift+F` or `Alt+T`, or via System Tray → **Transliteration (Finglish)**.
+- Language badge displays `FA-TL` near your caret when active.
+- Powered by a comprehensive 9,700+ entry mapping table with dynamic prefix/suffix resolution and auto-ZWNJ.
+
+### Live Suggestions 2.0 (M38)
+
+- **Right Arrow Fast Acceptance**: Accept the top highlighted suggestion simply by pressing the `→` Right Arrow key (or `←` Left Arrow in RTL).
+- **Sentence & Multi-Word Continuations**: Suggestion cards display next-word bigram and trigram predictions with dimmed secondary text styling (`p.subtext`).
+- **Shift+Enter Full Sentence Acceptance**: Press `Shift+Enter` to insert the entire continuation phrase in a single stroke.
+- **Multi-Monitor Work-Area Clamping**: Automatically detects display boundaries, taskbars, and DPI scaling across multiple monitors, ensuring popups never clip off-screen.
+
+### Snippets 3.0: Forms, Images, Regex & App Filters (M39)
+
+- **Regex Triggers**: Define dynamic regex expansion triggers with prefix `re:`, such as `re:issue-(\d+)` expanding to `https://github.com/org/repo/issues/$1`. Includes ReDoS protection with a 5ms timeout guard.
+- **Form Placeholders**: Interactive templates with variables:
+  - Text inputs: `{{name:Mohsen}}`
+  - Dropdown choices: `{{priority:Low|Medium|High}}`
+  - Dynamic macros: `{{date}}`, `{{time}}`, `{{clipboard}}`
+  - Triggers a sleek non-activating form dialog (`QuickFormDialog`) to fill fields before insertion.
+- **Image Snippets**: Paste visual assets (signatures, diagrams, logos) via native Win32 `CF_DIB` clipboard injection (`"image_path": "path/to/img.png"`).
+- **Per-App Filtering**: Restrict snippet triggers to specific applications (`"app_filter": ["code.exe", "slack.exe"]`).
+- **CLI Package Management**: Export and import shareable snippet packs:
+  ```bash
+  python -m ravan.cli pack export my_pack.ravanpack --snippets
+  python -m ravan.cli pack import my_pack.ravanpack --merge
+  ```
+
+### Quick Accent & Persian Letter Picker (M40)
+
+- Long-press any key for 300ms (or press `Ctrl+Space`) to summon a horizontal accent bar directly above the caret:
+  - Hold `h` / `ه` → `[1: ه] [2: ة] [3: ھ]`
+  - Hold `y` / `ی` → `[1: ی] [2: ي] [3: ئ]`
+  - Hold `k` / `ک` → `[1: ک] [2: ك]`
+  - Hold `a` / `ا` → `[1: ا] [2: آ] [3: أ] [4: إ] [5: ء]`
+  - Hold `v` / `و` → `[1: و] [2: ؤ]`
+  - Hold `Space` → `[1: ‌ (ZWNJ)] [2: Space]`
+- Press numbers `1`–`9` or use `←` / `→` arrow keys + `Enter` to select. Press `Esc` to dismiss.
+- Automatically suppressed inside fullscreen games and video players.
+
+### AI Text Assistant (M41)
+
+- Select any text in any Windows app and press `Ctrl+Shift+G` to open the floating AI Assistant card.
+- **Quick Actions**:
+  - **Rewrite / Polish**: Enhance tone, flow, and clarity.
+  - **Fix Grammar & ZWNJ**: Correct Persian half-spaces, punctuation, and typos.
+  - **Translate**: Seamless Persian ↔ English translation.
+  - **Summarize**: Condense lengthy paragraphs into key bullet points.
+  - **Custom Prompt**: Type custom instructions directly.
+- **Supported Providers**:
+  - Local LLMs via **Ollama** (`http://127.0.0.1:11434`, e.g. `llama3`, `mistral`, `gemma`) for 100% offline privacy.
+  - OpenAI-compatible cloud endpoints (API key encrypted securely using Windows DPAPI).
+- **Zero-Log Privacy**: Prompts and completions are processed strictly in volatile memory and never persisted to disk.
+
+### Voice Dictation (Push-to-Talk) (M42)
+
+- Hold or tap `Ctrl+Alt+V` to dictate text with your voice.
+- Automatically detects local speech-to-text engines (`faster-whisper`, `whisper`, `vosk`) for high-speed, offline dictation.
+- Audio is processed strictly in-memory (RAM buffer) with zero disk footprint.
+- Recognized speech passes through Ravaan's Persian normalizer and automatic ZWNJ pipeline before being typed into the active application.
+
 ### Update Checker & Versioning
 
 - Check for the latest releases directly from GitHub:
@@ -288,12 +369,13 @@ Config: `%APPDATA%\Ravan\config.json`
 ## CLI diagnostics & flags
 
 ```bash
-python -m ravan --version              # display current version (v0.5.0)
+python -m ravan --version              # display current version (v2.0.0)
 python -m ravan --check-updates        # check GitHub for new releases
 python -m ravan.cli lang                # current keyboard language
 python -m ravan.cli caret               # caret / cursor position
 python -m ravan.cli convert hjvfd       # convert a word EN↔FA layout
-python -m ravan.cli convert "o,vn"
+python -m ravan.cli autofix "o,vn"      # evaluate wrong-layout auto-fix detection
+python -m ravan.cli translit "salam"    # transliterate Finglish to Persian
 python -m ravan.cli predict pro         # show prediction candidates
 python -m ravan.cli inject "hello روان" # inject text into the focused field (diagnostic)
 python -m ravan.cli hook -t 5           # print raw captured hook events
@@ -304,6 +386,8 @@ python -m ravan.cli words 1250000 --sep    # format with thousands separators
 python -m ravan.cli jalali              # print current Jalali (Shamsi) date & time
 python -m ravan.cli norm "متن عربي"     # normalize Persian text, ZWNJ, and punctuation
 python -m ravan.cli num "09123456789"   # toggle digits Persian ↔ English
+python -m ravan.cli pack export pack.zip --snippets  # export shareable snippet pack
+python -m ravan.cli pack import pack.zip --merge     # import snippet pack
 python -m ravan.cli dict list           # list user custom words
 python -m ravan.cli dict add "fastapi"  # add custom word to prediction engine
 python -m ravan.cli dict remove "word"  # remove custom word
@@ -404,6 +488,15 @@ ravan/
 - اصلاح خودکار امن و کلمات اختصاری (Snippets) شخصی‌سازی‌شده
 - نرمال‌سازی حروف عربی/فارسی و تبدیل اعداد فارسی و انگلیسی (ابزار CLI)
 - پنجره تنظیمات تب‌بندی شده مدرن، ضبط کلیدهای میانبر، منوی Tray، اجرای خودکار با ویندوز و مدیریت برنامه‌های مستثنی
+- **اصلاح خودکار چیدمان اشتباه (Auto-Fix)**: تبدیل هوشمند کلمات تایپ‌شده با زبان اشتباه (مانند `o,vn` → `خورد`) هنگام فشردن فاصله یا علائم، بدون نیاز به فشردن کلید تبدیل
+- **تغییر خودکار چیدمان کیبورد ویندوز (Auto Layout Switch)**: تغییر خودکار زبان فعال سیستم پس از اصلاح برای ادامه تایپ روان
+- **اعلان Toast و بازگردانی فوری (Undo)**: امکان بازگردانی سریع کلمه و چیدمان قبلی با `Backspace`، `Ctrl+Z` یا کلیک روی Toast، همراه با بلک‌لیست خودکار در صورت ۳ بار Undo متوالی
+- **حالت فینگلیش به فارسی (Transliteration)**: تایپ روان کلمات فارسی با حروف لاتین (`salam` → `سلام`) با میانبر `Alt+Shift+F` و نشانگر FA-TL
+- **پیشنهادهای زنده نسخه ۲.۰**: پذیرش فوری پیشنهاد نخست با کلید جهت‌نمای راست (`→`)، پیشنهاد عبارات و ادامهٔ جملات چندکلمه‌ای با `Shift+Enter` و جای‌گیری بدون نقص در سیستم‌های چند مانیتوره
+- **اسنیپت‌های پیشرفته نسخه ۳.۰**: متغیرهای تعاملی فرم (`{{name:default}}`)، گزینه‌های انتخابی، الصاق تصویر (`CF_DIB`)، تریگرهای Regex با ضد ReDoS، فیلتر برنامه‌ها و بسته‌های دانلودی (`pack`)
+- **انتخابگر سریع نشانه‌ها و حروف فارسی (Quick Accent)**: پاپ‌آپ افقی انتخاب تنوین، همزه، ه/ة/ھ، ی/ي/ئ، ک/ك و نیم‌فاصله با نگه‌داشتن کلید برای ۳۰۰ میلی‌ثانیه
+- **دستیار متنی هوش مصنوعی (AI Text Assistant)**: فراخوانی با `Ctrl+Shift+G` برای بازنویسی، تصحیح گرامر و نیم‌فاصله، ترجمه دوطرفه و خلاصه‌سازی متون با مدل‌های محلی Ollama یا API ابری بدون ذخیره‌سازی روی دیسک
+- **تایپ صوتی فشاری (Voice Dictation)**: تبدیل گفتار به متن فارسی بدون ذخیره صدا روی دیسک (Push-to-Talk با `Ctrl+Alt+V`) با پشتیبانی از Whisper محلی و اعمال خودکار نیم‌فاصله و نرمال‌سازی فارسی
 
 ### راهنمای نصب و به‌روزرسانی (فارسی)
 

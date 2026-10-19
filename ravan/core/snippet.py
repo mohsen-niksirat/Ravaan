@@ -3,82 +3,141 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
+import time
 import uuid
 from collections.abc import Callable
-from datetime import date, datetime, timedelta
+from dataclasses import dataclass, field
+from datetime import date
 
 from .config import Config, Snippet
 from .jalali import JalaliDate, current_time_str
-from .normalizer import en_to_fa_digits
+from .snippet_macros import BUILTIN_PLACEHOLDERS, fetch_clipboard, get_macro_values
+
+_fetch_clipboard = fetch_clipboard
+
+log = logging.getLogger(__name__)
 
 
-def get_macro_values() -> dict[str, str]:
-    """Calculate current values for template placeholders."""
-    j = JalaliDate.today()
-    today_g = date.today()
-    yesterday_j = JalaliDate.from_gregorian(today_g - timedelta(days=1))
-    tomorrow_j = JalaliDate.from_gregorian(today_g + timedelta(days=1))
-    now = datetime.now()
-
-    return {
-        # Jalali dates
-        "today": j.isoformat_fa(),
-        "shamsi": j.isoformat_fa(),
-        "shamsi_en": j.isoformat(),
-        "tarikh": j.format_persian(include_weekday=False),
-        "tarikh_fa": j.format_persian(include_weekday=False),
-        "tarikh_full": j.format_persian(include_weekday=True),
-        "yesterday": yesterday_j.isoformat_fa(),
-        "yesterday_en": yesterday_j.isoformat(),
-        "dirooz": yesterday_j.isoformat_fa(),
-        "دیروز": yesterday_j.isoformat_fa(),
-        "tomorrow": tomorrow_j.isoformat_fa(),
-        "tomorrow_en": tomorrow_j.isoformat(),
-        "farda": tomorrow_j.isoformat_fa(),
-        "فردا": tomorrow_j.isoformat_fa(),
-        # Date components
-        "year": str(j.year),
-        "year_fa": en_to_fa_digits(str(j.year)),
-        "saal": str(j.year),
-        "سال": en_to_fa_digits(str(j.year)),
-        "month": j.month_name,
-        "mah": j.month_name,
-        "ماه": j.month_name,
-        "month_num": f"{j.month:02d}",
-        "month_num_fa": en_to_fa_digits(f"{j.month:02d}"),
-        "day": str(j.day),
-        "day_fa": en_to_fa_digits(str(j.day)),
-        "rooz": str(j.day),
-        "روز": en_to_fa_digits(str(j.day)),
-        "weekday": j.weekday_name(),
-        "hafteh": j.weekday_name(),
-        "روز_هفته": j.weekday_name(),
-        # Gregorian dates
-        "date": today_g.isoformat(),
-        "date_en": today_g.isoformat(),
-        "gregorian": today_g.isoformat(),
-        "gregorian_year": str(today_g.year),
-        # Times
-        "time": current_time_str(persian_digits=False),
-        "time_fa": current_time_str(persian_digits=True),
-        "time_sec": now.strftime("%H:%M:%S"),
-        "time_sec_fa": en_to_fa_digits(now.strftime("%H:%M:%S")),
-        "timestamp": str(int(now.timestamp())),
-        # Identifiers
-        "uuid": str(uuid.uuid4()),
-        "guid": str(uuid.uuid4()),
-    }
+@dataclass
+class FormField:
+    name: str
+    label: str
+    default: str = ""
+    choices: list[str] = field(default_factory=list)
+    field_type: str = "text"  # "text" | "choice" | "date"
 
 
-def _fetch_clipboard() -> str:
-    """Safely obtain current clipboard text without hard-failing on non-Windows platforms."""
+def safe_regex_match(
+    pattern: str, text: str, max_len: int = 100, timeout_sec: float = 0.005
+) -> re.Match[str] | None:
+    """Evaluate regex match with input length bound and timeout to prevent ReDoS."""
+    if len(text) > max_len:
+        return None
     try:
-        from ravan.platform.clipboard import get_clipboard_text
+        regex = re.compile(pattern)
+        t0 = time.perf_counter()
+        m = regex.fullmatch(text)
+        if (time.perf_counter() - t0) > timeout_sec:
+            log.warning("Regex evaluation exceeded timeout (%s)", pattern)
+            return None
+        return m
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Regex match failed for %r: %s", pattern, exc)
+        return None
 
-        return get_clipboard_text() or ""
-    except Exception:
-        return ""
+
+def expand_capture_groups(template: str, match: re.Match[str]) -> str:
+    """Expand $1, $2, etc., using capture groups from regex match."""
+    res = template
+    for i in range(1, len(match.groups()) + 1):
+        val = match.group(i) or ""
+        res = res.replace(f"${i}", val).replace(f"\\{i}", val)
+    return res
+
+
+def extract_form_fields(template: str) -> list[FormField]:
+    """Extract interactive user form fields from template."""
+    fields: list[FormField] = []
+    seen: set[str] = set()
+
+    for m in re.finditer(r"\{\{\s*([^}]+)\s*\}\}", template):
+        content = m.group(1).strip()
+        low = content.lower()
+        if (
+            low in BUILTIN_PLACEHOLDERS
+            or low.startswith("calc:")
+            or low.startswith("math:")
+            or low.startswith("eval:")
+        ):
+            continue
+
+        if content.lower().startswith("choice:"):
+            raw_choices = content[7:].strip()
+            opts = [o.strip() for o in raw_choices.split("|") if o.strip()]
+            name = f"choice_{len(fields) + 1}"
+            fields.append(
+                FormField(
+                    name=name,
+                    label="Select Option",
+                    default=opts[0] if opts else "",
+                    choices=opts,
+                    field_type="choice",
+                )
+            )
+        elif content.lower().startswith("date:"):
+            fmt = content[5:].strip()
+            name = f"date_{len(fields) + 1}"
+            fields.append(
+                FormField(
+                    name=name,
+                    label=f"Date ({fmt})",
+                    default=JalaliDate.today().isoformat_fa(),
+                    field_type="date",
+                )
+            )
+        else:
+            if ":" in content:
+                key, default = content.split(":", 1)
+                key, default = key.strip(), default.strip()
+            else:
+                key, default = content, ""
+            if key not in seen:
+                seen.add(key)
+                fields.append(
+                    FormField(
+                        name=key,
+                        label=key.replace("_", " ").title(),
+                        default=default,
+                        field_type="text",
+                    )
+                )
+    return fields
+
+
+def render_form_template(template: str, values: dict[str, str]) -> str:
+    """Substitute user form field inputs into template."""
+    choice_idx = 1
+    date_idx = 1
+
+    def _sub(m: re.Match[str]) -> str:
+        nonlocal choice_idx, date_idx
+        content = m.group(1).strip()
+        if content.lower().startswith("choice:"):
+            key = f"choice_{choice_idx}"
+            choice_idx += 1
+            return values.get(key, values.get(content, ""))
+        if content.lower().startswith("date:"):
+            key = f"date_{date_idx}"
+            date_idx += 1
+            return values.get(key, values.get(content, ""))
+        key = content.split(":", 1)[0].strip()
+        return values.get(key, m.group(0))
+
+    rendered = re.sub(r"\{\{\s*([^}]+)\s*\}\}", _sub, template)
+    return render_template(rendered)
 
 
 def render_template(template: str) -> str:
@@ -97,19 +156,17 @@ def render_template(template: str) -> str:
         clip_val = _fetch_clipboard()
         template = re.sub(
             r"\{\{\s*(?:clipboard|clip)\s*\}\}",
-            clip_val,
+            lambda _: clip_val,  # lambda prevents backref interpretation of clipboard content
             template,
             flags=re.IGNORECASE,
         )
 
-    # First evaluate math/calc expressions: {{calc: 100 * 1.09}} or {{math: 50 + 2}}
     rendered = re.sub(
         r"\{\{\s*(?:math|calc|eval)\s*:\s*([^}]+)\s*\}\}",
         _eval_math,
         template,
     )
 
-    # Then substitute named macros
     values = get_macro_values()
     rendered = re.sub(
         r"\{\{\s*([^\s}]+)\s*\}\}",
@@ -120,34 +177,27 @@ def render_template(template: str) -> str:
 
 
 def parse_cursor_placeholder(text: str) -> tuple[str, int | None]:
-    """Extract $0, {{cursor}}, {{0}}, or | from text.
-
-    Returns:
-        (clean_text, cursor_offset)
-        where cursor_offset is the character offset from the END of clean_text
-        to position the cursor, or None if no cursor placeholder was present.
-    """
     for marker in ("$0", "{{cursor}}", "{{0}}"):
         pos = text.find(marker)
         if pos != -1:
             clean = text[:pos] + text[pos + len(marker) :]
-            offset = len(clean) - pos
-            return clean, offset
+            return clean, len(clean) - pos
     if "|" in text:
         pos = text.find("|")
         clean = text[:pos] + text[pos + 1 :]
-        offset = len(clean) - pos
-        return clean, offset
+        return clean, len(clean) - pos
     return text, None
 
 
 def snippets_to_json(snippets: list[Snippet], indent: int = 2) -> str:
-    """Serialize snippet list to a UTF-8 JSON string."""
     data = [
         {
             "trigger": s.trigger,
             "replacement": s.replacement,
             "enabled": getattr(s, "enabled", True),
+            "is_regex": getattr(s, "is_regex", False),
+            "app_filter": getattr(s, "app_filter", ""),
+            "is_image": getattr(s, "is_image", False),
         }
         for s in snippets
     ]
@@ -155,7 +205,6 @@ def snippets_to_json(snippets: list[Snippet], indent: int = 2) -> str:
 
 
 def snippets_from_json(json_str: str) -> list[Snippet]:
-    """Parse JSON string into a list of validated Snippet instances."""
     data = json.loads(json_str)
     if not isinstance(data, list):
         raise ValueError("Snippets JSON must be an array of objects")
@@ -166,17 +215,31 @@ def snippets_from_json(json_str: str) -> list[Snippet]:
             repl = str(item["replacement"])
             enabled = bool(item.get("enabled", True))
             if trig:
-                snippets.append(Snippet(trigger=trig, replacement=repl, enabled=enabled))
+                snippets.append(
+                    Snippet(
+                        trigger=trig,
+                        replacement=repl,
+                        enabled=enabled,
+                        is_regex=bool(item.get("is_regex", False)),
+                        app_filter=str(item.get("app_filter", "")),
+                        is_image=bool(item.get("is_image", False)),
+                    )
+                )
     return snippets
 
 
 class SnippetEngine:
     def __init__(
         self,
-        snippets: list[tuple[str, str]],
+        snippets: list[Snippet | tuple[str, str]],
         include_default_macros: bool = True,
     ) -> None:
-        self._snippets = list(snippets)
+        self._raw_snippets: list[Snippet] = []
+        for s in snippets:
+            if isinstance(s, Snippet):
+                self._raw_snippets.append(s)
+            elif isinstance(s, (tuple, list)) and len(s) >= 2:
+                self._raw_snippets.append(Snippet(trigger=s[0], replacement=s[1]))
         self._macros: dict[str, Callable[[], str]] = {}
         if include_default_macros:
             self._init_default_macros()
@@ -198,27 +261,54 @@ class SnippetEngine:
 
     @classmethod
     def from_config(cls, cfg: Config) -> SnippetEngine:
-        return cls([
-            (s.trigger, s.replacement)
-            for s in cfg.snippets
-            if getattr(s, "enabled", True)
-        ])
+        return cls([s for s in cfg.snippets if getattr(s, "enabled", True)])
 
+    def find_matching_snippet(
+        self, word: str, app_name: str | None = None
+    ) -> tuple[Snippet, str] | None:
+        """Find matching snippet accounting for per-app filters and regex triggers."""
+        app_low = app_name.lower().strip() if app_name else ""
 
-    def expand_with_cursor(self, word: str) -> tuple[str, int | None] | None:
+        for s in self._raw_snippets:
+            if not getattr(s, "enabled", True):
+                continue
+
+            filt = getattr(s, "app_filter", "")
+            if filt and app_low:
+                allowed = [a.strip().lower() for a in filt.split(",") if a.strip()]
+                base = os.path.basename(app_low)
+                base_no_ext = os.path.splitext(base)[0]
+                if allowed and not any(a in (app_low, base, base_no_ext) for a in allowed):
+                    continue
+
+            is_reg = getattr(s, "is_regex", False) or s.trigger.startswith("re:")
+            if is_reg:
+                pat = s.trigger[3:] if s.trigger.startswith("re:") else s.trigger
+                m = safe_regex_match(pat, word)
+                if m is not None:
+                    expanded_repl = expand_capture_groups(s.replacement, m)
+                    return s, expanded_repl
+            elif s.trigger == word:
+                return s, s.replacement
+
+        return None
+
+    def expand_with_cursor(
+        self, word: str, app_name: str | None = None
+    ) -> tuple[str, int | None] | None:
         """Expand word into (replacement_text, cursor_offset_from_end) or None."""
-        for trigger, replacement in self._snippets:
-            if trigger == word:
-                rendered = render_template(replacement)
-                clean_text, cursor_offset = parse_cursor_placeholder(rendered)
-                return clean_text, cursor_offset
+        match = self.find_matching_snippet(word, app_name)
+        if match is not None:
+            snippet, repl_text = match
+            rendered = render_template(repl_text)
+            clean_text, cursor_offset = parse_cursor_placeholder(rendered)
+            return clean_text, cursor_offset
 
         if word in self._macros:
             val = self._macros[word]()
             clean_text, cursor_offset = parse_cursor_placeholder(val)
             return clean_text, cursor_offset
 
-        # Number-to-words and formatting suffix triggers (e.g. 1250000/w, 1250000/s, 1250000/t)
         from .normalizer import fa_to_en_digits
         from .num2words import format_thousands, num_to_persian_words, to_toman_words
 
@@ -242,10 +332,9 @@ class SnippetEngine:
 
         return None
 
-    def expand(self, word: str) -> str | None:
-        """Expand word into clean replacement string (cursor marker removed) or None."""
-        res = self.expand_with_cursor(word)
+    def expand(self, word: str, app_name: str | None = None) -> str | None:
+        res = self.expand_with_cursor(word, app_name=app_name)
         return res[0] if res is not None else None
 
     def all(self) -> list[tuple[str, str]]:
-        return list(self._snippets)
+        return [(s.trigger, s.replacement) for s in self._raw_snippets]

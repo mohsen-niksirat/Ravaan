@@ -68,6 +68,22 @@ def save_settings_window(win: Any) -> None:
     if stats:
         cfg.quick_stats_hotkey = stats
 
+    if hasattr(win, "_global_undo_var") and win._global_undo_var.get().strip():
+        val = text_to_hotkey(win._global_undo_var.get())
+        if val is None:
+            messagebox.showwarning("Ravan", "Invalid global undo hotkey", parent=win._root)
+            return
+        cfg.global_undo_hotkey = val
+
+    if hasattr(win, "_autofix_mode_var"):
+        cfg.autofix_mode = win._autofix_mode_var.get()
+    if hasattr(win, "_auto_layout_switch_var"):
+        cfg.auto_layout_switch = win._auto_layout_switch_var.get()
+    if hasattr(win, "_auto_layout_mode_var"):
+        cfg.auto_layout_mode = win._auto_layout_mode_var.get()
+    if hasattr(win, "_managed_blacklist"):
+        cfg.autofix_blacklist = list(win._managed_blacklist)
+
     cfg.prediction_enabled = win._prediction_var.get()
     cfg.autocorrect_enabled = win._autocorrect_var.get()
     if hasattr(win, "_autocorrect_mode_var"):

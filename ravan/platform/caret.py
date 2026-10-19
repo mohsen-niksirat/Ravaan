@@ -162,6 +162,13 @@ def _try_uia_caret() -> CaretRect | None:
         except Exception:  # noqa: BLE001
             return None
 
+    try:
+        import comtypes
+
+        comtypes.CoInitialize()
+    except Exception:
+        pass
+
     global _cached_uia_automation
     try:
         if _cached_uia_automation is None:
@@ -262,8 +269,7 @@ def _try_gui_thread_info() -> CaretRect | None:
                 )
             ):
                 pt = w.POINT(caret.left, caret.top)
-                w.user32.ClientToScreen(hwnd_caret, ctypes.byref(pt))
-                if pt.x != 0 or pt.y != 0:
+                if w.user32.ClientToScreen(hwnd_caret, ctypes.byref(pt)):
                     width = caret.right - caret.left
                     height = caret.bottom - caret.top
                     if height <= 0:

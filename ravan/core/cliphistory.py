@@ -128,6 +128,10 @@ class ClipboardHistory:
         if stripped == self._last_seen:
             return False
 
+        if len(stripped) > 20_000:
+            log.debug("Ignored oversized clipboard item (%d chars)", len(stripped))
+            return False
+
         if ignore_passwords:
             # Check source app
             if source_app:
@@ -159,6 +163,8 @@ class ClipboardHistory:
 
         self._items.appendleft(stripped)
         self._timestamps[stripped] = time.time()
+        active_keys = set(self._items) | set(self._pinned)
+        self._timestamps = {k: v for k, v in self._timestamps.items() if k in active_keys}
         self.save()
         return True
 
@@ -195,10 +201,13 @@ class ClipboardHistory:
             return
         try:
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+            active_keys = set(self._items) | set(self._pinned)
+            clean_ts = {k: v for k, v in self._timestamps.items() if k in active_keys}
+            self._timestamps = clean_ts
             data = {
                 "pinned": self._pinned,
                 "items": list(self._items),
-                "timestamps": self._timestamps,
+                "timestamps": clean_ts,
             }
             tmp = self.storage_path.with_suffix(".tmp")
             tmp.write_text(
@@ -232,6 +241,10 @@ class ClipboardHistory:
                     self._items.appendleft(it)
                     if it not in self._timestamps:
                         self._timestamps[it] = now
+                active_keys = set(self._items) | set(self._pinned)
+                self._timestamps = {
+                    k: v for k, v in self._timestamps.items() if k in active_keys
+                }
                 if self._items:
                     self._last_seen = self._items[0]
         except Exception as exc:  # noqa: BLE001

@@ -100,9 +100,9 @@ class UserLearningEngine:
         if app_name:
             app_key = app_name.strip().lower()
             if app_key:
-                self.app_word_counts.setdefault(app_key, {})[clean] = (
-                    self.app_word_counts.setdefault(app_key, {}).get(clean, 0.0) + 1.0
-                )
+                app_map = self.app_word_counts.setdefault(app_key, {})
+                app_map[clean] = app_map.get(clean, 0.0) + 1.0
+
 
     def learn_transition(self, prev_word: str, next_word: str, app_name: str | None = None) -> None:
         w1, w2 = prev_word.strip(), next_word.strip()
@@ -303,7 +303,11 @@ class UserLearningEngine:
 
         count = 0
         for k, v in data.get("word_counts", {}).items():
-            self.word_counts[str(k)] = self.word_counts.get(str(k), 0.0) + float(v)
+            try:
+                fv = float(v)
+            except (ValueError, TypeError):
+                continue
+            self.word_counts[str(k)] = self.word_counts.get(str(k), 0.0) + fv
             count += 1
         self._top_cache = None
 
@@ -316,7 +320,11 @@ class UserLearningEngine:
                 if isinstance(sub, dict):
                     m = target.setdefault(str(pk), {})
                     for nk, v in sub.items():
-                        m[str(nk)] = m.get(str(nk), 0.0) + float(v)
+                        try:
+                            fv = float(v)
+                        except (ValueError, TypeError):
+                            continue
+                        m[str(nk)] = m.get(str(nk), 0.0) + fv
 
         return count
 
@@ -338,6 +346,7 @@ class UserLearningEngine:
                 data = json.load(f)
             self.import_profile(data, merge=True)
             self.last_decay_time = float(data.get("last_decay_time", time.time()))
-            self.decay_frequencies()
+            self.decay_frequencies(half_life_days=self.half_life_days)
         except Exception as exc:  # noqa: BLE001
             log.warning("Failed to load user learning model: %s", exc)
+

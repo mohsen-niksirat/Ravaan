@@ -142,9 +142,10 @@ class AppPollingMixin:
         if getattr(self, "power_mode_active", False):
             self._pending_predict = False
             return
-        from ravan.platform.focus import is_password_focused
+        from ravan.platform.focus import is_numeric_focused, is_password_focused
+        from ravan.platform.lang import is_ime_composing
 
-        if is_password_focused():
+        if is_password_focused() or is_numeric_focused() or is_ime_composing():
             self._pending_predict = False
             return
         if self._is_excluded():
@@ -154,6 +155,11 @@ class AppPollingMixin:
             return
         self._pending_predict = False
         prefix = self.journal.last_word()
+        if prefix and (prefix.isdigit() or all(c.isdigit() or c in "+-.,/" for c in prefix)):
+            if self.overlay.predicting:
+                self.overlay.hide()
+                set_popup_visible(False)
+            return
         context_word = (
             self.journal.previous_context(2)
             if hasattr(self.journal, "previous_context")

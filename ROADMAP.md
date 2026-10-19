@@ -1,5 +1,49 @@
 # Roadmap
 
+## Completed (v2.0.0 Stable Release)
+
+- **Phase 1: Automatic Wrong-Layout Correction (Target A - Punto/Caramba Parity)**
+  - Dual-dictionary heuristic with token confidence thresholding, bigram layout likelihood, and safe suppression in passwords/IME/numeric fields.
+  - Zero keystroke lag with sub-millisecond evaluation (`tests/test_autofix.py` with 100% precision).
+- **Phase 2: Undo & Confidence UX (Target C)**
+  - Non-intrusive `ToastPopup` notification near caret.
+  - 50-step undo stack with `Backspace`, `Ctrl+Z`, `Ctrl+Shift+Z`, and toast click support.
+  - Auto-blacklisting of false-positive words upon 3 undos within session.
+- **Phase 3: Auto Layout Switch on Detection (Target B)**
+  - Win32 `WM_INPUTLANGCHANGEREQUEST` layout switching upon wrong-layout detection.
+  - 3 sub-modes: `auto_switch_on_fix`, `auto_switch_on_manual_convert`, `auto_switch_only_if_confident`.
+  - Multi-monitor thread layout sync and safe suppression.
+- **Phase 4: Transliteration Mode (Finglish -> Persian) (Target D)**
+  - 9,799+ entry lookup table generated from Persian vocabulary with dynamic prefix/suffix resolution.
+  - Global hotkey `Alt+Shift+F` / `Alt+T`, tray toggle, and `FA-TL` language badge.
+  - 100% corpus accuracy across 212-word benchmark in `tests/test_translit.py`.
+- **Phase 5: Live Suggestions Upgrade (Target E)**
+  - Right Arrow (and Left Arrow in RTL) fast suggestion acceptance.
+  - Bigram and trigram sentence continuations with dimmed subtext styling and `Shift+Enter` whole-phrase acceptance.
+  - Strict suppression in password, numeric, and IME fields; multi-monitor DPI work-area clamping.
+- **Phase 6: Snippets 3.0: Forms, Images, Per-App, Regex (Target F - Espanso/Beeftext Parity)**
+  - Regex triggers (`re:...`) with capture group expansions (`$1/$2`) and 5ms ReDoS timeout protection.
+  - Interactive placeholder forms (`QuickFormDialog`) with text, choice, and date macros.
+  - Native image snippets via Win32 `CF_DIB` clipboard injection.
+  - Per-app inclusion/exclusion filters and CLI `pack export/import`.
+- **Phase 7: Quick Accent / Persian Letter Picker (Target G - PowerToys Parity)**
+  - 300ms key-hold and `Ctrl+Space` horizontal accent bar near caret.
+  - Comprehensive Persian/Arabic variant mappings (ه/ة/ھ, ی/ي/ئ, ک/ك, ا/آ/أ/إ/ء, و/ؤ, ZWNJ, digits).
+  - 1-9 digit selection, arrow navigation, fullscreen game suppression.
+- **Phase 8: AI Text Assistant (Target H)**
+  - Global `Ctrl+Shift+G` hotkey on selected text.
+  - Quick actions: Rewrite, Fix grammar & ZWNJ, Translate FA<->EN, Summarize, Custom prompt.
+  - Ollama local LLM and OpenAI-compatible endpoints with Windows DPAPI encryption.
+  - Zero-log volatile-memory privacy architecture.
+- **Phase 9: Voice Dictation (Target I)**
+  - Push-to-Talk `Ctrl+Alt+V` speech-to-text with local Whisper/Vosk detection.
+  - Pure in-memory audio ring buffer with zero disk leaks.
+  - Automatic Persian normalization and ZWNJ injection.
+- **Phase 10: Competitive Audit & v2.0 Release (Target J)**
+  - Complete competitive feature comparison matrix (`COMPARISON.md`) establishing clear dominance.
+  - Version bump to 2.0.0 across all manifests, installers, and hash generators.
+  - Updated comprehensive documentation (`README.md`, `CHANGELOG.md`, `ROADMAP.md`, `RELEASE-CHECKLIST.md`).
+
 ## Completed (v1.0.0 Stable Release)
 
 - **Phase 0: Release Engineering Pipeline & Pre-Release Hardening**

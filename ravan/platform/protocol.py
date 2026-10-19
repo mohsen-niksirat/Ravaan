@@ -38,12 +38,10 @@ def register_protocol(exe_path: str | Path | None = None) -> bool:
         import winreg
 
         if exe_path is None:
-            if getattr(sys, "frozen", False):
-                target_exe = Path(sys.executable).resolve()
-            else:
-                target_exe = Path(sys.executable).resolve()
+            target_exe = Path(sys.executable).resolve()
         else:
             target_exe = Path(exe_path).resolve()
+
 
         # 1. HKCU\Software\Classes\ravan
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, REG_SUBKEY) as key:
@@ -112,10 +110,22 @@ MAX_URL_LENGTH = 2048
 MAX_PARAM_LENGTH = 256
 
 
+_DISALLOWED_CODEPOINTS = {
+    0x200E, 0x200F,  # LRM, RLM
+    0x202A, 0x202B, 0x202C, 0x202D, 0x202E,  # LRE, RLE, PDF, LRO, RLO
+    0x2066, 0x2067, 0x2068, 0x2069,  # LRI, RLI, FSI, PDI
+    0xFEFF,  # BOM
+}
+
+
 def sanitize_param_value(val: str) -> str:
-    """Sanitize parameter string: strip control chars, null bytes, enforce max length."""
-    cleaned = "".join(ch for ch in val if ch >= " " and ch != "\x7f")
+    """Sanitize parameter string: strip control chars, null bytes, bidirectional overrides, enforce max length."""
+    cleaned = "".join(
+        ch for ch in val
+        if ch >= " " and ch != "\x7f" and ord(ch) not in _DISALLOWED_CODEPOINTS
+    )
     return cleaned[:MAX_PARAM_LENGTH].strip()
+
 
 
 def parse_protocol_url(url: str) -> dict[str, Any]:

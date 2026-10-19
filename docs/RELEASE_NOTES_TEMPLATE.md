@@ -5,17 +5,17 @@
 ## English
 
 ### Highlights
-- Official **v1.0.0** stable public release of Ravaan (روان) for Windows typists!
-- Complete release engineering pipeline with automated multi-artifact packaging (`Setup.exe` + portable `.zip`).
-- In-app auto-updater hardened with pre-release channel awareness and 1-click update.
+- Official **v2.0.0** major stable release of Ravaan (روان) with full competitive dominance over Punto, Caramba, Espanso, and PowerToys!
+- **Automatic Wrong-Layout Correction**: Automatic detection and conversion of mistyped words (e.g. `o,vn` → `خورد`) with zero manual hotkeys.
+- **Active Layout Switcher**: Seamlessly switches active Windows layout upon detection via `WM_INPUTLANGCHANGEREQUEST`.
+- **Confidence & Undo Toast**: Floating toast with instant single-tap undo via `Backspace` or `Ctrl+Z`, and auto-blacklisting of false positives.
+- **Transliteration Mode (Finglish → Persian)**: Real-time Finglish typing (`salam` → `سلام`) with a 9,700+ mapping engine.
+- **Live Suggestions 2.0**: Fast Right Arrow suggestion acceptance and multi-word sentence continuations with `Shift+Enter`.
+- **Snippets 3.0**: Dynamic form dialogs (`{{var:default}}`), regex expansion triggers with ReDoS safety, image snippets, and per-app filtering.
+- **Quick Accent**: 300ms key-hold accent bar for diacritics, Arabic/Persian variants, and instant ZWNJ selection.
+- **AI Text Assistant**: `Ctrl+Shift+G` floating popup for rewriting, grammar/ZWNJ correction, translation, and summarization via Ollama or OpenAI endpoints.
+- **Voice Dictation**: Push-to-Talk `Ctrl+Alt+V` speech-to-text with local Whisper/Vosk and zero disk audio leaks.
 - Windows DPAPI credential encryption, zero-telemetry policy, and local-only processing.
-- Real-World Windows QA Matrix: multi-monitor mixed-DPI popup clamping, elevated window degradation, and robust caret tracking fallbacks.
-- UX Final Polish: unified theme palette tokens (dark/light/high-contrast), prediction confidence meter, first-run onboarding wizard, and upgraded system tray toggles.
-- Data & Migration Completeness: central data manifest, learning profile sync, and lossless migration test harness from all prior versions.
-- Bilingual UI (English & Persian) with complete RTL layout rendering and live language switching.
-- Prediction Engine v2 with Stupid Backoff n-grams, exponential frequency decay, and app-context awareness.
-- Cloud Sync 2.0 with WebDAV, GitHub Gist, 3-way dictionary merge, and schema versioning.
-- Math v2 expression evaluator, Macro recorder, Power Mode, and CLI user data backup/restore.
 
 ### Verification & Checksums (SHA256)
 {{CHECKSUM_TABLE}}
@@ -37,17 +37,17 @@
 ## فارسی (Persian)
 
 ### ویژگی‌های برجسته
-- انتشار رسمی و پایدار نسخه **v1.0.0** دستیار هوشمند تایپ روان برای ویندوز!
-- خط تولید خودکار پکیج‌های نصبی و پرتابل (`Setup.exe` و فایل فشرده `.zip`).
-- سامانه بروزرسانی درون‌برنامه‌ای هوشمند و امن با امکان ارتقای ۱کلیکی.
+- انتشار رسمی و پایدار نسخه بزرگ **v2.0.0** دستیار هوشمند تایپ روان با تسلط کامل رقابتی بر پونتو، کارامبا، اسپنکو و پاور‌تویز!
+- **اصلاح خودکار هوشمند چیدمان اشتباه**: تشخیص و تصحیح فوری کلمات با زبان اشتباه (مانند `o,vn` → `خورد`) بدون نیاز به کلید میانبر.
+- **تغییر خودکار چیدمان کیبورد ویندوز**: تغییر زبان فعال سیستم بلافاصله پس از اصلاح از طریق پیام `WM_INPUTLANGCHANGEREQUEST`.
+- **اعلان Toast و بازگردانی سریع**: اعلان شناور با امکان بازگردانی تک‌کلیدی با Backspace یا Ctrl+Z و بلک‌لیست خودکار کلمات دارای خطای مکرر.
+- **حالت فینگلیش به فارسی (Transliteration)**: تایپ زنده فینگلیش به فارسی (`salam` → `سلام`) با موتور نگاشت ۹۷۰۰ کلمه‌ای.
+- **پیشنهادهای زنده نسخه ۲.۰**: پذیرش فوری با کلید جهت‌نمای راست (`→`) و ادامهٔ جملات چندکلمه‌ای با `Shift+Enter`.
+- **اسنیپت‌های پیشرفته نسخه ۳.۰**: فرم‌های تعاملی (`{{var:default}}`)، عبارات باقاعده (Regex) با ایمنی ضد ReDoS، اسنیپت‌های تصویری و فیلتر برنامه.
+- **انتخابگر سریع نشانه‌ها (Quick Accent)**: بار افقی انتخاب اعراب، همزه، تنوین، ه/ة/ھ، ی/ي/ئ، ک/ك و نیم‌فاصله با نگه‌داشتن کلید برای ۳۰۰ میلی‌ثانیه.
+- **دستیار متنی هوش مصنوعی**: فراخوانی با `Ctrl+Shift+G` برای بازنویسی، تصحیح گرامر و نیم‌فاصله، ترجمه و خلاصه‌سازی با Ollama و OpenAI بدون لاگ متنی دیسک.
+- **تایپ صوتی فشاری (Push-to-Talk)**: تبدیل گفتار به متن فارسی (`Ctrl+Alt+V`) با موتور Whisper محلی بدون نشت صدا به دیسک.
 - امنیت پیشرفته: رمزنگاری اعتبارات با Windows DPAPI، سیاست عدم ارسال تله‌متری و پردازش ۱۰۰٪ محلی داده‌ها.
-- سازگاری کامل با ویندوز: مهار خطاهای چندمانیتوره و DPI ترکیبی، مدیریت برنامه‌های ادمین و سیستم بازگشتی ردگیری مکان‌نما.
-- پالایش تجربه کاربری: تم‌های مدرن تیره/روشن/کنتراست بالا، درجه اطمینان پیش‌بینی، جادوگر راه‌اندازی اولیه و منوی ترای ارتقایافته.
-- مانیفست متمرکز داده‌ها، همگام‌سازی پروفایل یادگیری و تضمین مهاجرت بی‌نقص از کلیه نسخه‌های قبلی.
-- رابط کاربری دو زبانه (فارسی و انگلیسی) با پشتیبانی کامل از چینش راست‌به‌چپ (RTL) و تغییر آنی زبان.
-- موتور پیش‌بینی هوشمند نگارش ۲ مجهز به الگوریتم Stupid Backoff، زوال نمایی فراوانی و درک بستر برنامه فعال.
-- همگام‌سازی ابری ۲٫۰ پشتیبان سرویس‌های WebDAV و GitHub Gist همراه با ادغام ۳طرفه واژگان.
-- ماشین‌حساب پیشرفته درون‌متنی، ضبط و اجرای ماکرو، حالت تایپ سریع (Power Mode) و پشتیبان‌گیری ZIP از طریق خط فرمان.
 
 ### اعتبارسنجی و جدول چک‌سام‌ها (SHA256)
 {{CHECKSUM_TABLE}}

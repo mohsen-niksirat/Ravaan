@@ -16,8 +16,12 @@ def test_hotkey_invalid():
 
 
 def test_snippet_expansion():
+    from ravan.core.snippet import SnippetEngine
+
     cfg_snip = Snippet(trigger="@@", replacement="user@example.com")
-    assert cfg_snip.trigger == "@@"
+    engine = SnippetEngine([cfg_snip])
+    assert engine.expand("@@") == "user@example.com"
+
 
 
 def test_is_app_excluded():

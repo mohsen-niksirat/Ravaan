@@ -39,24 +39,24 @@ print('All files < 400 LOC')
 
 Update the version string across all required files:
 
-- [ ] `ravan/__init__.py` (`__version__ = "X.Y.Z"`)
-- [ ] `pyproject.toml` (`version = "X.Y.Z"`)
-- [ ] `installer/setup.iss` (`#define MyAppVersion "X.Y.Z"`)
-- [ ] `scripts/generate_hashes.py` (`default="X.Y.Z"`)
+- [x] `ravan/__init__.py` (`__version__ = "2.0.0"`)
+- [x] `pyproject.toml` (`version = "2.0.0"`)
+- [x] `installer/setup.iss` (`#define MyAppVersion "2.0.0"`)
+- [x] `scripts/generate_hashes.py` (`default="2.0.0"`)
 
 ---
 
 ## 3. Documentation Updates
 
-- [ ] **`CHANGELOG.md`**:
-  - Add `## [X.Y.Z] - YYYY-MM-DD` header following Keep a Changelog.
+- [x] **`CHANGELOG.md`**:
+  - Add `## [2.0.0] - 2026-10-19` header following Keep a Changelog.
   - Detail Added, Changed, Deprecated, Removed, Fixed, and Security items.
-- [ ] **`ROADMAP.md`**:
-  - Move completed milestones to `## Completed (vX.Y.Z)`.
+- [x] **`ROADMAP.md`**:
+  - Move completed milestones to `## Completed (v2.0.0 Stable Release)`.
   - Update `## Post-1.0 Ideas` if priorities evolved.
-- [ ] **`README.md`**:
-  - Update version badges, milestone table, and installation commands if applicable.
-- [ ] **`docs/RELEASE_NOTES_TEMPLATE.md`**:
+- [x] **`README.md`**:
+  - Update version badges, milestone table (M34–M42), and installation commands.
+- [x] **`docs/RELEASE_NOTES_TEMPLATE.md`**:
   - Verify bilingual release summary template reflects new features.
 
 ---

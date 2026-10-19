@@ -139,3 +139,49 @@ def try_convert_selection(converter) -> bool:
     send_shortcut([w.VK_CONTROL], ord("V"))
     time.sleep(0.04)
     return True
+
+
+def set_clipboard_image(image_path: str) -> bool:
+    """Load an image file and place it on the Windows clipboard (CF_DIB)."""
+    if sys.platform != "win32" or user32 is None or kernel32 is None:
+        return False
+    from pathlib import Path
+
+    img = Path(image_path)
+    if not img.is_file():
+        return False
+
+    try:
+        import io
+
+        from PIL import Image
+
+        with Image.open(img) as image, io.BytesIO() as output:
+            image.convert("RGB").save(output, "BMP")
+            data = output.getvalue()[14:]  # Skip 14-byte BMP header to obtain CF_DIB
+
+        CF_DIB = 8
+        if not _open_clipboard():
+            return False
+        try:
+            user32.EmptyClipboard()
+            h_mem = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+            if not h_mem:
+                return False
+            ptr = kernel32.GlobalLock(h_mem)
+            if not ptr:
+                kernel32.GlobalFree(h_mem)
+                return False
+            ctypes.memmove(ptr, data, len(data))
+            kernel32.GlobalUnlock(h_mem)
+            res = user32.SetClipboardData(CF_DIB, h_mem)
+            if not res:
+                kernel32.GlobalFree(h_mem)
+                return False
+            return True
+        finally:
+            user32.CloseClipboard()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Failed to copy image to clipboard: %s", exc)
+        return False
+

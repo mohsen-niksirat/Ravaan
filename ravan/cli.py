@@ -64,6 +64,13 @@ def main(argv: list[str] | None = None) -> int:
     p_soak = sub.add_parser("soak", help="Run memory and latency soak test")
     p_soak.add_argument("-d", "--duration", type=float, default=600.0, help="Duration in seconds (default: 600)")
     p_soak.add_argument("-k", "--keystrokes", type=int, default=10000, help="Max keystrokes (default: 10000)")
+    p_translit = sub.add_parser("translit", help="Transliterate Finglish words to Persian script")
+    p_translit.add_argument("text", nargs="+", help="Finglish text to transliterate")
+    p_pack = sub.add_parser("pack", help="Export or import snippet packages (.ravaanpack)")
+    p_pack.add_argument("action", choices=["export", "import"])
+    p_pack.add_argument("path", help="Path to .ravaanpack file")
+    p_pack.add_argument("--title", default="Ravaan Snippets")
+    p_pack.add_argument("--author", default="")
 
     args = parser.parse_args(argv)
     if args.version or args.check_updates:
@@ -348,6 +355,41 @@ def main(argv: list[str] | None = None) -> int:
         summary = run_soak_test(duration_seconds=args.duration, max_keystrokes=args.keystrokes)
         print(format_soak_report(summary))
         return 0 if summary.passed else 1
+
+    if args.cmd == "translit":
+        from ravan.core.translit import TranslitEngine
+
+        engine = TranslitEngine()
+        full_text = " ".join(args.text)
+        print(engine.transliterate_text(full_text))
+        return 0
+
+    if args.cmd == "pack":
+        from ravan.core.config import load_config, save_config
+        from ravan.core.package import export_package, import_package
+
+        cfg = load_config()
+        if args.action == "export":
+            export_package(
+                cfg.snippets,
+                args.path,
+                title=getattr(args, "title", "Ravaan Snippets"),
+                author=getattr(args, "author", ""),
+            )
+            print(f"Exported {len(cfg.snippets)} snippets to {args.path}")
+            return 0
+        if args.action == "import":
+            imported = import_package(args.path)
+            existing = {s.trigger for s in cfg.snippets}
+            added = 0
+            for s in imported:
+                if s.trigger not in existing:
+                    cfg.snippets.append(s)
+                    existing.add(s.trigger)
+                    added += 1
+            save_config(cfg)
+            print(f"Imported {added} snippets (total {len(cfg.snippets)}) from {args.path}")
+            return 0
 
     return 1
 

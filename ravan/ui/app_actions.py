@@ -133,9 +133,12 @@ class AppActionsMixin:
         lang = current_language()
         if lang is None:
             return
+        label = language_label(lang)
+        if getattr(self.cfg, "translit_enabled", False):
+            label = f"{label}-TL"
         caret = get_caret_rect()
         self.overlay.show_language(
-            language_label(lang), caret.x, caret.y, caret.height
+            label, caret.x, caret.y, caret.height
         )
 
     def _show_clipboard_popup(self: Any) -> None:

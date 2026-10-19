@@ -122,7 +122,9 @@ def test_instantiate_core_classes_no_gui():
     fa_dict = Dictionary.persian()
     pred = DictPredictor(english=en_dict, persian=fa_dict, learning_engine=learning)
     cands = pred.predict("سلام", "", 3)
-    assert len(cands) >= 0
+    assert len(cands) >= 1
+    assert any("سلام" in c.text for c in cands)
+
 
 
 def test_hook_callback_non_blocking_latency():

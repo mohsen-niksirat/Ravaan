@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from ravan import __version__
@@ -129,7 +128,8 @@ def reset_data_file(filename: str) -> bool:
     if target_file.is_file():
         backup_dir = base_dir / "backups" / "resets"
         backup_dir.mkdir(parents=True, exist_ok=True)
-        ts = int(Path().stat().st_mtime if target_file.exists() else 0)
+        ts = int(target_file.stat().st_mtime if target_file.exists() else 0)
+
         shutil_backup = backup_dir / f"{filename}.bak_{ts}"
         try:
             target_file.rename(shutil_backup)

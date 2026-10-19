@@ -24,7 +24,9 @@ def create_app_tray(app: Any) -> TrayIcon:
         on_toggle_autocorrect=lambda val: app._ui_queue.put(("set_autocorrect", val)),
         is_autocorrect_enabled=lambda: app.cfg.autocorrect_enabled,
         on_toggle_auto_zwnj=lambda val: app._ui_queue.put(("set_auto_zwnj", val)),
-        is_auto_zwnj_enabled=lambda: app.cfg.auto_zwnj,
+        is_auto_zwnj_enabled=lambda: app.cfg.auto_zwnj_enabled,
         on_toggle_pause=lambda: app._ui_queue.put(("toggle_pause", None)),
         is_paused=lambda: getattr(app, "is_paused", False),
+        on_toggle_translit=lambda: app._ui_queue.put(("toggle_translit", None)),
+        is_translit_enabled=lambda: bool(getattr(app.cfg, "translit_enabled", False)),
     )

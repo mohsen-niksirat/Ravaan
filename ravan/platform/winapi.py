@@ -146,8 +146,10 @@ class INPUT(ctypes.Structure):
     ]
 
 
+LRESULT = ctypes.c_ssize_t
+
 HOOKPROC = ctypes.WINFUNCTYPE(
-    ctypes.c_long, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM
+    LRESULT, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM
 )
 
 user32.SetWindowsHookExW.argtypes = [
@@ -164,7 +166,7 @@ user32.CallNextHookEx.argtypes = [
     wintypes.WPARAM,
     wintypes.LPARAM,
 ]
-user32.CallNextHookEx.restype = ctypes.c_long
+user32.CallNextHookEx.restype = LRESULT
 
 user32.UnhookWindowsHookEx.argtypes = [wintypes.HHOOK]
 user32.UnhookWindowsHookEx.restype = wintypes.BOOL
@@ -197,6 +199,10 @@ user32.GetWindowThreadProcessId.restype = wintypes.DWORD
 # Use an integer restype — wintypes.HKL is a pointer alias and turns 0 into None.
 user32.GetKeyboardLayout.argtypes = [wintypes.DWORD]
 user32.GetKeyboardLayout.restype = ULONG_PTR
+user32.ActivateKeyboardLayout.argtypes = [ULONG_PTR, wintypes.UINT]
+user32.ActivateKeyboardLayout.restype = ULONG_PTR
+user32.GetKeyboardLayoutList.argtypes = [ctypes.c_int, ctypes.POINTER(wintypes.HKL)]
+user32.GetKeyboardLayoutList.restype = ctypes.c_int
 
 user32.SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
 user32.SendInput.restype = wintypes.UINT
@@ -250,6 +256,29 @@ user32.SetWindowPos.argtypes = [
     wintypes.UINT,
 ]
 user32.SetWindowPos.restype = wintypes.BOOL
+
+user32.PostMessageW.argtypes = [
+    wintypes.HWND,
+    wintypes.UINT,
+    wintypes.WPARAM,
+    wintypes.LPARAM,
+]
+user32.PostMessageW.restype = wintypes.BOOL
+
+user32.GetKeyState.argtypes = [ctypes.c_int]
+user32.GetKeyState.restype = wintypes.SHORT
+
+user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(RECT)]
+user32.GetWindowRect.restype = wintypes.BOOL
+
+user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+user32.MonitorFromWindow.restype = wintypes.HMONITOR
+
+kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+kernel32.OpenProcess.restype = wintypes.HANDLE
+
+kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+kernel32.CloseHandle.restype = wintypes.BOOL
 
 
 def enable_dpi_awareness() -> bool:

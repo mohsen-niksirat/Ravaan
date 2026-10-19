@@ -18,6 +18,12 @@ LLKHF_INJECTED = 0x10
 
 _popup_visible = False
 _swallow_digits = False
+_swallow_arrow: str | None = None
+# Packed as a single tuple so the hook thread always reads a consistent snapshot.
+# CPython reference assignment is atomic under the GIL, so swapping the whole
+# tuple in one assignment prevents the hook thread from seeing a partially-updated state.
+_popup_state: tuple[bool, bool, str | None] = (False, False, None)
+
 
 _NAV_VKS = {
     w.VK_ESCAPE,
@@ -25,8 +31,6 @@ _NAV_VKS = {
     w.VK_TAB,
     w.VK_UP,
     w.VK_DOWN,
-    w.VK_LEFT,
-    w.VK_RIGHT,
 }
 _DIGIT_VKS = {ord("1"), ord("2"), ord("3"), ord("4"), ord("5")}
 
@@ -39,11 +43,15 @@ class HookEvent:
     is_key_down: bool
 
 
-def set_popup_visible(visible: bool, swallow_digits: bool = True) -> None:
-    """When visible, navigation keys (and optionally 1–5) are swallowed."""
-    global _popup_visible, _swallow_digits
-    _popup_visible = visible
-    _swallow_digits = swallow_digits and visible
+def set_popup_visible(
+    visible: bool, swallow_digits: bool = True, swallow_arrow: str | None = None
+) -> None:
+    """When visible, navigation keys (and optionally 1–5 or accept arrow) are swallowed."""
+    global _popup_visible, _swallow_digits, _swallow_arrow, _popup_state
+    # Atomic tuple swap — hook thread always reads a consistent (visible, digits, arrow) snapshot.
+    _popup_state = (visible, swallow_digits and visible, swallow_arrow if visible else None)
+    # Keep legacy module-level names in sync for any external readers.
+    _popup_visible, _swallow_digits, _swallow_arrow = _popup_state
 
 
 class KeyboardHook:
@@ -82,7 +90,14 @@ class KeyboardHook:
             w.user32.PostThreadMessageW(self._thread_id, w.WM_QUIT, 0, 0)
         if self._thread is not None:
             self._thread.join(timeout=2.0)
-            self._thread = None
+            if self._thread.is_alive():
+                log.warning(
+                    "Hook thread did not exit within 2s timeout — "
+                    "it may still be running. Not clearing reference to avoid duplicate hooks."
+                )
+            else:
+                self._thread = None
+
 
     def _emit(self, event: HookEvent) -> None:
         try:
@@ -137,6 +152,12 @@ class KeyboardHook:
                 if vk in _NAV_VKS or (_swallow_digits and vk in _DIGIT_VKS):
                     self._emit(event)
                     return 1  # swallow — target app must not see these
+                if _swallow_arrow == "right" and vk == w.VK_RIGHT:
+                    self._emit(event)
+                    return 1
+                if _swallow_arrow == "left" and vk == w.VK_LEFT:
+                    self._emit(event)
+                    return 1
 
             self._emit(event)
         return int(w.user32.CallNextHookEx(self._hook or 0, n_code, w_param, l_param))

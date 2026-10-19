@@ -55,8 +55,9 @@ def _preprocess_percentages(expr: str) -> str:
 
 def safe_eval(expr: str) -> float | int | None:
     """Safely evaluate an arithmetic expression string using AST traversal."""
-    cleaned = _preprocess_percentages(expr)
-    cleaned = cleaned.replace("^", "**").replace("٫", ".").replace(",", "")
+    cleaned = expr.replace("٫", ".").replace(",", "")
+    cleaned = _preprocess_percentages(cleaned)
+    cleaned = cleaned.replace("^", "**")
     try:
         node = ast.parse(cleaned, mode="eval")
     except Exception:
@@ -66,7 +67,7 @@ def safe_eval(expr: str) -> float | int | None:
         if isinstance(n, ast.Expression):
             return _visit(n.body)
         elif isinstance(n, ast.Constant):
-            if isinstance(n.value, (int, float)):
+            if isinstance(n.value, (int, float)) and not isinstance(n.value, complex):
                 return n.value
             return None
         elif isinstance(n, ast.UnaryOp) and type(n.op) in _SAFE_OPS:
@@ -77,15 +78,20 @@ def safe_eval(expr: str) -> float | int | None:
             right = _visit(n.right)
             if left is None or right is None:
                 return None
-            # Guard against massive exponentiation DoS
+            # Guard against massive exponentiation DoS and complex results from negative base
             if isinstance(n.op, ast.Pow):
                 if abs(right) > 50 or abs(left) > 10000:
+                    return None
+                if left < 0 and not (isinstance(right, (int, float)) and float(right).is_integer()):
                     return None
             if isinstance(n.op, (ast.Div, ast.FloorDiv, ast.Mod)) and right == 0:
                 return None
             try:
-                return _SAFE_OPS[type(n.op)](left, right)
-            except (ZeroDivisionError, OverflowError):
+                out = _SAFE_OPS[type(n.op)](left, right)
+                if isinstance(out, complex):
+                    return None
+                return out
+            except (ZeroDivisionError, OverflowError, ValueError):
                 return None
         return None
 
@@ -94,11 +100,12 @@ def safe_eval(expr: str) -> float | int | None:
     except Exception:
         return None
 
-    if res is None:
+    if res is None or not isinstance(res, (int, float)) or isinstance(res, complex):
         return None
     if isinstance(res, float) and res.is_integer():
         return int(res)
     return res
+
 
 
 def parse_calc_query(text: str) -> tuple[str, int | None, str | None]:

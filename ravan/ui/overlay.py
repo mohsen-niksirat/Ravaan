@@ -24,12 +24,11 @@ class OverlayWindow:
         self.theme_mode = theme_mode
         self.palette = get_active_palette(theme_mode)
         if theme is None:
-            if self.palette.name == "high_contrast":
-                theme = Theme.high_contrast()
-            elif self.palette.name == "dark":
-                theme = Theme.dark()
-            else:
-                theme = Theme.light()
+            theme = (
+                Theme.high_contrast()
+                if self.palette.name == "high_contrast"
+                else (Theme.dark() if self.palette.name == "dark" else Theme.light())
+            )
         self.theme = theme
         self._root = tk.Tk()
         self._root.withdraw()
@@ -106,12 +105,11 @@ class OverlayWindow:
 
     def set_theme_mode(self, mode: str) -> None:
         self.theme_mode = mode
-        if mode == "high_contrast":
-            self.theme = Theme.high_contrast()
-        elif mode == "dark":
-            self.theme = Theme.dark()
-        elif mode == "light":
-            self.theme = Theme.light()
+        self.theme = (
+            Theme.high_contrast()
+            if mode == "high_contrast"
+            else (Theme.dark() if mode == "dark" else Theme.light())
+        )
         self._apply_theme()
 
     def _get_root_hwnd(self) -> int | None:
@@ -220,16 +218,14 @@ class OverlayWindow:
         eff_h = max(height, 22)
         from ravan.platform import winapi as wapi
 
-        _, m_top, _, m_bottom = wapi.get_monitor_work_area(x, y)
+        m_left, m_top, m_right, m_bottom = wapi.get_monitor_work_area(x, y)
         py = y + eff_h + 8 if y + eff_h + popup_h + 8 < m_bottom else max(m_top + 8, y - popup_h - 8)
         px = x - popup_w + 35 if is_rtl else x
+        px = max(m_left + 8, min(px, m_right - popup_w - 8))
+        py = max(m_top + 8, min(py, m_bottom - popup_h - 8))
         self._place(px, py)
         self._root.deiconify()
         self._apply_noactivate()
-
-    @staticmethod
-    def _rgb(vals: list[int] | tuple[int, ...]) -> str:
-        return f"#{vals[0]:02x}{vals[1]:02x}{vals[2]:02x}"
 
     def _row_text(
         self,
@@ -240,7 +236,7 @@ class OverlayWindow:
     ) -> str:
         prefix = f"{index + 1}  "
         mark = "▶ " if selected else "   "
-        tags = {"SENTENCE": "  [جمله]", "NEXT_WORD": "  [بعدی]", "AUTOCORRECT": "  ≈"}
+        tags = {"SENTENCE": "  [ادامه]", "NEXT_WORD": "  [بعدی]", "AUTOCORRECT": "  ≈"}
         tag = tags.get(candidate.kind.name, "")
 
         if show_meter is None:
@@ -262,8 +258,12 @@ class OverlayWindow:
             selected = i == self._selected
             rtl = any(ord(ch) > 127 for ch in c.text[:2])
             fnt = get_ui_font(size=f_sz, bold=selected, rtl=rtl)
-            bg = p.highlight if selected else p.bg
-            fg = p.highlight_fg if selected else p.fg
+            if selected:
+                bg, fg = p.highlight, p.highlight_fg
+            elif getattr(c, "kind", None) and c.kind.name == "SENTENCE":
+                bg, fg = p.bg, p.subtext
+            else:
+                bg, fg = p.bg, p.fg
             self._rows[i].config(text=self._row_text(i, c, selected), bg=bg, fg=fg, font=fnt)
             self._rows[i].pack(fill="x")
 
@@ -353,33 +353,8 @@ class OverlayWindow:
     def move_selection(self, delta: int) -> None:
         if not self.active_popup:
             return
-        old_idx = self._selected
         self._selected = (self._selected + delta) % len(self._candidates)
-        if len(self._rows) == len(self._candidates):
-            p = getattr(self, "palette", get_active_palette())
-            f_sz = int(self.theme.font_size)
-            if 0 <= old_idx < len(self._rows):
-                cand = self._candidates[old_idx]
-                rtl = any(ord(ch) > 127 for ch in cand.text[:2])
-                fnt = get_ui_font(size=f_sz, bold=False, rtl=rtl)
-                self._rows[old_idx].config(
-                    bg=p.bg,
-                    fg=p.fg,
-                    text=self._row_text(old_idx, cand, False),
-                    font=fnt,
-                )
-            if 0 <= self._selected < len(self._rows):
-                cand = self._candidates[self._selected]
-                rtl = any(ord(ch) > 127 for ch in cand.text[:2])
-                fnt = get_ui_font(size=f_sz, bold=True, rtl=rtl)
-                self._rows[self._selected].config(
-                    bg=p.highlight,
-                    fg=p.highlight_fg,
-                    text=self._row_text(self._selected, cand, True),
-                    font=fnt,
-                )
-        else:
-            self._render_candidates()
+        self._render_candidates()
 
     def accept_selected(self) -> Candidate | None:
         if not self.predicting:
@@ -393,3 +368,20 @@ class OverlayWindow:
             return None
         self._selected = index
         return self.accept_selected()
+
+    def accept_sentence_continuation(self) -> Candidate | None:
+        """Accept first sentence/bigram continuation candidate if available."""
+        if not self.predicting:
+            return None
+        from ravan.core.events import CandidateKind
+
+        for idx, cand in enumerate(self._candidates):
+            if cand.kind == CandidateKind.SENTENCE:
+                self._selected = idx
+                return self.accept_selected()
+        return None
+
+    @staticmethod
+    def _rgb(rgb: list[int] | tuple[int, int, int]) -> str:
+        return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+

@@ -46,10 +46,13 @@ def protect_secret(plain: str) -> str:
     try:
         crypt32 = ctypes.windll.crypt32
         kernel32 = ctypes.windll.kernel32
+        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+        kernel32.LocalFree.restype = ctypes.c_void_p
 
+        raw_buf = ctypes.create_string_buffer(raw)
         in_blob = _DATA_BLOB(
             len(raw),
-            ctypes.cast(ctypes.create_string_buffer(raw), ctypes.POINTER(ctypes.c_char)),
+            ctypes.cast(raw_buf, ctypes.POINTER(ctypes.c_char)),
         )
         out_blob = _DATA_BLOB()
         if not crypt32.CryptProtectData(
@@ -102,11 +105,14 @@ def unprotect_secret(cipher: str) -> tuple[str, bool]:
     try:
         crypt32 = ctypes.windll.crypt32
         kernel32 = ctypes.windll.kernel32
+        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+        kernel32.LocalFree.restype = ctypes.c_void_p
 
         raw_cipher = base64.b64decode(cipher[len(DPAPI_PREFIX) :])
+        raw_cipher_buf = ctypes.create_string_buffer(raw_cipher)
         in_blob = _DATA_BLOB(
             len(raw_cipher),
-            ctypes.cast(ctypes.create_string_buffer(raw_cipher), ctypes.POINTER(ctypes.c_char)),
+            ctypes.cast(raw_cipher_buf, ctypes.POINTER(ctypes.c_char)),
         )
         out_blob = _DATA_BLOB()
         if not crypt32.CryptUnprotectData(
@@ -123,3 +129,15 @@ def unprotect_secret(cipher: str) -> tuple[str, bool]:
     except Exception as exc:  # noqa: BLE001
         log.warning("DPAPI decryption error: %s", exc)
         return "", False
+
+
+def encrypt_secret(plain: str) -> str:
+    """Convenience alias for protect_secret."""
+    return protect_secret(plain)
+
+
+def decrypt_secret(cipher: str) -> str:
+    """Convenience decrypt returning plain string."""
+    plain, _ = unprotect_secret(cipher)
+    return plain
+

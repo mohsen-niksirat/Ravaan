@@ -291,6 +291,10 @@ def download_and_launch_installer(
                     if total_size > 0 and on_progress:
                         on_progress(downloaded / total_size)
 
+            if on_progress:
+                on_progress(1.0)
+
+
         # Launch the installer detached
         subprocess.Popen([str(target_path)])
         log.info("Launched update installer: %s", target_path)

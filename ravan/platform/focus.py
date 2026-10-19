@@ -266,3 +266,80 @@ def is_password_focused() -> bool:
 
     return False
 
+
+_mock_numeric_focused: bool | None = None
+
+
+def set_mock_numeric_focused(value: bool | None) -> None:
+    """Mock hook for testing numeric field detection."""
+    global _mock_numeric_focused
+    _mock_numeric_focused = value
+
+
+def is_numeric_focused() -> bool:
+    """Return True if the focused control is a numbers-only input field (ES_NUMBER)."""
+    if _mock_numeric_focused is not None:
+        return _mock_numeric_focused
+
+    try:
+        hwnd_fg = w.user32.GetForegroundWindow()
+        if hwnd_fg:
+            tid = w.user32.GetWindowThreadProcessId(hwnd_fg, None)
+            if tid:
+                gui_info = w.GUITHREADINFO()
+                gui_info.cbSize = ctypes.sizeof(w.GUITHREADINFO)
+                if w.user32.GetGUIThreadInfo(tid, ctypes.byref(gui_info)):
+                    hwnd_focus = gui_info.hwndFocus
+                    if hwnd_focus:
+                        # ES_NUMBER = 0x2000
+                        style = w.user32.GetWindowLongW(hwnd_focus, -16)  # GWL_STYLE
+                        if style & 0x2000:
+                            return True
+    except Exception:
+        pass
+    return False
+
+
+_mock_fullscreen_focused: bool | None = None
+
+
+def set_mock_fullscreen_focused(value: bool | None) -> None:
+    """Mock hook for testing fullscreen detection."""
+    global _mock_fullscreen_focused
+    _mock_fullscreen_focused = value
+
+
+def is_fullscreen_focused() -> bool:
+    """Return True if the foreground window occupies the entire screen (games/videos)."""
+    if _mock_fullscreen_focused is not None:
+        return _mock_fullscreen_focused
+
+    try:
+        hwnd = w.user32.GetForegroundWindow()
+        if not hwnd:
+            return False
+        cls = window_class_name(hwnd)
+        if cls in ("Progman", "WorkerW", "Shell_TrayWnd"):
+            return False
+
+        rc = wintypes.RECT()
+        if not w.user32.GetWindowRect(hwnd, ctypes.byref(rc)):
+            return False
+
+        hmon = w.user32.MonitorFromWindow(hwnd, 2)
+        mi = w.MONITORINFO()
+        mi.cbSize = ctypes.sizeof(w.MONITORINFO)
+        if not w.user32.GetMonitorInfoW(hmon, ctypes.byref(mi)):
+            return False
+
+        m_rc = mi.rcMonitor
+        return (
+            rc.left <= m_rc.left
+            and rc.top <= m_rc.top
+            and rc.right >= m_rc.right
+            and rc.bottom >= m_rc.bottom
+        )
+    except Exception:
+        return False
+
+

@@ -46,8 +46,11 @@ class SingleInstance:
 
                 atexit.register(self.release)
                 return
-            if err != ERROR_ACCESS_DENIED:
-                break
+            if err == ERROR_ACCESS_DENIED:
+                # Mutex already exists in another privilege/session context
+                self.acquired = False
+                return
+            break
 
     def __del__(self) -> None:
         self.release()

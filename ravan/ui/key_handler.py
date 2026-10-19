@@ -30,6 +30,8 @@ class KeyHandlerMixin:
             if event is None:
                 break
             if not event.is_key_down:
+                if hasattr(self, "_on_key_up"):
+                    self._on_key_up(event)
                 continue
             if event.flags & LLKHF_INJECTED:
                 continue
@@ -55,6 +57,9 @@ class KeyHandlerMixin:
         vk = event.vk_code
         char = vk_to_unicode(vk, event.scan_code) or ""
         self._record_event("Key pressed", vk=vk, char=char)
+
+        if hasattr(self, "_handle_accent_key") and self._handle_accent_key(event, vk, char):
+            return
 
         if getattr(self, "is_paused", False):
             if hasattr(self.cfg, "power_mode_hotkey") and matches_hotkey(
@@ -105,11 +110,35 @@ class KeyHandlerMixin:
                 self.overlay.move_selection(1)
                 return
             if vk in (w.VK_RETURN, w.VK_TAB):
-                cand = self.overlay.accept_selected()
+                if vk == w.VK_RETURN and (w.user32.GetKeyState(w.VK_SHIFT) & 0x8000):
+                    cand = (
+                        self.overlay.accept_sentence_continuation()
+                        if hasattr(self.overlay, "accept_sentence_continuation")
+                        else None
+                    ) or self.overlay.accept_selected()
+                else:
+                    cand = self.overlay.accept_selected()
                 if cand:
                     self._accept_candidate(cand)
                 set_popup_visible(False)
                 return
+            arrow_cfg = getattr(self.cfg, "suggestion_accept_arrow", "right")
+            if arrow_cfg != "none":
+                is_rtl = False
+                if arrow_cfg in ("auto", "auto_rtl"):
+                    lang = current_language()
+                    is_rtl = bool(lang and lang.is_persian)
+                accept_vk = (
+                    w.VK_LEFT
+                    if (arrow_cfg == "left" or (arrow_cfg in ("auto", "auto_rtl") and is_rtl))
+                    else w.VK_RIGHT
+                )
+                if vk == accept_vk:
+                    cand = self.overlay.accept_selected()
+                    if cand:
+                        self._accept_candidate(cand)
+                    set_popup_visible(False)
+                    return
             if self.cfg.quickpick_digits and ord("1") <= vk <= ord("5"):
                 cand = self.overlay.accept_index(vk - ord("1"))
                 if cand:
@@ -119,59 +148,58 @@ class KeyHandlerMixin:
             # Note: Regular character keys fall through to typing, keeping prediction continuous!
 
         # Hotkeys
-        if hasattr(self.cfg, "power_mode_hotkey") and matches_hotkey(
-            vk, self.cfg.power_mode_hotkey
-        ):
+        if hasattr(self.cfg, "power_mode_hotkey") and matches_hotkey(vk, self.cfg.power_mode_hotkey):
             self._ui_queue.put(("toggle_power_mode", None))
             return
-        if hasattr(self.cfg, "quick_stats_hotkey") and matches_hotkey(
-            vk, self.cfg.quick_stats_hotkey
-        ):
+        if hasattr(self.cfg, "quick_stats_hotkey") and matches_hotkey(vk, self.cfg.quick_stats_hotkey):
             if not getattr(self, "power_mode_active", False):
                 self._ui_queue.put(("quick_stats", None))
             return
-        if self.cfg.clipboard_history_enabled and matches_hotkey(
-            vk, self.cfg.clipboard_history_hotkey
-        ):
+        if self.cfg.clipboard_history_enabled and matches_hotkey(vk, self.cfg.clipboard_history_hotkey):
             self._show_clipboard_popup()
             return
 
-        if (
-            hasattr(self, "macro_recorder")
-            and self.macro_recorder is not None
-            and self.macro_recorder.is_recording
-        ):
+        if getattr(self, "macro_recorder", None) and self.macro_recorder.is_recording:
             if vk == w.VK_ESCAPE:
                 self._ui_queue.put(("stop_macro_recording", None))
                 return
-            ch_rec = vk_to_unicode(vk, event.scan_code) or ""
-            self.macro_recorder.record(vk, ch_rec)
+            self.macro_recorder.record(vk, vk_to_unicode(vk, event.scan_code) or "")
 
-        if matches_hotkey(vk, self.cfg.undo_autocorrect_hotkey):
-            if self._undo_last_autocorrect():
+        if (
+            matches_hotkey(vk, getattr(self.cfg, "global_undo_hotkey", None))
+            or matches_hotkey(vk, self.cfg.undo_autocorrect_hotkey)
+        ):
+            if hasattr(self, "_undo_last_correction") and self._undo_last_correction():
                 return
-        if matches_hotkey(vk, self.cfg.normalize_hotkey):
-            now = time.monotonic()
-            if now - self._last_convert_at > 0.3:
-                self._last_convert_at = now
-                self._normalize_selection_or_last_word()
-            return
-        if matches_hotkey(vk, self.cfg.case_hotkey):
-            now = time.monotonic()
-            if now - self._last_convert_at > 0.3:
-                self._last_convert_at = now
-                self._cycle_case_selection_or_last_word()
-            return
-        if matches_hotkey(vk, self.cfg.convert_hotkey):
-            now = time.monotonic()
-            if now - self._last_convert_at > 0.3:
-                self._last_convert_at = now
-                self._convert_selection_or_last_word()
-            return
+            if hasattr(self, "_undo_last_autocorrect") and self._undo_last_autocorrect():
+                return
+
+        now = time.monotonic()
+        for hk, action in (
+            (self.cfg.normalize_hotkey, self._normalize_selection_or_last_word),
+            (self.cfg.case_hotkey, self._cycle_case_selection_or_last_word),
+            (self.cfg.convert_hotkey, self._convert_selection_or_last_word),
+        ):
+            if matches_hotkey(vk, hk):
+                if now - self._last_convert_at > 0.3:
+                    self._last_convert_at = now
+                    action()
+                return
+
         if matches_hotkey(vk, self.cfg.lang_indicator_hotkey):
             if not getattr(self, "power_mode_active", False):
                 self._show_lang_indicator()
             return
+        for hk_name, fn_name in (
+            ("translit_hotkey", "_toggle_translit"),
+            ("ai_assistant_hotkey", "_trigger_ai_assistant"),
+            ("voice_dictation_hotkey", "_toggle_voice_dictation"),
+        ):
+            if hasattr(self.cfg, hk_name) and matches_hotkey(vk, getattr(self.cfg, hk_name)):
+                fn = getattr(self, fn_name, None)
+                if fn:
+                    fn()
+                return
 
         if is_modifier(vk):
             return
@@ -179,18 +207,19 @@ class KeyHandlerMixin:
         if vk == w.VK_ESCAPE:
             if self._last_autocorrect is not None:
                 orig, corrected, t_done, delim = self._last_autocorrect
-                if time.monotonic() - t_done < 4.0:
-                    if self._undo_last_autocorrect():
-                        return
+                if time.monotonic() - t_done < 4.0 and self._undo_last_autocorrect():
+                    return
             self._last_autocorrect = None
             return
 
         if vk == w.VK_BACK:
+            if hasattr(self, "_undo_last_correction_from_backspace"):
+                if self._undo_last_correction_from_backspace():
+                    return
             if self._last_autocorrect is not None:
                 orig, corrected, t_done, delim = self._last_autocorrect
-                if time.monotonic() - t_done < 4.0:
-                    if self._undo_last_autocorrect():
-                        return
+                if time.monotonic() - t_done < 4.0 and self._undo_last_autocorrect():
+                    return
             self._last_autocorrect = None
             self.journal.push("\b")
             self._schedule_predict()
@@ -202,10 +231,9 @@ class KeyHandlerMixin:
         if is_password_focused():
             self.overlay.hide()
             set_popup_visible(False)
-            ch_pw = vk_to_unicode(vk, event.scan_code)
-            if ch_pw:
-                self.journal.push(ch_pw)
+            self.journal.clear()
             return
+
 
         # Shift+Space manual ZWNJ hotkey
         if self.cfg.shift_space_zwnj and vk == w.VK_SPACE:

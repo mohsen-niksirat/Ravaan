@@ -119,12 +119,14 @@ class SettingsWindow:
         tab_general = ttk.Frame(nb, padding=10)
         tab_prediction = ttk.Frame(nb, padding=10)
         tab_hotkeys = ttk.Frame(nb, padding=10)
+        tab_autofix = ttk.Frame(nb, padding=10)
         tab_exclusions = ttk.Frame(nb, padding=10)
         tab_snippets = ttk.Frame(nb, padding=10)
         tab_sync = ttk.Frame(nb, padding=10)
         tab_about = ttk.Frame(nb, padding=10)
 
         nb.add(tab_general, text=t("settings.tab_general", "General"))
+        nb.add(tab_autofix, text=t("settings.tab_autofix", "Auto-Fix"))
         nb.add(tab_prediction, text=t("settings.tab_prediction", "Prediction"))
         nb.add(tab_hotkeys, text=t("settings.tab_hotkeys", "Hotkeys"))
         nb.add(tab_exclusions, text=t("settings.tab_exclusions", "Excluded Apps"))
@@ -132,6 +134,7 @@ class SettingsWindow:
         nb.add(tab_sync, text=t("settings.tab_sync", "Cloud Sync"))
         nb.add(tab_about, text=t("settings.tab_about", "About"))
 
+        from ravan.ui.settings_autofix import build_autofix_section
         from ravan.ui.settings_builder import (
             build_about_section,
             build_exclusions_section,
@@ -143,6 +146,7 @@ class SettingsWindow:
         )
 
         build_general_section(self, tab_general, 0, pad)
+        build_autofix_section(self, tab_autofix, 0, pad)
         build_prediction_section(self, tab_prediction, 0, pad)
         build_hotkeys_section(self, tab_hotkeys, 0, pad)
         build_exclusions_section(self, tab_exclusions, 0, pad)
@@ -152,6 +156,7 @@ class SettingsWindow:
 
         tabs_spec = [
             (tab_general, t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "زبان", "شروع", "صدا"]),
+            (tab_autofix, t("settings.tab_autofix", "Auto-Fix"), ["autofix", "layout", "undo", "switch", "اصلاح", "چیدمان"]),
             (tab_prediction, t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "پیش‌بینی", "نیم‌فاصله"]),
             (tab_hotkeys, t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید"]),
             (tab_exclusions, t("settings.tab_exclusions", "Excluded Apps"), ["exclude", "blacklist", "app", "مستثنی"]),

@@ -202,11 +202,27 @@ def import_user_data(src_zip: Path | str, merge: bool = False) -> dict[str, Any]
             if "clipboard_history.json" in archive_names:
                 clip_file = dest_dir / "clipboard_history.json"
                 try:
-                    imp_items = json.loads(zf.read("clipboard_history.json").decode("utf-8"))
-                    curr_items = json.loads(clip_file.read_text(encoding="utf-8")) if clip_file.is_file() else []
-                    merged_items = list(dict.fromkeys(curr_items + imp_items))[:50]
-                    clip_file.write_text(json.dumps(merged_items, ensure_ascii=False, indent=2), encoding="utf-8")
+                    imp_data = json.loads(zf.read("clipboard_history.json").decode("utf-8"))
+
+                    curr_data = (
+                        json.loads(clip_file.read_text(encoding="utf-8"))
+                        if clip_file.is_file()
+                        else {}
+                    )
+                    imp_list = imp_data.get("items", []) if isinstance(imp_data, dict) else (imp_data if isinstance(imp_data, list) else [])
+                    curr_list = curr_data.get("items", []) if isinstance(curr_data, dict) else (curr_data if isinstance(curr_data, list) else [])
+                    merged_items = list(dict.fromkeys(curr_list + imp_list))[:50]
+                    curr_pinned = curr_data.get("pinned", []) if isinstance(curr_data, dict) else []
+                    imp_pinned = imp_data.get("pinned", []) if isinstance(imp_data, dict) else []
+                    merged_pinned = list(dict.fromkeys(curr_pinned + imp_pinned))
+                    merged_dict = {
+                        "pinned": merged_pinned,
+                        "items": merged_items,
+                        "timestamps": curr_data.get("timestamps", {}) if isinstance(curr_data, dict) else {},
+                    }
+                    clip_file.write_text(json.dumps(merged_dict, ensure_ascii=False, indent=2), encoding="utf-8")
                     restored_files.append("clipboard_history.json (merged)")
+
                 except Exception as exc:
                     log.warning("Failed merging clipboard_history.json: %s", exc)
 

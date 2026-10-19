@@ -75,6 +75,8 @@ class TrayIcon:
         is_auto_zwnj_enabled: Callable[[], bool] | None = None,
         on_toggle_pause: Callable[[], None] | None = None,
         is_paused: Callable[[], bool] | None = None,
+        on_toggle_translit: Callable[[], None] | None = None,
+        is_translit_enabled: Callable[[], bool] | None = None,
     ) -> None:
         self._on_quit = on_quit
         self._on_show_lang = on_show_lang
@@ -93,6 +95,8 @@ class TrayIcon:
         self._is_auto_zwnj_enabled = is_auto_zwnj_enabled
         self._on_toggle_pause = on_toggle_pause
         self._is_paused = is_paused
+        self._on_toggle_translit = on_toggle_translit
+        self._is_translit_enabled = is_translit_enabled
         self._icon: Any | None = None
         self._thread: threading.Thread | None = None
 
@@ -116,6 +120,13 @@ class TrayIcon:
         def visible_power(_item: Any) -> bool:
             return self._is_power_mode_active() if self._is_power_mode_active else False
 
+        def visible_translit(_item: Any) -> bool:
+            return bool(self._is_translit_enabled and self._is_translit_enabled())
+
+        def _toggle_translit(_icon: Any, _item: Any) -> None:
+            if self._on_toggle_translit:
+                self._on_toggle_translit()
+
         from ravan.core.i18n import t
         from ravan.ui.log_setup import open_logs_folder
 
@@ -129,6 +140,11 @@ class TrayIcon:
                 t("tray.word_prediction", "Word Prediction"),
                 self._toggle_prediction,
                 checked=visible_pred,
+            ),
+            Item(
+                t("tray.translit", "Finglish Mode (Ctrl+Alt+T)"),
+                _toggle_translit,
+                checked=visible_translit,
             ),
             Item(
                 t("tray.autocorrect", "Autocorrect"),

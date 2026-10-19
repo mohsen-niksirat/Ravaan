@@ -5,6 +5,66 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-10-19
+
+### Added
+- **Automatic Wrong-Layout Correction (Target A)**:
+  - Real-time automatic correction of words typed in the wrong keyboard layout (e.g. `slhl` → `سلام`, `سشمئشدی` → `salam`).
+  - Dual operation modes: `safe` (dictionary-verified) and `aggressive` (frequency-based).
+  - Annoyance Guard: automatically disables auto-fix for 2.0s upon manual editing.
+  - Per-app auto-fix override modes and mixed Persian/English benchmark gate exceeding 98% precision.
+  - Dedicated Settings tab with mode selectors, recent corrections log, and blacklist manager.
+
+- **Unified Undo & Confidence UX (Target C)**:
+  - Instant one-key undo via global hotkey (`Ctrl+Shift+Pause` / `Ctrl+Shift+Z`) restoring original text and keyboard layout.
+  - Floating transient toast notification (`ToastPopup`) displaying previous and restored words with theme styling.
+  - Automatic permanent blacklisting when any word correction pair is undone 3 consecutive times.
+
+- **Auto Layout Switch on Detection (Target B)**:
+  - System-level Windows keyboard layout switching via `WM_INPUTLANGCHANGEREQUEST` and `ActivateKeyboardLayout`.
+  - 3 operational modes: `fix_only`, `switch_only`, and `fix_and_switch`.
+  - Complete suppression inside password fields, excluded applications, and active IME composition.
+
+- **Transliteration Mode: Finglish -> Persian (Target D)**:
+  - Phonetic transliteration engine converting Latin Finglish into proper Persian script (e.g. `chetori` → `چطوری`).
+  - Pre-seeded 9,799-word bilingual mapping dictionary with fuzzy phonetic fallback.
+  - Personal frequency learning (`record_pick`) remembering user candidate choices across sessions.
+  - System tray toggle with checkmark and dynamic `FA-TL` language indicator badge.
+  - CLI bulk transliteration tool (`python -m ravan.cli translit`).
+
+- **Live Suggestions Upgrade (Target E)**:
+  - Option to accept inline word predictions with Arrow keys (Right Arrow, or Left Arrow in RTL text).
+  - Dimmed sentence and bigram continuation rows with direct `Shift+Enter` acceptance.
+  - Continuous typing hardening: auto-suppression in password fields, numbers-only controls, and IME composition.
+  - Sub-millisecond p95 latency (<0.3ms) and multi-monitor boundary work-area clamping.
+
+- **Snippets 3.0: Forms, Images, Per-App, Regex (Target F)**:
+  - Regex snippet triggers (`re:...`) with capture group substitutions (`$1`, `$2`) and 5ms ReDoS timeout guard.
+  - Interactive Form Snippets: modal mini-dialog (`QuickFormDialog`) for dynamic variables (`{{name}}`, `{{choice:A|B}}`, `{{date}}`).
+  - Direct image snippet pasting (PNG/JPEG) onto target applications via Windows clipboard (CF_DIB).
+  - Per-application snippet execution filtering (`app_filter`).
+  - Single-file portable `.ravaanpack` bundle export/import CLI and specification.
+
+- **Quick Accent / Persian Letter Picker (Target G)**:
+  - Key-hold trigger (300ms configurable) opening a horizontal variant strip above the caret.
+  - Full coverage for Persian/Arabic letter variants (ه/ة/ھ, ی/ي/ئ, ک/ك, ا/آ/أ/إ/ء, و/ؤ, ZWNJ on Space, ۰-۹/٠-٩).
+  - 1–9 number key selection, arrow key navigation, and automatic suppression in fullscreen games and videos.
+
+- **AI Text Assistant (Target H)**:
+  - Global `Ctrl+Shift+G` hotkey opening an elegant floating AI Assistant on selected text.
+  - Support for offline local Ollama (`http://localhost:11434`) and custom OpenAI-compatible endpoints.
+  - Quick action transformations: Rewrite & Polish, Fix Grammar & ZWNJ, Translate FA↔EN, Summarize, and Freeform Prompt.
+  - Windows DPAPI credential protection for API keys with zero user text logging (zero-log privacy policy).
+
+- **Voice Dictation: Push-to-Talk (Target I)**:
+  - Local offline speech-to-text dictation via `Ctrl+Alt+V` with ASR feasibility probing (`faster-whisper`, `whisper`, `vosk`).
+  - In-memory audio buffer with zero disk leaks: audio bytes are wiped immediately upon transcription.
+  - Automated Persian text normalization and ZWNJ formatting applied to recognized speech.
+
+- **Competitive Audit & Release Engineering (Target J)**:
+  - Comprehensive competitive parity matrix in `COMPARISON.md` comparing Ravaan v2.0 against Punto Switcher, Caramba, NeuroSwitcher, Espanso, Beeftext, and PowerToys.
+  - Full codebase compliance: all Python files strictly under 400 LOC with 100% test pass rate.
+
 ## [1.0.0] - 2026-10-19
 
 ### Added
