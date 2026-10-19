@@ -117,7 +117,7 @@
   - Floating non-activating card with dark/light mode detection, DWM rounded corners, and auto-dismiss after 6 seconds or Esc.
 - **M24: GitHub Gist Cloud Sync (Opt-in)**
   - Securely sync custom dictionary words (`user_words.txt`) and snippets (`snippets.json`) across PCs via a private GitHub Gist.
-  - Dedicated "Sync" tab in Settings with token masking, manual Push/Pull controls, last-sync timestamp, and automated pre-sync local backups kept in `%APPDATA%\Ravan\backups\`.
+  - Dedicated "Sync" tab in Settings with token masking, manual Push/Pull controls, last-sync timestamp, and automated pre-sync local backups kept in `%APPDATA%\Ravaan\backups\`.
 - **M23: Snippets 2.0 Enhancements**
   - Added support for cursor placement marker `|` (in addition to `$0` and `{{cursor}}`).
   - Added `{{clipboard}}` expansion macro injecting current clipboard text into templates.
@@ -131,7 +131,7 @@
   - Caret detection fallback chain optimization with 30ms TTL caching and failed UIA PID cooldown (3s) to prevent keystroke lag.
   - Window class exclusion matching (support for `class:ClassName`) and interactive "Pick Window" modal with 3-second delay capture and open window list.
   - Log rotation upgraded to 5 MB with 3 backup rotations and "Open logs folder" tray item.
-  - Global crash handler writing full tracebacks and the last 50 log lines to `%APPDATA%\Ravan\crash\`.
+  - Global crash handler writing full tracebacks and the last 50 log lines to `%APPDATA%\Ravaan\crash\`.
 - **M20: UI/UX Modernization & Live Hotkey Rebinding**
   - Native Windows 11 rounded corners via DWM attribute 33 (`DWMWCP_ROUND`), subtle dark/light border, and Tk DPI scaling.
   - Windows system theme auto-detection (dark/light) with manual override in Settings.

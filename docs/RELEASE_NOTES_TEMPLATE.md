@@ -26,7 +26,7 @@
 
 ### Upgrade Notes
 - **Config Migration from 0.x**: Existing configurations (`config.json`), custom words (`user_words.txt`), snippets (`snippets.json`), and learned vocabulary are automatically migrated to current schema version losslessly upon first run.
-- **Data Preservation**: Uninstalling previous versions leaves your `%APPDATA%\Ravan` data directory intact.
+- **Data Preservation**: Uninstalling previous versions leaves your `%APPDATA%\Ravaan` data directory intact.
 
 ### Installation Options
 - **Recommended (Installer)**: Download `Ravaan-Setup-{{VERSION}}.exe`. Installs per-user without requiring Administrator UAC privileges, with optional desktop shortcut, auto-startup, and `ravan://` URL protocol handler.

@@ -212,7 +212,7 @@ python -m ravan
    - Choose whether to preserve actual typing delays/timings or replay instantly.
    - Built-in notification and safety notice regarding elevated applications.
 
-3. **Power Mode / Focus Typing (`Ctrl+Alt+P`) (M24)**:
+3. **Power Mode / Focus Typing (`Ctrl+Alt+P`) (M30)**:
    - One-touch toggle via `Ctrl+Alt+P` or System Tray menu.
    - Suppresses all popups (prediction card, language chip, text statistics) for clean, distraction-free typing during meetings and screen sharing sessions.
    - Dims the tray icon and updates its tooltip. Supports optional timed duration.
