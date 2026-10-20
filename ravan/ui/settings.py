@@ -112,6 +112,12 @@ class SettingsWindow:
         self._search_var = tk.StringVar(value="")
         search_entry = ttk.Entry(search_frm, textvariable=self._search_var)
         search_entry.pack(side=pack_side, fill="x", expand=True)
+        ttk.Button(
+            search_frm,
+            text="✕",
+            width=3,
+            command=lambda: self._search_var.set(""),
+        ).pack(side=pack_side, padx=(4, 0))
 
         nb = ttk.Notebook(frm)
         nb.pack(fill="both", expand=True, pady=(0, 10))

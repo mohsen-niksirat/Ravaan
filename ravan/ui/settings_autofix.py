@@ -39,6 +39,21 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
         )
         rb.pack(anchor="w" if not rtl else "e", pady=2)
 
+    from ravan.ui.tooltip import ToolTip
+
+    ex_autofix = t(
+        "settings.autofix_example",
+        "Example: Typing 'sghl ' in English layout auto-converts to 'سلام '",
+    )
+    ex_lbl = ttk.Label(
+        mode_frame,
+        text=f"↳ {ex_autofix}",
+        font=("Segoe UI" if not rtl else "Vazirmatn", 8),
+        foreground="gray",
+    )
+    ex_lbl.pack(anchor="w" if not rtl else "e", padx=10, pady=(2, 4))
+    ToolTip(ex_lbl, ex_autofix)
+
     # 2. Auto layout switch
     layout_frame = ttk.LabelFrame(
         parent,

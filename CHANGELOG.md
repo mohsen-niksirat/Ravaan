@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 30-second live interactive typing demo sandbox: real-time simulation of layout conversion (`sghl ` → `سلام `), smart ZWNJ (`می ` → `می‌`), and live suggestion pills.
   - Full keyboard accessibility and bilingual localization in `fa.json` and `en.json`.
   - Comprehensive unit tests in `tests/test_wizard_v2.py`.
+- Settings Window Simplification, ToolTips, and Search (`ravan/ui/tooltip.py`, `ravan/ui/settings.py`, `ravan/ui/settings_builder.py`, `ravan/ui/settings_autofix.py`):
+  - Reusable lightweight hover tooltip component (`ToolTip`) with graceful fading and bounds checking.
+  - One-click clear button (`✕`) for fast search resetting in Settings window.
+  - Inline "what does this do?" examples (`↳ Example: ...`) under major feature toggles (calculator, clipboard history, smart ZWNJ, punctuation spacing, auto-fix layout).
+  - Bilingual tooltips and examples in `fa.json` and `en.json`.
+  - Comprehensive automated tests in `tests/test_settings_search.py`.
+
 
 ## [Unreleased] - Phase 5
 

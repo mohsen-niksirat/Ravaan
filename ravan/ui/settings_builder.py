@@ -135,34 +135,76 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
     )
     row += 1
 
+    from ravan.ui.tooltip import ToolTip
+
     win._cliphist_var = tk.BooleanVar(value=win.cfg.clipboard_history_enabled)
-    ttk.Checkbutton(frm, text=t("settings.enable_cliphist", "Enable clipboard history (Alt+V)"), variable=win._cliphist_var).grid(
-        row=row, column=0, columnspan=3, sticky=align, **pad
-    )
+    cb_clip = ttk.Checkbutton(frm, text=t("settings.enable_cliphist", "Enable clipboard history (Alt+V)"), variable=win._cliphist_var)
+    cb_clip.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    clip_ex = t("settings.enable_cliphist_example", "Example: Press Alt+V to search and paste recent clipboard items")
+    ToolTip(cb_clip, clip_ex)
+    row += 1
+    ttk.Label(
+        frm,
+        text=f"↳ {clip_ex}",
+        font=("Segoe UI" if not rtl else "Vazirmatn", 8),
+        foreground="gray",
+    ).grid(row=row, column=0, columnspan=3, sticky=align, padx=pad.get("padx", 10) + 14, pady=(0, 3))
     row += 1
 
     win._calc_var = tk.BooleanVar(value=win.cfg.inline_calc_enabled)
-    ttk.Checkbutton(frm, text=t("settings.enable_calc", "Inline calculator on '=' (1200*1.09=)"), variable=win._calc_var).grid(
-        row=row, column=0, columnspan=3, sticky=align, **pad
-    )
+    cb_calc = ttk.Checkbutton(frm, text=t("settings.enable_calc", "Inline calculator on '=' (1200*1.09=)"), variable=win._calc_var)
+    cb_calc.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    calc_ex = t("settings.enable_calc_example", "Example: Type '2500*4=' to automatically replace with '10000'")
+    ToolTip(cb_calc, calc_ex)
+    row += 1
+    ttk.Label(
+        frm,
+        text=f"↳ {calc_ex}",
+        font=("Segoe UI" if not rtl else "Vazirmatn", 8),
+        foreground="gray",
+    ).grid(row=row, column=0, columnspan=3, sticky=align, padx=pad.get("padx", 10) + 14, pady=(0, 3))
     row += 1
 
     win._zwnj_var = tk.BooleanVar(value=win.cfg.auto_zwnj_enabled)
-    ttk.Checkbutton(frm, text=t("settings.auto_zwnj", "Smart Persian half-space (auto ZWNJ)"), variable=win._zwnj_var).grid(
-        row=row, column=0, columnspan=3, sticky=align, **pad
-    )
+    cb_zwnj = ttk.Checkbutton(frm, text=t("settings.auto_zwnj", "Smart Persian half-space (auto ZWNJ)"), variable=win._zwnj_var)
+    cb_zwnj.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    zwnj_ex = t("settings.auto_zwnj_example", "Example: Automatically converts 'می روم' to 'می‌روم'")
+    ToolTip(cb_zwnj, zwnj_ex)
+    row += 1
+    ttk.Label(
+        frm,
+        text=f"↳ {zwnj_ex}",
+        font=("Segoe UI" if not rtl else "Vazirmatn", 8),
+        foreground="gray",
+    ).grid(row=row, column=0, columnspan=3, sticky=align, padx=pad.get("padx", 10) + 14, pady=(0, 3))
     row += 1
 
     win._shift_space_var = tk.BooleanVar(value=win.cfg.shift_space_zwnj)
-    ttk.Checkbutton(frm, text=t("settings.shift_space_zwnj", "Shift+Space inserts half-space (ZWNJ)"), variable=win._shift_space_var).grid(
-        row=row, column=0, columnspan=3, sticky=align, **pad
-    )
+    cb_shift = ttk.Checkbutton(frm, text=t("settings.shift_space_zwnj", "Shift+Space inserts half-space (ZWNJ)"), variable=win._shift_space_var)
+    cb_shift.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    shift_ex = t("settings.shift_space_zwnj_example", "Example: Press Shift+Space anywhere to insert half-space (‌)")
+    ToolTip(cb_shift, shift_ex)
+    row += 1
+    ttk.Label(
+        frm,
+        text=f"↳ {shift_ex}",
+        font=("Segoe UI" if not rtl else "Vazirmatn", 8),
+        foreground="gray",
+    ).grid(row=row, column=0, columnspan=3, sticky=align, padx=pad.get("padx", 10) + 14, pady=(0, 3))
     row += 1
 
     win._punct_spacing_var = tk.BooleanVar(value=win.cfg.fix_punctuation_spacing)
-    ttk.Checkbutton(frm, text=t("settings.fix_punctuation", "Fix spaces before punctuation"), variable=win._punct_spacing_var).grid(
-        row=row, column=0, columnspan=3, sticky=align, **pad
-    )
+    cb_punct = ttk.Checkbutton(frm, text=t("settings.fix_punctuation", "Fix spaces before punctuation"), variable=win._punct_spacing_var)
+    cb_punct.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    punct_ex = t("settings.fix_punctuation_example", "Example: Fixes extra spaces before punctuation (e.g. 'سلام .' → 'سلام.')")
+    ToolTip(cb_punct, punct_ex)
+    row += 1
+    ttk.Label(
+        frm,
+        text=f"↳ {punct_ex}",
+        font=("Segoe UI" if not rtl else "Vazirmatn", 8),
+        foreground="gray",
+    ).grid(row=row, column=0, columnspan=3, sticky=align, padx=pad.get("padx", 10) + 14, pady=(0, 3))
     row += 1
 
     # Theme selection
