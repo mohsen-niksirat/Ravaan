@@ -3,8 +3,19 @@
 from __future__ import annotations
 
 import bisect
+import logging
+import mmap
+import os
+import struct
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
+from pathlib import Path
+from typing import Any
+
+log = logging.getLogger(__name__)
+
+MAGIC = b"RVN2"
 
 
 class Language(Enum):
@@ -165,19 +176,209 @@ def load_dictionary_entries(filename_or_path: str) -> list[DictEntry]:
     ]
 
 
-class Dictionary:
-    def __init__(self, entries: list[DictEntry], language: Language) -> None:
-        self.entries = list(entries)
-        self.language = language
-        self._lower = {e.word.lower(): e for e in entries}
-        # Sorted-by-length index for fast fuzzy candidate scan
-        self._by_len: dict[int, list[tuple[DictEntry, str]]] = {}
-        for e in entries:
-            self._by_len.setdefault(len(e.word), []).append((e, e.word.lower()))
+def compile_dict_binary(txt_path: str | Path, bin_path: str | Path) -> int:
+    """Compile a words_<lang>.txt file into words_<lang>.bin."""
+    txt = Path(txt_path)
+    out = Path(bin_path)
 
-        sorted_pairs = sorted(((e.word.lower(), e) for e in entries), key=lambda p: p[0])
-        self._sorted_keys = [p[0] for p in sorted_pairs]
-        self._sorted_entries = [p[1] for p in sorted_pairs]
+    if not txt.is_file():
+        raise FileNotFoundError(f"Input dictionary text file not found: {txt}")
+
+    lines = txt.read_text(encoding="utf-8").splitlines()
+    raw_entries: list[tuple[str, int, int]] = []
+    seen: set[str] = set()
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "\t" in line:
+            parts = line.split("\t", 1)
+            word = parts[0].strip()
+            try:
+                freq = int(parts[1].strip())
+            except ValueError:
+                freq = 0
+        else:
+            parts = line.split()
+            if len(parts) >= 2 and parts[-1].isdigit():
+                word = " ".join(parts[:-1]).strip()
+                freq = int(parts[-1])
+            else:
+                word = line
+                freq = 0
+
+        if not word:
+            continue
+        key = word.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        raw_entries.append((word, freq, len(raw_entries)))
+
+    has_frequency = any(f > 0 for _, f, _ in raw_entries)
+    if has_frequency:
+        raw_entries.sort(key=lambda it: (it[1], -it[2]), reverse=True)
+
+    ranked_entries = [
+        (word, rank, freq)
+        for rank, (word, freq, _) in enumerate(raw_entries, 1)
+    ]
+
+    count = len(ranked_entries)
+    tmp_out = out.with_suffix(".tmp")
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(tmp_out, "wb") as f:
+        f.write(MAGIC)
+        f.write(struct.pack("<III", count, 2, 0))
+
+        table_alpha_pos = f.tell()
+        f.write(b"\x00" * (count * 4))
+        table_rank_pos = f.tell()
+        f.write(b"\x00" * (count * 4))
+
+        rank_offsets: list[int] = []
+        indexed_items: list[tuple[str, int]] = []
+        for word, rank, freq in ranked_entries:
+            offset = f.tell()
+            rank_offsets.append(offset)
+            indexed_items.append((word.lower(), offset))
+            w_bytes = word.encode("utf-8")
+            if len(w_bytes) > 255:
+                w_bytes = w_bytes[:255]
+            f.write(struct.pack("<IIB", rank, freq, len(w_bytes)))
+            f.write(w_bytes)
+
+        indexed_items.sort(key=lambda it: it[0])
+        alpha_offsets = [it[1] for it in indexed_items]
+
+        f.seek(table_alpha_pos)
+        f.write(struct.pack(f"<{count}I", *alpha_offsets))
+        f.seek(table_rank_pos)
+        f.write(struct.pack(f"<{count}I", *rank_offsets))
+
+    if out.exists():
+        os.remove(out)
+    os.rename(tmp_out, out)
+    return count
+
+
+class _MmapEntriesSequence(Sequence[DictEntry]):
+    """Zero-copy lazy sequence of DictEntry objects backed by memory-mapped RVN2."""
+
+    def __init__(self, dictionary: Dictionary) -> None:
+        self._d = dictionary
+
+    def __len__(self) -> int:
+        overlay_len = len(self._d._overlay)
+        return self._d._count + overlay_len
+
+    def __getitem__(self, index: int | slice) -> Any:
+        total = len(self)
+        if isinstance(index, slice):
+            start, stop, step = index.indices(total)
+            return [self[i] for i in range(start, stop, step)]
+        if index < 0:
+            index += total
+        if index < 0 or index >= total:
+            raise IndexError("Dictionary index out of range")
+
+        ov_list = list(self._d._overlay.values())
+        if index < len(ov_list):
+            return ov_list[index]
+
+        mmap_idx = index - len(ov_list)
+        mm = self._d._mmap
+        assert mm is not None
+        table2_pos = 16 + self._d._count * 4
+        off = struct.unpack_from("<I", mm, table2_pos + mmap_idx * 4)[0]
+        rank, freq, wlen = struct.unpack_from("<IIB", mm, off)
+        w = mm[off + 9 : off + 9 + wlen].decode("utf-8")
+        return DictEntry(word=w, rank=rank, frequency=freq)
+
+    def __iter__(self) -> Iterator[DictEntry]:
+        yield from self._d._overlay.values()
+        mm = self._d._mmap
+        if mm is not None:
+            count = self._d._count
+            table2_pos = 16 + count * 4
+            for i in range(count):
+                off = struct.unpack_from("<I", mm, table2_pos + i * 4)[0]
+                rank, freq, wlen = struct.unpack_from("<IIB", mm, off)
+                w = mm[off + 9 : off + 9 + wlen].decode("utf-8")
+                yield DictEntry(word=w, rank=rank, frequency=freq)
+
+
+class Dictionary:
+    def __init__(
+        self,
+        entries: list[DictEntry] | None = None,
+        language: Language = Language.ENGLISH,
+        _mmap_info: tuple[mmap.mmap, int, Any] | None = None,
+    ) -> None:
+        self.language = language
+        self._overlay: dict[str, DictEntry] = {}
+        self._overlay_by_len: dict[int, list[tuple[DictEntry, str]]] = {}
+        self._mmap: mmap.mmap | None = None
+        self._count: int = 0
+        self._file_handle: Any = None
+        self._top_cached_by_len: dict[int, list[tuple[DictEntry, str]]] | None = None
+
+        if _mmap_info is not None:
+            self._mmap, self._count, self._file_handle = _mmap_info
+            self._entries_seq: Sequence[DictEntry] = _MmapEntriesSequence(self)
+        elif entries is not None:
+            self._entries_list: list[DictEntry] = list(entries)
+            self._lower: dict[str, DictEntry] = {e.word.lower(): e for e in entries}
+            self._by_len: dict[int, list[tuple[DictEntry, str]]] = {}
+            for e in entries:
+                self._by_len.setdefault(len(e.word), []).append((e, e.word.lower()))
+            sorted_pairs = sorted(((e.word.lower(), e) for e in entries), key=lambda p: p[0])
+            self._sorted_keys = [p[0] for p in sorted_pairs]
+            self._sorted_entries = [p[1] for p in sorted_pairs]
+            self._entries_seq = self._entries_list
+        else:
+            self._entries_list = []
+            self._lower = {}
+            self._by_len = {}
+            self._sorted_keys = []
+            self._sorted_entries = []
+            self._entries_seq = self._entries_list
+
+    @property
+    def entries(self) -> Sequence[DictEntry]:
+        return self._entries_seq
+
+    @entries.setter
+    def entries(self, value: Sequence[DictEntry]) -> None:
+        if isinstance(value, list):
+            self._entries_list = value
+            self._entries_seq = value
+            self._lower = {e.word.lower(): e for e in value}
+            self._by_len = {}
+            for e in value:
+                self._by_len.setdefault(len(e.word), []).append((e, e.word.lower()))
+            sorted_pairs = sorted(((e.word.lower(), e) for e in value), key=lambda p: p[0])
+            self._sorted_keys = [p[0] for p in sorted_pairs]
+            self._sorted_entries = [p[1] for p in sorted_pairs]
+
+    def close(self) -> None:
+        if self._mmap is not None:
+            try:
+                self._mmap.close()
+            except Exception:
+                pass
+            self._mmap = None
+        if self._file_handle is not None:
+            try:
+                self._file_handle.close()
+            except Exception:
+                pass
+            self._file_handle = None
+
+    def __del__(self) -> None:
+        self.close()
 
     def add_word(self, word: str, priority: bool = True) -> None:
         """Add a dynamic word to the dictionary in-memory."""
@@ -185,27 +386,35 @@ class Dictionary:
         if not clean:
             return
         key = clean.lower()
+
+        if self._mmap is not None:
+            rank = 0 if priority else len(self._entries_seq) + 1
+            entry = DictEntry(word=clean, rank=rank, frequency=10000000 if priority else 1)
+            self._overlay[key] = entry
+            self._overlay_by_len.setdefault(len(clean), []).append((entry, key))
+            return
+
         if key in self._lower:
             if priority and self._lower[key].rank != 0:
                 old = self._lower[key]
                 new_entry = DictEntry(word=clean, rank=0, frequency=max(old.frequency, 10000000))
                 self._lower[key] = new_entry
                 try:
-                    self.entries.remove(old)
+                    self._entries_list.remove(old)
                 except ValueError:
                     pass
-                self.entries.insert(0, new_entry)
+                self._entries_list.insert(0, new_entry)
                 idx = bisect.bisect_left(self._sorted_keys, key)
                 if idx < len(self._sorted_keys) and self._sorted_keys[idx] == key:
                     self._sorted_entries[idx] = new_entry
             return
 
-        rank = 0 if priority else len(self.entries) + 1
+        rank = 0 if priority else len(self._entries_list) + 1
         entry = DictEntry(word=clean, rank=rank, frequency=10000000 if priority else 1)
         if priority:
-            self.entries.insert(0, entry)
+            self._entries_list.insert(0, entry)
         else:
-            self.entries.append(entry)
+            self._entries_list.append(entry)
         self._lower[key] = entry
         self._by_len.setdefault(len(clean), []).append((entry, key))
         idx = bisect.bisect_left(self._sorted_keys, key)
@@ -213,29 +422,84 @@ class Dictionary:
         self._sorted_entries.insert(idx, entry)
 
     @classmethod
+    def from_binary(cls, bin_path: str | Path, language: Language) -> Dictionary:
+        path = Path(bin_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"Binary dictionary not found: {path}")
+        f = open(path, "rb")
+        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        if mm[:4] != MAGIC:
+            mm.close()
+            f.close()
+            raise ValueError(f"Invalid binary dictionary format in {path}")
+        count = struct.unpack_from("<I", mm, 4)[0]
+        return cls(language=language, _mmap_info=(mm, count, f))
+
+    @classmethod
     def english(cls) -> Dictionary:
-        entries = load_dictionary_entries("words_en.txt")
-        if not entries:
-            entries = [
-                DictEntry(word=w, rank=i + 1)
-                for i, w in enumerate(_dedupe(_ENGLISH_WORDS))
-            ]
-        return cls(entries, Language.ENGLISH)
+        return cls._load_auto("words_en", Language.ENGLISH, _ENGLISH_WORDS)
 
     @classmethod
     def persian(cls) -> Dictionary:
-        entries = load_dictionary_entries("words_fa.txt")
-        if not entries:
-            entries = [
-                DictEntry(word=w, rank=i + 1)
-                for i, w in enumerate(_dedupe(_PERSIAN_WORDS))
-            ]
-        return cls(entries, Language.PERSIAN)
+        return cls._load_auto("words_fa", Language.PERSIAN, _PERSIAN_WORDS)
+
+    @classmethod
+    def _load_auto(cls, stem: str, language: Language, fallback_words: list[str]) -> Dictionary:
+        data_dir = Path(__file__).resolve().parent.parent / "data"
+        bin_path = data_dir / f"{stem}.bin"
+        txt_path = data_dir / f"{stem}.txt"
+
+        if bin_path.is_file():
+            if txt_path.is_file() and txt_path.stat().st_mtime > bin_path.stat().st_mtime:
+                try:
+                    compile_dict_binary(txt_path, bin_path)
+                except Exception as ex:
+                    log.warning("Failed to auto-recompile %s: %s", bin_path, ex)
+            try:
+                return cls.from_binary(bin_path, language)
+            except Exception as ex:
+                log.warning("Failed to mmap %s (%s), falling back to txt", bin_path, ex)
+
+        if txt_path.is_file():
+            try:
+                compile_dict_binary(txt_path, bin_path)
+                return cls.from_binary(bin_path, language)
+            except Exception as ex:
+                log.warning("Failed to compile binary dict %s: %s", bin_path, ex)
+                entries = load_dictionary_entries(str(txt_path))
+                return cls(entries, language)
+
+        entries = [DictEntry(word=w, rank=i + 1) for i, w in enumerate(_dedupe(fallback_words))]
+        return cls(entries, language)
+
+    def _find_in_mmap(self, target_lower: str) -> DictEntry | None:
+        if self._mmap is None or self._count == 0:
+            return None
+        mm = self._mmap
+        low = 0
+        high = self._count - 1
+        while low <= high:
+            mid = (low + high) // 2
+            off = struct.unpack_from("<I", mm, 16 + mid * 4)[0]
+            wlen = mm[off + 8]
+            w = mm[off + 9 : off + 9 + wlen].decode("utf-8")
+            wl = w.lower()
+            if wl == target_lower:
+                rank, freq = struct.unpack_from("<II", mm, off)
+                return DictEntry(word=w, rank=rank, frequency=freq)
+            elif wl < target_lower:
+                low = mid + 1
+            else:
+                high = mid - 1
+        return None
 
     def completions(self, prefix: str, limit: int) -> list[DictEntry]:
         prefix_lower = prefix.lower()
+        if self._mmap is not None:
+            return self._completions_mmap(prefix_lower, limit)
+
         if not prefix_lower:
-            return self.entries[:limit]
+            return self._entries_list[:limit]
         idx = bisect.bisect_left(self._sorted_keys, prefix_lower)
         matches: list[DictEntry] = []
         n = len(self._sorted_keys)
@@ -245,6 +509,73 @@ class Dictionary:
         matches.sort(key=lambda e: e.rank)
         return matches[:limit]
 
+    def _completions_mmap(self, prefix_lower: str, limit: int) -> list[DictEntry]:
+        mm = self._mmap
+        assert mm is not None
+        count = self._count
+        table2_pos = 16 + count * 4
+
+        if not prefix_lower:
+            out: list[DictEntry] = list(self._overlay.values())
+            for i in range(min(limit, count)):
+                off = struct.unpack_from("<I", mm, table2_pos + i * 4)[0]
+                rank, freq, wlen = struct.unpack_from("<IIB", mm, off)
+                w = mm[off + 9 : off + 9 + wlen].decode("utf-8")
+                out.append(DictEntry(word=w, rank=rank, frequency=freq))
+            out.sort(key=lambda e: e.rank)
+            return out[:limit]
+
+        low = 0
+        high = count - 1
+        first_idx = count
+        while low <= high:
+            mid = (low + high) // 2
+            off = struct.unpack_from("<I", mm, 16 + mid * 4)[0]
+            wlen = mm[off + 8]
+            w = mm[off + 9 : off + 9 + wlen].decode("utf-8").lower()
+            if w >= prefix_lower:
+                first_idx = mid
+                high = mid - 1
+            else:
+                low = mid + 1
+
+        matches: list[DictEntry] = []
+        idx = first_idx
+        while idx < count:
+            off = struct.unpack_from("<I", mm, 16 + idx * 4)[0]
+            wlen = mm[off + 8]
+            w = mm[off + 9 : off + 9 + wlen].decode("utf-8")
+            if not w.lower().startswith(prefix_lower):
+                break
+            rank, freq = struct.unpack_from("<II", mm, off)
+            matches.append(DictEntry(word=w, rank=rank, frequency=freq))
+            idx += 1
+            if len(matches) >= limit * 15:
+                break
+
+        for ov_key, ov_entry in self._overlay.items():
+            if ov_key.startswith(prefix_lower) and ov_entry not in matches:
+                matches.append(ov_entry)
+
+        matches.sort(key=lambda e: e.rank)
+        return matches[:limit]
+
+    def _ensure_top_by_len(self) -> dict[int, list[tuple[DictEntry, str]]]:
+        if self._top_cached_by_len is None:
+            self._top_cached_by_len = {}
+            if self._mmap is not None:
+                mm = self._mmap
+                count = self._count
+                limit_top = min(3000, count)
+                table2_pos = 16 + count * 4
+                for i in range(limit_top):
+                    off = struct.unpack_from("<I", mm, table2_pos + i * 4)[0]
+                    rank, freq, wlen = struct.unpack_from("<IIB", mm, off)
+                    w = mm[off + 9 : off + 9 + wlen].decode("utf-8")
+                    e = DictEntry(word=w, rank=rank, frequency=freq)
+                    self._top_cached_by_len.setdefault(len(w), []).append((e, w.lower()))
+        return self._top_cached_by_len
+
     def fuzzy_matches(
         self, word: str, max_dist: int, limit: int
     ) -> list[tuple[DictEntry, int]]:
@@ -252,8 +583,18 @@ class Dictionary:
         n = len(word_lower)
         matches: list[tuple[DictEntry, int]] = []
         lens = sorted(range(max(1, n - max_dist), n + max_dist + 1), key=lambda x: abs(x - n))
+
+        source_by_len = self._ensure_top_by_len() if self._mmap is not None else self._by_len
+
         for ln in lens:
-            for e, w_low in self._by_len.get(ln, ()):
+            # Check overlay words
+            for e, w_low in self._overlay_by_len.get(ln, ()):
+                dist = osa_distance(w_low, word_lower, max_dist=max_dist)
+                if 0 < dist <= max_dist:
+                    matches.append((e, dist))
+
+            # Check top vocabulary
+            for e, w_low in source_by_len.get(ln, ()):
                 if e.rank > 3000:
                     continue
                 dist = osa_distance(w_low, word_lower, max_dist=max_dist)
@@ -267,10 +608,21 @@ class Dictionary:
         return matches[:limit]
 
     def contains(self, word: str) -> bool:
-        return word.lower() in self._lower
+        key = word.lower()
+        if key in self._overlay:
+            return True
+        if self._mmap is not None:
+            return self._find_in_mmap(key) is not None
+        return key in self._lower
 
     def rank_of(self, word: str) -> int | None:
-        entry = self._lower.get(word.lower())
+        key = word.lower()
+        if key in self._overlay:
+            return self._overlay[key].rank
+        if self._mmap is not None:
+            entry = self._find_in_mmap(key)
+            return entry.rank if entry else None
+        entry = self._lower.get(key)
         return entry.rank if entry else None
 
 

@@ -32,7 +32,7 @@ where = ["."]
 include = ["ravan*"]
 
 [tool.setuptools.package-data]
-ravan = ["data/*.txt", "data/*.ico", "data/*.json"]
+ravan = ["data/*.txt", "data/*.bin", "data/*.ico", "data/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

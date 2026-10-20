@@ -9,8 +9,8 @@ This document provides a complete inventory of every file created by **Ravaan**,
 On Microsoft Windows, all persistent user configuration and runtime data are stored in:
 
 ```
-%APPDATA%\Ravan\
-(e.g., C:\Users\<Username>\AppData\Roaming\Ravan\)
+%APPDATA%\Ravaan\
+(e.g., C:\Users\<Username>\AppData\Roaming\Ravaan\)
 ```
 
 Ravaan does **not** write to the Windows Registry for user settings (with the sole exception of the optional standard Windows `Run` key if "Launch at startup" is enabled).
@@ -84,6 +84,25 @@ Ravaan supports automated, lossless schema migration from all previous versions:
 ### Resetting Specific Data Files
 To clear a specific component without losing your main configuration:
 - **User Words**: Clear the text area in **Settings → Dictionary → User Words** and click Save.
-- **Learned Model**: Delete `%APPDATA%\Ravan\user_learning.json` while Ravaan is closed. It will regenerate with standard starter transitions on next launch.
-- **Clipboard History**: Delete `%APPDATA%\Ravan\clipboard_history.json`.
-- **Full Factory Reset**: Delete the `%APPDATA%\Ravan\` folder while Ravaan is closed. Ravaan will trigger the First-Run Onboarding Wizard upon restart.
+- **Learned Model**: Delete `%APPDATA%\Ravaan\user_learning.json` while Ravaan is closed. It will regenerate with standard starter transitions on next launch.
+- **Clipboard History**: Delete `%APPDATA%\Ravaan\clipboard_history.json`.
+- **Full Factory Reset**: Delete the `%APPDATA%\Ravaan\` folder while Ravaan is closed. Ravaan will trigger the First-Run Onboarding Wizard upon restart.
+
+---
+
+## 7. Bundled Lexicons & Dictionaries
+
+Ravaan bundles large, license-checked word lists for Persian and English word prediction, auto-correction, and wrong-layout detection:
+
+| Asset | Source / Corpus | License | Words | Format | Cold-Load Latency |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| `words_fa.txt` / `.bin` | Hermit Dave FrequencyWords (2018) + Ravaan Curated Lexicon | **MIT** | 162,935 | UTF-8 / RVN2 mmap | **< 4 ms** |
+| `words_en.txt` / `.bin` | Hermit Dave FrequencyWords (2018) + Ravaan Curated Lexicon | **MIT** | 46,827 | UTF-8 / RVN2 mmap | **< 2 ms** |
+| `finglish_dict.json` | Ravaan Bilingual Transliteration Lexicon | **MIT** | 9,799 | JSON | < 5 ms |
+
+### High-Performance Binary Index (`RVN2`)
+To guarantee sub-millisecond cold start times without loading 200,000+ Python objects into heap memory, Ravaan automatically compiles `.txt` word lists into memory-mapped `.bin` files (`RVN2` format):
+- Dual offset indexing: alphabetical table for $O(\log N)$ binary search and contiguous prefix completion; rank table for instant $O(1)$ priority sorting.
+- Zero-heap overhead: the OS memory-maps the binary file into virtual memory without allocating Python objects for inactive vocabulary.
+- Seamless fallback: if `.bin` is deleted or `.txt` is updated, Ravaan automatically recompiles the binary index on startup.
+

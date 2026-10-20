@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Phase 1
 
+### Added
+- Large, license-checked Persian dictionary (162,935 words with frequency weights) and English dictionary (46,827 words with frequency weights) sourced from Hermit Dave FrequencyWords (MIT License) and merged with Ravaan's curated Persian lexicon.
+- High-performance binary dictionary compiler `scripts/compile_dictionary.py` and `compile_dict_binary` generating `RVN2` format with dual-offset index tables (alphabetical and rank-ordered).
+- Memory-mapped zero-heap dictionary sequence (`_MmapEntriesSequence`) in `ravan/core/dict.py` achieving < 4 ms load time and reducing idle RAM from 30.4 MB to 18.5 MB.
+- Created `THIRD_PARTY_LICENSES.md` and added Section 7 to `DATA.md` documenting lexicon licenses and binary index architecture.
+
 ### Changed
 - Reassigned default layout conversion hotkey to `Pause` (avoiding F12 conflicts with Chrome/Edge DevTools and VS Code). Added `VK_PAUSE` mapping in `ravan/platform/keys.py` and `ravan/platform/winapi.py`.
 - Reassigned default quick text statistics hotkey to `Ctrl+Alt+S` (avoiding Alt+S conflicts in office and graphics applications).
