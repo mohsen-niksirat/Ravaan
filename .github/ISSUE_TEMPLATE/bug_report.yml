@@ -1,0 +1,63 @@
+name: Bug Report / گزارش باگ
+description: Report an issue, unexpected behavior, or crash in Ravaan
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please ensure you are running the latest version of Ravaan.
+        لطفاً پیش از ثبت، مطمئن شوید از آخرین نسخه روان استفاده می‌فرمایید.
+  - type: input
+    id: version
+    attributes:
+      label: Ravaan Version / نسخه روان
+      description: What version of Ravaan are you using? (e.g. 1.0.0, 2.0.0, portable, from source)
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Windows OS Version / نسخه ویندوز
+      options:
+        - Windows 11 (64-bit)
+        - Windows 10 (64-bit)
+        - Windows Server
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened? / شرح مشکل
+      description: A clear and concise description of the bug.
+      placeholder: "When typing in application X, auto-correct triggered incorrectly..."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce / مراحل بازتولید
+      description: Exact keystroke sequence or actions needed to reproduce the issue.
+      placeholder: |
+        1. Open Notepad
+        2. Set keyboard layout to EN
+        3. Type 'sghl '
+        4. See error...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior / رفتار مورد انتظار
+      description: What did you expect to happen instead?
+      placeholder: "Expected 'سلام ' to appear."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs or Diagnostics / لاگ‌ها یا اطلاعات عیب‌یابی
+      description: You can copy diagnostic logs from Tray -> Diagnostics. (Do not paste passwords or private text!)
+      render: shell

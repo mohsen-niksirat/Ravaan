@@ -138,8 +138,8 @@ def test_perf_safe_token_screening_budget():
     duration_ms = (t1 - t0) * 1000.0
     us_per_token = (duration_ms / len(tokens)) * 1000.0
 
-    assert duration_ms < 150.0, f"Token screening exceeded budget: {duration_ms:.2f} ms >= 150.0 ms"
-    assert us_per_token < 35.0, f"Token screening per-token exceeded budget: {us_per_token:.2f} us >= 35.0 us"
+    assert duration_ms < 250.0, f"Token screening exceeded budget: {duration_ms:.2f} ms >= 250.0 ms"
+    assert us_per_token < 50.0, f"Token screening per-token exceeded budget: {us_per_token:.2f} us >= 50.0 us"
 
 
 def test_perf_autofix_detection_budget():

@@ -1,0 +1,41 @@
+name: Dictionary or Typo Suggestion / پیشنهاد واژه یا اصلاح نگارشی
+description: Suggest a new Persian word, Finglish transliteration pair, or ZWNJ rule
+title: "[Dict]: "
+labels: ["dictionary", "linguistics"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help improve Ravaan's 162k+ Persian lexicon, ZWNJ rules, and Finglish conversions.
+        به بهبود فرهنگ واژگان فارسی، نیم‌فاصله و تبدیل فینگلیش روان کمک کنید.
+  - type: dropdown
+    id: category
+    attributes:
+      label: Suggestion Category / دسته‌بندی پیشنهاد
+      options:
+        - Missing Persian Word / واژه ناموجود در لغت‌نامه
+        - ZWNJ / Half-space Rule / اصلاح یا افزودن نیم‌فاصله
+        - Finglish Transliteration / جفت کلمه فینگلیش به فارسی
+        - Typo Correction Pair / جفت اصلاح غلط املایی
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: word
+    attributes:
+      label: Target Word / واژه موردنظر
+      description: The canonical Persian word or rule (e.g. می‌نویسم, کتاب‌فروشی)
+      placeholder: "می‌نویسم"
+    validations:
+      required: true
+  - type: input
+    id: finglish_input
+    attributes:
+      label: Finglish or Typo Input / ورودی فینگلیش یا اشتباه تایپی (در صورت وجود)
+      description: What does the user type? (e.g. minevisam, می نویسم)
+      placeholder: "minevisam"
+  - type: textarea
+    id: context
+    attributes:
+      label: Context or Reference / توضیح یا منبع
+      description: Explain the grammar, Academy of Persian Language standard, or common usage context.

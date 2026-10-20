@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security & Privacy Questions / سوالات امنیتی و حریم خصوصی
+    url: https://github.com/mohsen-niksirat/Ravaan/blob/main/docs/SECURITY_FAQ.md
+    about: Read our comprehensive FAQ regarding keyboard hooks, zero keystroke logging, and local-only data.
+  - name: GitHub Discussions / تالار گفتگو
+    url: https://github.com/mohsen-niksirat/Ravaan/discussions
+    about: Ask questions, share tips, and connect with other Ravaan users.

@@ -1,0 +1,30 @@
+name: Feature Request / پیشنهاد قابلیت جدید
+description: Suggest an idea or new capability for Ravaan
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We love new ideas! Please remember that Ravaan maintains a strict zero-telemetry and local-only philosophy.
+        پیشنهادات شما به ارتقای روان کمک می‌کند. به یاد داشته باشید روان کاملاً آفلاین و محلی است.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem? / آیا این درخواست مربوط به مشکلی است؟
+      description: A clear and concise description of what the problem is.
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like / راهکار یا قابلیت پیشنهادی
+      description: A clear description of what you want to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you've considered / راهکارهای جایگزین
+      description: Any alternative solutions or features you've considered.

@@ -5,6 +5,24 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 9
+
+### Added
+- Interactive Demos & Scenarios Showcase (`docs/DEMO.md`):
+  - Created 6 visual ASCII-art typing walkthroughs demonstrating wrong layout auto-fix (sghl -> سلام), Persian typography & ZWNJ (کتاب ها -> کتاب‌ها), text snippets, Finglish candidate popup, inline calculator, and memory-only privacy architecture.
+- Modern Bilingual Documentation Overhaul (`README.md`, `README.fa.md`):
+  - Modernized `README.md` with CI badges, release links, package manager installation instructions (Winget, Scoop, Chocolatey), keyboard shortcuts matrix, and architecture diagrams.
+  - Authored dedicated Persian documentation `README.fa.md` with standard Persian typography, ZWNJ, and comprehensive setup guides.
+- Community & Contribution Guidelines (`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`):
+  - Created contributor guide outlining local setup, test commands, conventional commits, and dictionary contribution workflows.
+  - Added Contributor Covenant Code of Conduct v2.1.
+- GitHub Issue & Pull Request Templates (`.github/`):
+  - Form-based YAML templates for bug reports, feature requests, and Persian dictionary / ZWNJ suggestions.
+  - Configured `config.yml` with links to Security FAQ and Discussions.
+  - Added structured Pull Request template (`pull_request_template.md`) enforcing zero-telemetry and bilingual parity checklists.
+- Documentation & Localization Parity Test Suite (`tests/test_docs_and_community.py`):
+  - 14 automated tests verifying 100% key and placeholder parity across all 298 strings in `en.json` and `fa.json`, validating internal relative markdown links, and verifying issue template schemas.
+
 ## [Unreleased] - Phase 8
 
 ### Added
