@@ -5,9 +5,14 @@ from __future__ import annotations
 import ctypes
 from ctypes import wintypes
 
-user32 = ctypes.WinDLL("user32", use_last_error=True)
-kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-ole32 = ctypes.WinDLL("ole32", use_last_error=True)
+if hasattr(ctypes, "WinDLL"):
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    ole32 = ctypes.WinDLL("ole32", use_last_error=True)
+else:
+    user32 = None  # type: ignore
+    kernel32 = None  # type: ignore
+    ole32 = None  # type: ignore
 
 # Constants
 WH_KEYBOARD_LL = 13
@@ -149,137 +154,139 @@ class INPUT(ctypes.Structure):
 
 LRESULT = ctypes.c_ssize_t
 
-HOOKPROC = ctypes.WINFUNCTYPE(
+WINFUNCTYPE = getattr(ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE)
+HOOKPROC = WINFUNCTYPE(
     LRESULT, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM
 )
 
-user32.SetWindowsHookExW.argtypes = [
-    ctypes.c_int,
-    HOOKPROC,
-    wintypes.HINSTANCE,
-    wintypes.DWORD,
-]
-user32.SetWindowsHookExW.restype = wintypes.HHOOK
+if user32 is not None and kernel32 is not None:
+    user32.SetWindowsHookExW.argtypes = [
+        ctypes.c_int,
+        HOOKPROC,
+        wintypes.HINSTANCE,
+        wintypes.DWORD,
+    ]
+    user32.SetWindowsHookExW.restype = wintypes.HHOOK
 
-user32.CallNextHookEx.argtypes = [
-    wintypes.HHOOK,
-    ctypes.c_int,
-    wintypes.WPARAM,
-    wintypes.LPARAM,
-]
-user32.CallNextHookEx.restype = LRESULT
+    user32.CallNextHookEx.argtypes = [
+        wintypes.HHOOK,
+        ctypes.c_int,
+        wintypes.WPARAM,
+        wintypes.LPARAM,
+    ]
+    user32.CallNextHookEx.restype = LRESULT
 
-user32.UnhookWindowsHookEx.argtypes = [wintypes.HHOOK]
-user32.UnhookWindowsHookEx.restype = wintypes.BOOL
+    user32.UnhookWindowsHookEx.argtypes = [wintypes.HHOOK]
+    user32.UnhookWindowsHookEx.restype = wintypes.BOOL
 
-user32.GetMessageW.argtypes = [
-    ctypes.POINTER(wintypes.MSG),
-    wintypes.HWND,
-    wintypes.UINT,
-    wintypes.UINT,
-]
-user32.GetMessageW.restype = wintypes.BOOL
+    user32.GetMessageW.argtypes = [
+        ctypes.POINTER(wintypes.MSG),
+        wintypes.HWND,
+        wintypes.UINT,
+        wintypes.UINT,
+    ]
+    user32.GetMessageW.restype = wintypes.BOOL
 
-user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
-user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
+    user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
+    user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
 
-user32.PostThreadMessageW.argtypes = [
-    wintypes.DWORD,
-    wintypes.UINT,
-    wintypes.WPARAM,
-    wintypes.LPARAM,
-]
-user32.PostThreadMessageW.restype = wintypes.BOOL
+    user32.PostThreadMessageW.argtypes = [
+        wintypes.DWORD,
+        wintypes.UINT,
+        wintypes.WPARAM,
+        wintypes.LPARAM,
+    ]
+    user32.PostThreadMessageW.restype = wintypes.BOOL
 
-user32.GetForegroundWindow.restype = wintypes.HWND
-user32.GetWindowThreadProcessId.argtypes = [
-    wintypes.HWND,
-    ctypes.POINTER(wintypes.DWORD),
-]
-user32.GetWindowThreadProcessId.restype = wintypes.DWORD
-# Use an integer restype — wintypes.HKL is a pointer alias and turns 0 into None.
-user32.GetKeyboardLayout.argtypes = [wintypes.DWORD]
-user32.GetKeyboardLayout.restype = ULONG_PTR
-user32.ActivateKeyboardLayout.argtypes = [ULONG_PTR, wintypes.UINT]
-user32.ActivateKeyboardLayout.restype = ULONG_PTR
-user32.GetKeyboardLayoutList.argtypes = [ctypes.c_int, ctypes.POINTER(wintypes.HKL)]
-user32.GetKeyboardLayoutList.restype = ctypes.c_int
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    user32.GetWindowThreadProcessId.argtypes = [
+        wintypes.HWND,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    # Use an integer restype — wintypes.HKL is a pointer alias and turns 0 into None.
+    user32.GetKeyboardLayout.argtypes = [wintypes.DWORD]
+    user32.GetKeyboardLayout.restype = ULONG_PTR
+    user32.ActivateKeyboardLayout.argtypes = [ULONG_PTR, wintypes.UINT]
+    user32.ActivateKeyboardLayout.restype = ULONG_PTR
+    user32.GetKeyboardLayoutList.argtypes = [ctypes.c_int, ctypes.POINTER(wintypes.HKL)]
+    user32.GetKeyboardLayoutList.restype = ctypes.c_int
 
-user32.SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
-user32.SendInput.restype = wintypes.UINT
+    user32.SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
+    user32.SendInput.restype = wintypes.UINT
 
-user32.GetGUIThreadInfo.argtypes = [wintypes.DWORD, ctypes.POINTER(GUITHREADINFO)]
-user32.GetGUIThreadInfo.restype = wintypes.BOOL
-user32.GetCursorPos.argtypes = [ctypes.POINTER(POINT)]
-user32.GetCursorPos.restype = wintypes.BOOL
-user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(POINT)]
-user32.ClientToScreen.restype = wintypes.BOOL
-user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
-user32.AttachThreadInput.restype = wintypes.BOOL
+    user32.GetGUIThreadInfo.argtypes = [wintypes.DWORD, ctypes.POINTER(GUITHREADINFO)]
+    user32.GetGUIThreadInfo.restype = wintypes.BOOL
+    user32.GetCursorPos.argtypes = [ctypes.POINTER(POINT)]
+    user32.GetCursorPos.restype = wintypes.BOOL
+    user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(POINT)]
+    user32.ClientToScreen.restype = wintypes.BOOL
+    user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+    user32.AttachThreadInput.restype = wintypes.BOOL
 
-user32.ToUnicodeEx.argtypes = [
-    wintypes.UINT,
-    wintypes.UINT,
-    ctypes.POINTER(wintypes.BYTE),
-    wintypes.LPWSTR,
-    ctypes.c_int,
-    wintypes.UINT,
-    wintypes.HKL,
-]
-user32.ToUnicodeEx.restype = ctypes.c_int
-user32.GetKeyboardState.argtypes = [ctypes.POINTER(wintypes.BYTE)]
-user32.GetKeyboardState.restype = wintypes.BOOL
-user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
-user32.GetAsyncKeyState.restype = wintypes.SHORT
+    user32.ToUnicodeEx.argtypes = [
+        wintypes.UINT,
+        wintypes.UINT,
+        ctypes.POINTER(wintypes.BYTE),
+        wintypes.LPWSTR,
+        ctypes.c_int,
+        wintypes.UINT,
+        wintypes.HKL,
+    ]
+    user32.ToUnicodeEx.restype = ctypes.c_int
+    user32.GetKeyboardState.argtypes = [ctypes.POINTER(wintypes.BYTE)]
+    user32.GetKeyboardState.restype = wintypes.BOOL
+    user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
+    user32.GetAsyncKeyState.restype = wintypes.SHORT
 
-kernel32.GetCurrentThreadId.restype = wintypes.DWORD
-kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
-kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+    kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+    kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+    kernel32.GetModuleHandleW.restype = wintypes.HMODULE
 
-user32.GetSystemMetrics.argtypes = [ctypes.c_int]
-user32.GetSystemMetrics.restype = ctypes.c_int
+    user32.GetSystemMetrics.argtypes = [ctypes.c_int]
+    user32.GetSystemMetrics.restype = ctypes.c_int
 
-user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
-user32.GetAncestor.restype = wintypes.HWND
-user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
-user32.GetWindowLongW.restype = wintypes.LONG
-user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.LONG]
-user32.SetWindowLongW.restype = wintypes.LONG
-user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
-user32.ShowWindow.restype = wintypes.BOOL
-user32.SetWindowPos.argtypes = [
-    wintypes.HWND,
-    wintypes.HWND,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_int,
-    wintypes.UINT,
-]
-user32.SetWindowPos.restype = wintypes.BOOL
+    user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
+    user32.GetAncestor.restype = wintypes.HWND
+    user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.GetWindowLongW.restype = wintypes.LONG
+    user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, wintypes.LONG]
+    user32.SetWindowLongW.restype = wintypes.LONG
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.ShowWindow.restype = wintypes.BOOL
+    user32.SetWindowPos.argtypes = [
+        wintypes.HWND,
+        wintypes.HWND,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        wintypes.UINT,
+    ]
+    user32.SetWindowPos.restype = wintypes.BOOL
 
-user32.PostMessageW.argtypes = [
-    wintypes.HWND,
-    wintypes.UINT,
-    wintypes.WPARAM,
-    wintypes.LPARAM,
-]
-user32.PostMessageW.restype = wintypes.BOOL
+    user32.PostMessageW.argtypes = [
+        wintypes.HWND,
+        wintypes.UINT,
+        wintypes.WPARAM,
+        wintypes.LPARAM,
+    ]
+    user32.PostMessageW.restype = wintypes.BOOL
 
-user32.GetKeyState.argtypes = [ctypes.c_int]
-user32.GetKeyState.restype = wintypes.SHORT
+    user32.GetKeyState.argtypes = [ctypes.c_int]
+    user32.GetKeyState.restype = wintypes.SHORT
 
-user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(RECT)]
-user32.GetWindowRect.restype = wintypes.BOOL
+    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(RECT)]
+    user32.GetWindowRect.restype = wintypes.BOOL
 
-user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
-user32.MonitorFromWindow.restype = wintypes.HMONITOR
+    user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+    user32.MonitorFromWindow.restype = wintypes.HMONITOR
 
-kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
 
-kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-kernel32.CloseHandle.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
 
 
 def enable_dpi_awareness() -> bool:
