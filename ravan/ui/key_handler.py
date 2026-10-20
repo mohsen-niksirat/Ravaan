@@ -403,4 +403,11 @@ class KeyHandlerMixin:
             return
 
         self.journal.push(ch)
+        if hasattr(self, "_maybe_autofix_mid_word"):
+            cur_word = self.journal.last_word(allow_trailing_spaces=False)
+            if cur_word and len(cur_word) >= 4:
+                if self._maybe_autofix_mid_word(cur_word):
+                    self.overlay.hide()
+                    set_popup_visible(False)
+                    return
         self._schedule_predict()

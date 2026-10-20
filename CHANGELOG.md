@@ -5,6 +5,19 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 2
+
+### Added
+- Conservative, statistical confidence scoring (`score_confidence`) in `AutoFixEngine.detect` utilizing dictionary presence, frequency rank tiers, consonant/vowel clusters, and length heuristics.
+- Mid-word wrong-layout conversion (`_maybe_autofix_mid_word` and `mid_word=True` in `AutoFixEngine`) with prefix completion guarding (`active_dict.completions()`) ensuring active typing is never interrupted if valid words can be completed in the active layout.
+- Default suppression for code editors and terminals (`DEFAULT_CODE_AND_TERMINAL_APPS` covering VS Code, Cursor, PyCharm, IntelliJ, Sublime Text, Windows Terminal, PowerShell, CMD, Bash, Git Bash, Mintty, ConEmu, WezTerm, Alacritty, Kitty).
+- Learning from user undos: auto-fix pairs reverted twice (`count >= 2`) via Backspace or `Ctrl+Shift+Z` are permanently added to the user's blacklist (`autofix_blacklist`) and saved to `%APPDATA%\Ravaan\config.json`.
+- Automated Phase 2 benchmark script `scripts/check_layout_autodetect.py` and automated quality gate `tests/test_layout_autodetect.py` enforcing False Positive Rate < 0.1%, Precision >= 98%, and Recall >= 90%.
+
+### Changed
+- Refined instant undo from Backspace (`_undo_last_correction_from_backspace`) and global undo hotkey (`_undo_last_correction`) to properly restore original text without leaving dangling delimiters or duplicate deletions.
+- Isolated test configurations across autofix unit tests to prevent cross-test state leakage to user AppData.
+
 ## [Unreleased] - Phase 1
 
 ### Added

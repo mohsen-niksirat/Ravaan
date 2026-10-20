@@ -176,6 +176,78 @@ class AppAutofixMixin:
 
         return True
 
+    def _maybe_autofix_mid_word(self: Any, word: str) -> bool:
+        """Evaluate and convert word typed in wrong layout while mid-word."""
+        if not hasattr(self, "autofix") or self.autofix is None:
+            return False
+        if not word or len(word) < 4 or getattr(self, "power_mode_active", False):
+            return False
+        if hasattr(self, "_is_excluded") and self._is_excluded():
+            return False
+        from ravan.platform.focus import is_password_focused
+
+        if is_password_focused():
+            return False
+
+        active_lang = getattr(self, "_active_layout_tag", "en") or "en"
+        app_name = getattr(self, "_current_exe", "") or ""
+        prev_context = (
+            self.journal.previous_context(2)
+            if hasattr(self.journal, "previous_context")
+            else None
+        )
+
+        fix_res = self.autofix.detect(
+            word,
+            active_layout=active_lang,
+            app_name=app_name,
+            context=prev_context,
+            mid_word=True,
+        )
+        if fix_res is None:
+            return False
+
+        replacement, target_lang = fix_res
+        log.info(
+            "Auto-fix wrong layout (mid-word): %r -> %r (%s -> %s)",
+            word,
+            replacement,
+            active_lang,
+            target_lang,
+        )
+        auto_switch = getattr(self.cfg, "auto_layout_switch", False)
+        mode = getattr(self.cfg, "auto_layout_mode", "fix_only")
+
+        self._last_autofix_time = time.monotonic()
+        self.autofix.record_fix(
+            original=word,
+            fixed=replacement,
+            app_name=app_name,
+            layout_from=active_lang,
+            layout_to=target_lang,
+            delimiter="",
+        )
+        self._record_event(f"Auto-fix mid-word: '{word}' -> '{replacement}'", char=replacement)
+        self._replace_word(word, replacement, delimiter="")
+
+        can_switch = auto_switch
+        if can_switch:
+            from ravan.platform.lang import is_ime_composing
+
+            if (
+                (hasattr(self, "_is_excluded") and self._is_excluded())
+                or is_password_focused()
+                or is_ime_composing()
+            ):
+                can_switch = False
+
+        if can_switch and (mode in ("switch_only", "fix_and_switch")) and hasattr(
+            self, "_maybe_switch_keyboard_layout"
+        ):
+            self._maybe_switch_keyboard_layout(target_lang)
+
+        return True
+
     def _undo_last_correction(self: Any) -> bool:
         """Global undo: reverts the last automatic correction (up to 50 steps)."""
         if hasattr(self, "autofix") and self.autofix is not None:

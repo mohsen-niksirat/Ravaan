@@ -79,21 +79,48 @@ def test_autofix_blacklist_manual(engine: AutoFixEngine) -> None:
     assert engine.detect("sghl", active_layout="en") is None
 
 
-def test_autofix_auto_blacklist_after_three_undos(engine: AutoFixEngine) -> None:
+def test_autofix_auto_blacklist_after_two_undos(engine: AutoFixEngine) -> None:
     rec1 = engine.record_fix("sghl", "سلام")
     assert not engine.record_undo(rec1)
     assert not engine.is_pair_blacklisted("sghl", "سلام")
 
+    # Second undo of same pair must auto-disable permanently (reverted twice)
     rec2 = engine.record_fix("sghl", "سلام")
-    assert not engine.record_undo(rec2)
-    assert not engine.is_pair_blacklisted("sghl", "سلام")
-
-    # Third undo of same pair must auto-disable permanently
-    rec3 = engine.record_fix("sghl", "سلام")
-    blacklisted = engine.record_undo(rec3)
+    blacklisted = engine.record_undo(rec2)
     assert blacklisted is True
     assert engine.is_pair_blacklisted("sghl", "سلام")
     assert engine.detect("sghl", active_layout="en") is None
+
+
+def test_autofix_code_editor_and_terminal_default_suppression(engine: AutoFixEngine) -> None:
+    # Code editors and IDEs are suppressed by default
+    assert engine.detect("sghl", active_layout="en", app_name="code.exe") is None
+    assert engine.detect("sghl", active_layout="en", app_name="C:\\Program Files\\VS Code\\Code.exe") is None
+    assert engine.detect("sghl", active_layout="en", app_name="pycharm64.exe") is None
+    assert engine.detect("sghl", active_layout="en", app_name="cursor.exe") is None
+
+    # Terminals are suppressed by default
+    assert engine.detect("sghl", active_layout="en", app_name="windowsterminal.exe") is None
+    assert engine.detect("sghl", active_layout="en", app_name="powershell.exe") is None
+    assert engine.detect("sghl", active_layout="en", app_name="cmd.exe") is None
+
+    # Normal apps work as expected
+    assert engine.detect("sghl", active_layout="en", app_name="notepad.exe") is not None
+
+    # User explicit override can enable an editor
+    engine.app_modes["code.exe"] = "safe"
+    assert engine.detect("sghl", active_layout="en", app_name="code.exe") is not None
+
+
+def test_autofix_mid_word_completion_guard(engine: AutoFixEngine) -> None:
+    # "scho" is a valid prefix of English words (school, etc.) -> mid-word MUST NOT trigger
+    assert engine.detect("scho", active_layout="en", mid_word=True) is None
+
+    # "sghl" has zero English completions and matches Persian "سلام" -> mid-word DOES trigger
+    res = engine.detect("sghl", active_layout="en", mid_word=True)
+    assert res is not None
+    assert res[0] == "سلام"
+    assert res[1] == "fa"
 
 
 def test_autofix_correction_stack_capacity(engine: AutoFixEngine) -> None:
@@ -235,3 +262,58 @@ def test_autofix_accuracy_gate_300_words(dictionaries: tuple[Dictionary, Diction
     # Gate conditions from specification
     assert precision >= 0.98, f"Precision {precision*100:.2f}% < 98%"
     assert recall >= 0.90, f"Recall {recall*100:.2f}% < 90%"
+
+
+def test_autofix_app_mid_word_conversion_and_instant_undo(dictionaries: tuple[Dictionary, Dictionary]) -> None:
+    import time
+    from unittest.mock import MagicMock, patch
+
+    from ravan.core.config import Config
+    from ravan.ui.app import RavanApp
+
+    en_dict, fa_dict = dictionaries
+    clean_cfg = Config(autofix_blacklist=[])
+    with (
+        patch("ravan.ui.app.KeyboardHook"),
+        patch("ravan.core.config.save_config"),
+    ):
+        app = RavanApp(cfg=clean_cfg, overlay=MagicMock())
+        app._current_exe = "notepad.exe"
+        app._active_layout_tag = "en"
+        app.autofix.en_dict = en_dict
+        app.autofix.fa_dict = fa_dict
+        app.autofix.blacklist.clear()
+        app._show_toast = MagicMock()
+        app.tray = MagicMock()
+
+        try:
+            # 1. Mid-word conversion: user types "sghl"
+            with patch("ravan.ui.app.replace_last_n_with") as mock_replace:
+                handled = app._maybe_autofix_mid_word("sghl")
+                assert handled is True
+                # Should replace 4 chars with "سلام" and no delimiter
+                mock_replace.assert_called_once_with(4, "سلام", cursor_offset=None)
+
+            # 2. Instant Backspace undo: user presses Backspace immediately
+            app._last_autofix_time = time.monotonic()
+            with patch("ravan.platform.inject.replace_last_n_with") as mock_replace_bs:
+                ok = app._undo_last_correction_from_backspace()
+                assert ok is True
+                mock_replace_bs.assert_called_once_with(4, "sghl")
+
+            # 3. Repeat conversion and undo -> 2nd undo must trigger permanent blacklist
+            app.autofix.session_suppressed_until = 0.0
+            with patch("ravan.ui.app.replace_last_n_with"):
+                converted2 = app._maybe_autofix_mid_word("sghl")
+                assert converted2 is True
+            app._last_autofix_time = time.monotonic()
+            with patch("ravan.platform.inject.replace_last_n_with"):
+                ok2 = app._undo_last_correction_from_backspace()
+                assert ok2 is True
+
+            assert app.autofix.is_pair_blacklisted("sghl", "سلام")
+
+            # 4. Now permanently blacklisted: should never auto-convert "sghl" again
+            assert app._maybe_autofix_mid_word("sghl") is False
+        finally:
+            app.stop()

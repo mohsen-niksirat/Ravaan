@@ -9,12 +9,54 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ravan.core.layout import LayoutMapper, is_persian_or_arabic
+from ravan.core.predictor import is_safe_autocorrect_token
 
 if TYPE_CHECKING:
     from ravan.core.dict import Dictionary
     from ravan.core.user_dict import UserDictionary
 
 log = logging.getLogger(__name__)
+
+DEFAULT_CODE_AND_TERMINAL_APPS: frozenset[str] = frozenset({
+    # Code editors & IDEs
+    "code.exe",
+    "cursor.exe",
+    "devenv.exe",
+    "pycharm.exe",
+    "pycharm64.exe",
+    "idea.exe",
+    "idea64.exe",
+    "sublime_text.exe",
+    "notepad++.exe",
+    "atom.exe",
+    "fleet.exe",
+    "zed.exe",
+    "clion.exe",
+    "clion64.exe",
+    "webstorm.exe",
+    "webstorm64.exe",
+    "rider.exe",
+    "rider64.exe",
+    "datagrip.exe",
+    "datagrip64.exe",
+    "eclipse.exe",
+    "visualstudio.exe",
+    # Terminals & Shells
+    "windowsterminal.exe",
+    "powershell.exe",
+    "pwsh.exe",
+    "cmd.exe",
+    "git-bash.exe",
+    "mintty.exe",
+    "conhost.exe",
+    "alacritty.exe",
+    "wezterm-gui.exe",
+    "kitty.exe",
+    "putty.exe",
+    "bash.exe",
+    "zsh.exe",
+    "wsl.exe",
+})
 
 
 @dataclass
@@ -50,6 +92,22 @@ class AutoFixEngine:
         self.undo_counts: dict[tuple[str, str], int] = {}
         self.session_suppressed_until: float = 0.0
         self.app_modes: dict[str, str] = {}
+
+    def is_app_suppressed(self, app_name: str) -> bool:
+        """Return True if auto-fix is suppressed for the given application."""
+        if not app_name:
+            return False
+        base = os.path.basename(app_name).lower()
+        base_exe = base if base.endswith(".exe") else f"{base}.exe"
+        stem = base[:-4] if base.endswith(".exe") else base
+
+        # Check explicit user app override
+        for key in (base, base_exe, stem, app_name.lower()):
+            if key in self.app_modes:
+                return self.app_modes[key] == "off"
+
+        # Suppressed by default in code editors and terminals
+        return base_exe in DEFAULT_CODE_AND_TERMINAL_APPS
 
     def is_en_word(self, word: str) -> bool:
         if not word:
@@ -110,35 +168,97 @@ class AutoFixEngine:
         en_count = sum(1 for w in context if any("a" <= c.lower() <= "z" for c in w))
         return (en_count / len(context)) >= 0.85
 
+    def score_confidence(
+        self,
+        clean_word: str,
+        mapped_word: str,
+        source_layout: str,
+        target_layout: str,
+    ) -> float:
+        """Compute statistical confidence score for wrong-layout candidate."""
+        score = 0.0
+        word_len = len(clean_word)
+
+        # 1. Target word validation and frequency rank
+        target_dict = self.fa_dict if target_layout == "fa" else self.en_dict
+        if target_dict and target_dict.contains(mapped_word):
+            score += 0.50
+            entry = target_dict.get(mapped_word)
+            rank = entry.rank if entry else 99999
+            if rank <= 1000:
+                score += 0.25
+            elif rank <= 5000:
+                score += 0.15
+            elif rank <= 20000:
+                score += 0.05
+        else:
+            return 0.0  # Target word must be in dictionary
+
+        # 2. Source word check
+        source_dict = self.en_dict if source_layout == "en" else self.fa_dict
+        if source_dict and source_dict.contains(clean_word):
+            score -= 0.60
+        else:
+            score += 0.20
+
+        # 3. Punctuation / Consonant clusters in English layout
+        if source_layout == "en":
+            vowels = set("aeiouyAEIOUY")
+            has_vowels = any(c in vowels for c in clean_word)
+            if not has_vowels and word_len >= 3:
+                score += 0.15
+            if any(c in ";,'`" for c in clean_word):
+                score += 0.15
+
+        # 4. Length penalties / bonuses
+        if word_len <= 2:
+            score -= 0.40
+        elif word_len == 3:
+            score -= 0.15
+        elif word_len >= 4:
+            score += 0.05
+
+        return score
+
     def detect(
         self,
         word: str,
         active_layout: str = "en",
         app_name: str = "",
         context: list[str] | None = None,
+        mid_word: bool = False,
     ) -> tuple[str, str] | None:
         """Detect wrong-layout word and return (replacement, target_layout) or None."""
         if self.mode == "off":
             return None
 
-        if app_name:
-            base_app = os.path.basename(app_name).lower()
-            app_mode = self.app_modes.get(base_app) or self.app_modes.get(app_name.lower())
-            if app_mode == "off":
-                return None
+        if app_name and self.is_app_suppressed(app_name):
+            return None
 
         if time.monotonic() < self.session_suppressed_until:
             return None
 
         clean_word = word.strip()
-        if len(clean_word) < 2:
+        min_len = 4 if mid_word else 2
+        if len(clean_word) < min_len:
             return None
 
         has_fa = any(is_persian_or_arabic(c) for c in clean_word)
         has_en = any("a" <= c.lower() <= "z" for c in clean_word)
 
+        if has_fa and not is_safe_autocorrect_token(clean_word):
+            return None
+
+        # Completion Guarding for mid-word typing
+        if mid_word:
+            active_dict = self.en_dict if active_layout == "en" else self.fa_dict
+            if active_dict is not None:
+                comps = active_dict.completions(clean_word, limit=4)
+                if any(e.rank <= 10000 for e in comps):
+                    return None
+
         if has_en and not has_fa:
-            # Typed in English layout
+            # Typed in English layout -> target Persian
             is_valid_en = self.is_en_word(clean_word)
             if is_valid_en:
                 if self.mode != "aggressive":
@@ -158,10 +278,16 @@ class AutoFixEngine:
             if self.is_pair_blacklisted(clean_word, cand_fa):
                 return None
 
+            # Confidence scoring
+            conf = self.score_confidence(clean_word, cand_fa, "en", "fa")
+            min_conf = 0.85 if mid_word else (0.70 if self.mode == "safe" else 0.50)
+            if conf < min_conf:
+                return None
+
             return cand_fa, "fa"
 
         if has_fa and not has_en:
-            # Typed in Persian layout
+            # Typed in Persian layout -> target English
             is_valid_fa = self.is_fa_word(clean_word)
             if is_valid_fa:
                 if self.mode != "aggressive":
@@ -179,6 +305,12 @@ class AutoFixEngine:
                 return None
 
             if self.is_pair_blacklisted(clean_word, cand_en):
+                return None
+
+            # Confidence scoring
+            conf = self.score_confidence(clean_word, cand_en, "fa", "en")
+            min_conf = 0.85 if mid_word else (0.70 if self.mode == "safe" else 0.50)
+            if conf < min_conf:
                 return None
 
             return cand_en, "en"
@@ -216,12 +348,12 @@ class AutoFixEngine:
         return None
 
     def record_undo(self, rec: AutoFixRecord) -> bool:
-        """Record an undo action. Return True if pair hit 3 undos and was blacklisted."""
+        """Record an undo action. Return True if pair hit 2 undos and was blacklisted."""
         key = (rec.original.strip().lower(), rec.fixed.strip().lower())
         count = self.undo_counts.get(key, 0) + 1
         self.undo_counts[key] = count
-        if count >= 3:
+        if count >= 2:
             self.blacklist_pair(rec.original, rec.fixed)
-            log.warning("Pair %r -> %r auto-blacklisted permanently after 3 undos.", rec.original, rec.fixed)
+            log.warning("Pair %r -> %r auto-blacklisted permanently after 2 undos.", rec.original, rec.fixed)
             return True
         return False
