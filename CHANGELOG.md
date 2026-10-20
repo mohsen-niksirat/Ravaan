@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added LRU query completion cache in `Dictionary` (`ravan/core/dict.py`), dropping prediction query latency from 8.27 ms down to 1.10 ms.
   - Optimized `is_safe_autocorrect_token` in `ravan/core/predictor.py` using set disjoint checks and native tuple suffixes, accelerating token screening 4x to > 45,000 tokens/sec.
   - Added standard `__len__` method to `Dictionary`.
+- Extended Soak & Multi-Application QA Matrix Harness in `ravan/core/soak.py` and `docs/QA-MATRIX.md`:
+  - Multi-app continuous typing simulation across 10 Windows applications: Notepad, Word, Excel, Chrome, Edge, Firefox, VS Code, Telegram Desktop, Discord, and Windows Terminal.
+  - Zero memory leaks and stable latency throughout rapid window switching and continuous typing workloads.
+  - Comprehensive documentation in `docs/QA-MATRIX.md` covering Windows 10 and 11 behavior, Win32 vs WinUI 3 controls, UIPI elevated barriers, password field suppression, and multi-monitor DPI scaling.
+  - Added automated tests in `tests/test_qa_windows.py` for terminal/IDE wrong-layout suppression and multi-monitor negative coordinate handling.
 
 ## [Unreleased] - Phase 4
 

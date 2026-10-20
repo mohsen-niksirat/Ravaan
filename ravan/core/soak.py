@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import statistics
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from ravan.core.autofix import AutoFixEngine
 from ravan.core.dict import Dictionary
 from ravan.core.journal import KeystrokeJournal
 from ravan.core.learning import UserLearningEngine
@@ -15,6 +16,19 @@ from ravan.core.predictor import DictPredictor
 from ravan.platform.winapi import get_current_process_rss_mb
 
 log = logging.getLogger(__name__)
+
+DEFAULT_QA_APPS = [
+    "notepad.exe",
+    "winword.exe",
+    "excel.exe",
+    "chrome.exe",
+    "msedge.exe",
+    "firefox.exe",
+    "code.exe",
+    "telegram.exe",
+    "discord.exe",
+    "windowsterminal.exe",
+]
 
 # Sample bilingual corpus for realistic typing workload
 _SAMPLE_SENTENCES = [
@@ -47,19 +61,23 @@ class SoakSummary:
     rss_stable: bool
     latency_stable: bool
     passed: bool
+    apps_tested: list[str] = field(default_factory=list)
 
 
 def run_soak_test(
     duration_seconds: float = 600.0,
     max_keystrokes: int = 10000,
     sample_interval: float = 1.0,
+    apps: list[str] | None = None,
 ) -> SoakSummary:
-    """Execute synthetic typing loop measuring memory stability and latency drift."""
+    """Execute synthetic typing loop measuring memory stability and latency drift across apps."""
     d_en = Dictionary.english()
     d_fa = Dictionary.persian()
     learning = UserLearningEngine(auto_load=False)
     predictor = DictPredictor(english=d_en, persian=d_fa, learning_engine=learning)
+    autofix = AutoFixEngine(en_dict=d_en, fa_dict=d_fa)
     journal = KeystrokeJournal(maxlen=256)
+    target_apps = list(apps or DEFAULT_QA_APPS)
 
     initial_rss = get_current_process_rss_mb()
     peak_rss = initial_rss
@@ -72,6 +90,7 @@ def run_soak_test(
 
     sentence_idx = 0
     char_idx = 0
+    current_app_idx = 0
 
     while True:
         now = time.perf_counter()
@@ -79,6 +98,9 @@ def run_soak_test(
 
         if elapsed >= duration_seconds or keystrokes_count >= max_keystrokes:
             break
+
+        # Rotate through tested applications to simulate active OS window switching
+        current_app = target_apps[current_app_idx % len(target_apps)]
 
         # Pick next character from corpus
         sentence = _SAMPLE_SENTENCES[sentence_idx % len(_SAMPLE_SENTENCES)]
@@ -88,15 +110,22 @@ def run_soak_test(
             char_idx = 0
             sentence_idx += 1
 
+        # Switch active foreground app simulation every 25 keystrokes
+        if keystrokes_count % 25 == 0:
+            current_app_idx += 1
+
         # Feed to journal
         journal.push(ch)
         keystrokes_count += 1
 
-        # Measure predictor latency
+        # Measure predictor and autofix latency
         prefix = journal.last_word()
         if len(prefix) >= 1:
             t_op_start = time.perf_counter()
-            cands = predictor.predict(prefix, context="", limit=5)
+            cands = predictor.predict(prefix, context="", limit=5, app_name=current_app)
+            # Evaluate wrong-layout auto-fix on word boundaries
+            if ch in (" ", "\n", "\t"):
+                _ = autofix.detect(prefix, active_layout="en", app_name=current_app)
             t_op_end = time.perf_counter()
 
             op_ms = (t_op_end - t_op_start) * 1000.0
@@ -105,7 +134,7 @@ def run_soak_test(
 
             # Occasionally learn and normalize
             if cands and keystrokes_count % 15 == 0:
-                learning.learn_word(cands[0].text, app_name="notepad.exe")
+                learning.learn_word(cands[0].text, app_name=current_app)
             if keystrokes_count % 50 == 0:
                 normalize_persian(sentence)
                 d_fa.fuzzy_matches(prefix, max_dist=1, limit=3)
@@ -164,11 +193,13 @@ def run_soak_test(
         rss_stable=rss_stable,
         latency_stable=latency_stable,
         passed=passed,
+        apps_tested=target_apps,
     )
 
 
 def format_soak_report(summary: SoakSummary) -> str:
     """Format soak test summary as a readable table."""
+    apps_str = f"{len(summary.apps_tested)} apps" if summary.apps_tested else "Default"
     lines = [
         "=" * 68,
         "  RAVAAN (روان) — MEMORY & LATENCY SOAK TEST REPORT",
@@ -176,6 +207,7 @@ def format_soak_report(summary: SoakSummary) -> str:
         f"{'Metric':<34} | Value",
         "-" * 68,
         f"{'Total Elapsed Time':<34} | {summary.duration_sec}s",
+        f"{'Applications In Test Matrix':<34} | {apps_str}",
         f"{'Synthetic Keystrokes Fed':<34} | {summary.total_keystrokes:,}",
         f"{'Prediction Cycles Completed':<34} | {summary.total_predictions:,}",
         f"{'Initial Working Set (RSS)':<34} | {summary.initial_rss_mb} MB",

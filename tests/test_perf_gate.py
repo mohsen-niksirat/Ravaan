@@ -42,10 +42,24 @@ def test_perf_dictionary_load_budget():
 
 
 def test_perf_idle_ram_budget():
-    """Ensure baseline idle memory footprint stays under 45 MB."""
-    rss_mb = w.get_current_process_rss_mb()
-    # On Windows, RSS working set with full 160k+ dictionary loaded
-    assert rss_mb < 45.0, f"Process idle RAM exceeded budget: {rss_mb:.2f} MB >= 45.0 MB"
+    """Ensure baseline idle memory footprint in an isolated process stays under 35 MB."""
+    import subprocess
+    import sys
+
+    cmd = [
+        sys.executable,
+        "-c",
+        (
+            "import ravan.platform.winapi as w; "
+            "from ravan.core.dict import Dictionary; "
+            "Dictionary.english(); Dictionary.persian(); "
+            "print(w.get_current_process_rss_mb())"
+        ),
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    rss_mb = float(res.stdout.strip())
+    # On Windows, RSS working set with full 160k+ dictionary loaded is ~17-19 MB
+    assert rss_mb < 35.0, f"Process idle RAM exceeded budget: {rss_mb:.2f} MB >= 35.0 MB"
 
 
 def test_perf_hook_callback_latency_budget():

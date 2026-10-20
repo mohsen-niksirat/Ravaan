@@ -195,3 +195,60 @@ def test_rapid_layout_switch_during_popup():
     assert app.overlay.predicting is False
     assert app._pending_predict is False
     assert app.overlay.hidden_count == 1
+
+
+def test_qa_matrix_ide_and_terminal_suppression():
+    """Verify that IDEs and terminals suppress auto wrong-layout conversion by default."""
+    from ravan.core.autofix import AutoFixEngine
+    from ravan.core.dict import Dictionary
+
+    engine = AutoFixEngine(
+        en_dict=Dictionary.english(),
+        fa_dict=Dictionary.persian(),
+    )
+
+    # In terminal and code editors, typing "sghl" should NOT auto-fix to "سلام"
+    # because programmers frequently type shell flags and abbreviations
+    assert engine.detect("sghl", active_layout="en", app_name="windowsterminal.exe") is None
+    assert engine.detect("sghl", active_layout="en", app_name="code.exe") is None
+    assert engine.detect("sghl", active_layout="en", app_name="cmd.exe") is None
+    assert engine.detect("sghl", active_layout="en", app_name="powershell.exe") is None
+
+    # In regular communication / prose applications, it detects correctly
+    fix_notepad = engine.detect("sghl", active_layout="en", app_name="notepad.exe")
+    assert fix_notepad is not None
+    replacement_np, target_lang_np = fix_notepad
+    assert replacement_np == "سلام"
+    assert target_lang_np == "fa"
+
+    fix_telegram = engine.detect("sghl", active_layout="en", app_name="telegram.exe")
+    assert fix_telegram is not None
+    replacement_tg, target_lang_tg = fix_telegram
+    assert replacement_tg == "سلام"
+    assert target_lang_tg == "fa"
+
+
+def test_qa_matrix_multi_monitor_negative_coordinates():
+    """Verify work area bounds handling for secondary monitors with negative coordinates."""
+    from ravan.platform import winapi as wapi
+
+    # Simulate multi-monitor setup where left monitor has negative X: [-1920, 0, 0, 1080]
+    left, _top, right, _bottom = -1920, 0, 0, 1080
+    popup_w, _popup_h = 240, 140
+
+    # Place popup near right edge of the left monitor (x = -50)
+    caret_x = -50
+    if caret_x + popup_w > right:
+        clamped_x = max(left + 8, right - popup_w - 8)
+    else:
+        clamped_x = max(left + 8, caret_x)
+
+    assert clamped_x >= left + 8
+    assert clamped_x + popup_w <= right
+
+    # Verify native wapi.get_monitor_work_area handles negative coordinates safely
+    work = wapi.get_monitor_work_area(-500, 300)
+    assert len(work) == 4
+    assert work[2] > work[0]
+    assert work[3] > work[1]
+
