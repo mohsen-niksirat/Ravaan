@@ -34,6 +34,19 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
             "Sync your user words and snippets securely across PCs via GitHub Gist or WebDAV (Nextcloud).",
         ),
         foreground="#444444",
+    ).grid(row=row, column=0, columnspan=3, sticky=align, pady=(0, 4))
+    row += 1
+
+    ttk.Label(
+        frm,
+        text=t(
+            "settings.sync_privacy_guarantee",
+            "🛡️ Privacy Guarantee: Only your custom dictionary words, snippets, and preferences are synchronized. "
+            "Ravaan NEVER logs, stores, or uploads your typed text, keystrokes, clipboard contents, or passwords.",
+        ),
+        foreground="#155724",
+        wraplength=480,
+        justify="right" if rtl else "left",
     ).grid(row=row, column=0, columnspan=3, sticky=align, pady=(0, 8))
     row += 1
 

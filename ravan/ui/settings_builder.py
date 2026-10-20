@@ -206,6 +206,14 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     )
     row += 1
 
+    win._learning_enabled_var = tk.BooleanVar(value=getattr(win.cfg, "learning_enabled", True))
+    ttk.Checkbutton(
+        frm,
+        text=t("settings.learning_enabled", "Enable adaptive typing learning (tracks frequent words locally)"),
+        variable=win._learning_enabled_var,
+    ).grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    row += 1
+
     win._autocorrect_var = tk.BooleanVar(value=win.cfg.autocorrect_enabled)
     ttk.Checkbutton(frm, text=t("settings.autocorrect_enabled", "Enable autocorrect on word boundaries"), variable=win._autocorrect_var).grid(
         row=row, column=0, columnspan=3, sticky=align, **pad
@@ -269,6 +277,70 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     win._user_words_text.insert("1.0", "\n".join(load_user_words()))
     win._user_words_text.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
     row += 1
+
+    # Privacy and Data Management Controls
+    data_box = ttk.Frame(frm)
+    data_box.grid(row=row, column=0, columnspan=3, sticky="we", pady=(2, 4))
+    row += 1
+
+    def _do_export_data() -> None:
+        from tkinter import filedialog, messagebox
+
+        from ravan.core.learning import UserLearningEngine
+
+        dest = filedialog.asksaveasfilename(
+            parent=win._root,
+            title=t("settings.export_dialog_title", "Export Learned Data"),
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            initialfile="ravaan_learned_data.json",
+        )
+        if dest:
+            try:
+                engine = UserLearningEngine(auto_load=True)
+                engine.export_profile(target_path=dest)
+                messagebox.showinfo(
+                    "Ravaan",
+                    t("settings.export_data_success", "Learned vocabulary and style data exported successfully!"),
+                    parent=win._root,
+                )
+            except Exception as exc:  # noqa: BLE001
+                messagebox.showerror("Ravaan", str(exc), parent=win._root)
+
+    def _do_clear_data() -> None:
+        from tkinter import messagebox
+
+        from ravan.core.learning import UserLearningEngine
+
+        confirmed = messagebox.askyesno(
+            t("settings.clear_data_confirm_title", "Clear Learned Data"),
+            t("settings.clear_data_confirm_msg", "Are you sure? All learned words and style data will be reset to factory defaults."),
+            parent=win._root,
+        )
+        if confirmed:
+            try:
+                engine = UserLearningEngine(auto_load=True)
+                engine.clear_learned_data()
+                messagebox.showinfo(
+                    "Ravaan",
+                    t("settings.clear_data_success", "All learned data has been cleared successfully."),
+                    parent=win._root,
+                )
+            except Exception as exc:  # noqa: BLE001
+                messagebox.showerror("Ravaan", str(exc), parent=win._root)
+
+    btn_pack_side = "right" if rtl else "left"
+    ttk.Button(
+        data_box,
+        text=t("settings.btn_export_data", "💾 Export my data (.json)"),
+        command=_do_export_data,
+    ).pack(side=btn_pack_side, padx=(0, 6) if not rtl else (6, 0))
+
+    ttk.Button(
+        data_box,
+        text=t("settings.btn_clear_data", "🗑️ Clear learned data"),
+        command=_do_clear_data,
+    ).pack(side=btn_pack_side, padx=(0, 6) if not rtl else (6, 0))
 
     ttk.Separator(frm, orient="horizontal").grid(
         row=row, column=0, columnspan=3, sticky="we", pady=6

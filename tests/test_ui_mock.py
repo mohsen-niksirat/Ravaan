@@ -89,6 +89,8 @@ def test_settings_window_build_and_state():
         # Verify build does not fail or raise
         sw._build()
         assert sw._root is not None
+        assert hasattr(sw, "_learning_enabled_var")
+        assert sw._learning_enabled_var.get() is True
         sw._close()
         assert sw._root is None
         assert sw.open is False

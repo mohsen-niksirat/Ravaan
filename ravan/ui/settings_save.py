@@ -85,6 +85,8 @@ def save_settings_window(win: Any) -> None:
         cfg.autofix_blacklist = list(win._managed_blacklist)
 
     cfg.prediction_enabled = win._prediction_var.get()
+    if hasattr(win, "_learning_enabled_var"):
+        cfg.learning_enabled = win._learning_enabled_var.get()
     cfg.autocorrect_enabled = win._autocorrect_var.get()
     if hasattr(win, "_autocorrect_mode_var"):
         cfg.autocorrect_mode = win._autocorrect_mode_var.get()
