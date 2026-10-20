@@ -22,12 +22,12 @@ Ravaan (روان) is an open-source typing assistant for bilingual Persian and E
 - ❌ **Unencrypted Tokens**: Sync tokens and passwords are never stored in plaintext on disk.
 
 ### What IS Stored Locally on Disk:
-All user data is strictly confined to `%APPDATA%\Ravan`:
-- `config.json`: Application preferences and hotkeys. Sensitive tokens (`gist_token`, `webdav_password`) are encrypted at rest using Windows DPAPI.
+All user data is strictly confined to `%APPDATA%\Ravaan`:
+- `config.json`: Application preferences and hotkeys. Sensitive tokens (`gist_token`, `webdav_password`, `ai_api_key`) are stored in Windows Credential Manager and never stored in plaintext on disk.
 - `user_words.txt`: Custom words explicitly added by the user or learned from normal completed words.
 - `snippets.json`: User-configured snippet expansion triggers and replacements.
 - `clipboard_history.json`: Clipboard ring buffer (subject to password-manager exclusion, token filtering, and auto-expiration).
-- `learning_profile.json`: Aggregate word-level unigram/bigram/trigram frequencies used solely for local candidate ranking.
+- `user_learning.json`: Aggregate word-level unigram/bigram/trigram frequencies, **encrypted at rest via Windows DPAPI** (`CryptProtectData`).
 - `logs/ravan.log`: Application runtime diagnostics (rotated at 5 MB, keeping max 3 backups; contains only operational events and completed autocorrect reversals, never raw keystrokes).
 - `backups/`: Up to 10 local timestamped JSON snapshots taken before cloud sync operations.
 
@@ -59,14 +59,24 @@ Ravaan's clipboard history ring buffer (`Alt+V`) implements proactive privacy pr
 
 ## 5. Sync Security & Credential Protection
 
-- **Windows DPAPI Encryption**: Sync credentials (`gist_token` and `webdav_password`) are encrypted using the Windows Data Protection API (`CryptProtectData` in `Crypt32.dll`) tied directly to your Windows user account.
-- **Migration of Plaintext Tokens**: Any existing plaintext tokens from earlier versions (0.x) are automatically upgraded to DPAPI encryption on first launch.
-- **Unencrypted WebDAV (HTTP) Warning**: Configuring a WebDAV sync URL over plain `http://` triggers prominent warnings in the application logs and user interface, as plain HTTP transmits credentials and dictionaries in cleartext across the network. HTTPS is strongly enforced.
-- **Pre-Sync Snapshots**: Every sync push or pull automatically generates a timestamped local snapshot in `%APPDATA%\Ravan\backups\`, allowing instant rollback in the event of an upstream conflict.
+- **Windows Credential Manager Integration**: Sync credentials (`gist_token`, `webdav_password`, `ai_api_key`) are saved directly into the Windows Credential Manager via native Win32 `advapi32.dll` (`CredWriteW` / `CredReadW`) under targets like `Ravaan/GitHubGistToken`.
+- **Zero Plaintext Tokens**: `config.json` stores only non-sensitive target pointers (`wincred:<target>`), eliminating plaintext secret exposure.
+- **Migration of Plaintext and Legacy Tokens**: Any legacy plaintext or DPAPI tokens from earlier versions are automatically migrated to Windows Credential Manager on startup.
+- **Strict HTTPS Enforcement**: WebDAV and sync endpoints over unencrypted `http://` produce clear warnings; encrypted HTTPS is strongly enforced.
+- **Pre-Sync Snapshots**: Every sync push or pull automatically generates a timestamped local snapshot in `%APPDATA%\Ravaan\backups\`, allowing instant rollback.
 
 ---
 
-## 6. `ravan://` Deep Link Protocol Validation
+## 6. Auto-Update Integrity & Verification
+
+Ravaan's in-app updater implements strict cryptographic and binary integrity gates:
+- **HTTPS Only**: All update release queries and installer download URLs must use `https://`. Non-HTTPS URLs are rejected immediately.
+- **SHA-256 Hash Verification**: During download, SHA-256 is computed dynamically and compared against the expected release hash. Any mismatch halts execution and purges the unverified binary.
+- **PE Binary Signature Check**: Downloaded executables are verified to possess a valid Windows PE header (`b"MZ"` signature) before launching.
+
+---
+
+## 7. `ravan://` Deep Link Protocol Validation
 
 The `ravan://` custom URL protocol handler registered in Windows (`HKCU\Software\Classes\ravan`) is strictly sandboxed:
 - **Whitelisted Actions**: Only explicitly permitted internal commands are parsed (`settings`, `stats`, `snippet`, `help`, `about`).
@@ -76,18 +86,38 @@ The `ravan://` custom URL protocol handler registered in Windows (`HKCU\Software
 
 ---
 
-## 7. Installation & System Footprint
+## 8. خلاصهٔ امنیت و حریم خصوصی به زبان ساده (چه چیزی ذخیره می‌شود، چه چیزی نمی‌شود)
+
+- **چه چیزی هرگز ثبت یا ارسال نمی‌شود؟**
+  - هیچ گزارشی از کلیدهای فشرده‌شده، حروف تایپ‌شده یا زمان‌بندی کلیدها ثبت نمی‌شود.
+  - هیچ داده‌ای از پنجره‌ها یا فیلدهای رمز عبور خوانده یا پردازش نمی‌شود.
+  - هیچ تلمتری یا اطلاعات آماری به هیچ سروری ارسال نمی‌گردد.
+
+- **چه چیزی روی سیستم شما ذخیره می‌شود؟**
+  - تنظیمات و کلیدهای میانبر در `%APPDATA%\Ravaan\config.json`.
+  - توکن‌ها و رمزها در **Windows Credential Manager** (نه در فایل کانفیگ).
+  - مدل یادگیری واژگان در `user_learning.json` به صورت **رمزگذاری‌شده با DPAPI ویندوز**.
+  - واژگان سفارشی و کلمات اختصاری در فایل‌های متنی محلی.
+
+- **اختیارات و کنترل‌های شما:**
+  - یادگیری هوشمند را با یک تیک می‌توانید کاملاً غیرفعال کنید.
+  - می‌توانید با یک کلیک از تمام داده‌های یادگیری خروجی استاندارد JSON بگیرید.
+  - می‌توانید تمام واژگان و سبک‌های آموخته‌شده را با دکمهٔ «پاک‌سازی داده‌ها» به حالت کارخانه بازگردانید.
+
+---
+
+## 9. Installation & System Footprint
 
 - **Per-User Only**: The Inno Setup installer (`Ravaan-Setup-x.y.z.exe`) uses `PrivilegesRequired=lowest`. It requires no Administrator UAC prompts.
 - **Strict Confinement**:
   - Executable and assets: `%LOCALAPPDATA%\Programs\Ravaan`
-  - User configuration and state: `%APPDATA%\Ravan`
+  - User configuration and state: `%APPDATA%\Ravaan`
   - Registry: Strictly confined to `HKEY_CURRENT_USER\Software\Classes\ravan` and `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` (optional).
-- **Clean Uninstall**: Uninstalling Ravaan cleanly removes all binaries, shortcuts, and protocol associations while preserving your personal dictionaries in `%APPDATA%\Ravan` to prevent accidental data loss.
+- **Clean Uninstall**: Uninstalling Ravaan cleanly removes all binaries, shortcuts, and protocol associations while preserving your personal dictionaries in `%APPDATA%\Ravaan` to prevent accidental data loss.
 
 ---
 
-## 8. Reporting Security Vulnerabilities
+## 10. Reporting Security Vulnerabilities
 
 If you discover a potential security vulnerability in Ravaan, please report it responsibly:
 - **Private Reporting**: Open a confidential security report via [GitHub Security Advisories](https://github.com/mohsen-niksirat/Ravaan/security/advisories/new).

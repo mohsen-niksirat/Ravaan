@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Windows PE executable binary header validation (`b"MZ"` magic signature check) prior to launching detached setup process.
   - Automated SHA256 extraction from release notes or checksum assets via `extract_sha256_for_installer`.
   - Unit tests covering HTTPS rejection, valid/invalid SHA256 checksums, and PE header checks in `tests/test_installer_and_updater.py`.
+- Comprehensive update to `DATA.md` and `SECURITY.md`:
+  - Updated data manifests, Windows Credential Manager storage, and DPAPI at rest documentation.
+  - Corrected legacy path references to canonical `%APPDATA%\Ravaan`.
+  - Added plain-language Persian privacy summary (*«خلاصهٔ حریم خصوصی به زبان ساده — چه چیزی ذخیره می‌شود، چه چیزی نمی‌شود»*).
+  - Documented third-party dependency vulnerability audit (0 vulnerabilities in `comtypes`, `Pillow`, `pystray`).
 
 ## [Unreleased] - Phase 3
 

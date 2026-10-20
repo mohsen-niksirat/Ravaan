@@ -21,15 +21,15 @@ Ravaan does **not** write to the Windows Registry for user settings (with the so
 
 All files are registered in Ravaan's single-source-of-truth manifest (`ravan.core.data_manifest`):
 
-| File | Schema Version | Privacy Classification | Resettable | Description |
-| :--- | :---: | :---: | :---: | :--- |
-| `config.json` | `3` | **Credentials** | Yes | Core settings, hotkeys, theme preferences, and DPAPI-encrypted sync credentials. |
-| `user_words.txt` | `1` | **Private** | Yes | Custom user vocabulary additions (UTF-8, one word per line). |
-| `user_learning.json` | `3` | **Private** | Yes | Learned n-gram transitions, vocabulary decay weights, and per-app models. |
-| `clipboard_history.json` | `1` | **Sensitive** | Yes | Recent clipboard ring buffer, filtered for high-entropy secrets and passwords. |
-| `stats.json` | `1` | **Metrics** | Yes | Keystroke counters, saved character metrics, and typing velocity statistics. |
-| `backups/` | — | **Private** | Yes | Automated pre-sync snapshots and safety backups created before reset actions. |
-| `logs/ravan.log` | — | **Diagnostic** | Yes | Rotating diagnostic application logs (sanitized of auth tokens and passwords). |
+| File | Schema Version | Privacy Classification | Encryption / Protection | Resettable | Description |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| `config.json` | `3` | **Preferences** | WinCred Pointer | Yes | Core settings, hotkeys, theme preferences. Tokens stored in Windows Credential Manager (`wincred:`). |
+| `user_words.txt` | `1` | **Private** | Plaintext (Local) | Yes | Custom user vocabulary additions (UTF-8, one word per line). |
+| `user_learning.json` | `3` | **Private** | **Windows DPAPI** | Yes | Learned n-gram transitions, vocabulary frequencies, and per-app models. Encrypted at rest. |
+| `clipboard_history.json` | `1` | **Sensitive** | Local Ring Buffer | Yes | Recent clipboard ring buffer, filtered for high-entropy secrets and passwords. |
+| `stats.json` | `1` | **Metrics** | Local Statistics | Yes | Keystroke counters, saved character metrics, and typing velocity statistics. |
+| `backups/` | — | **Private** | Local Snapshots | Yes | Automated pre-sync snapshots and safety backups created before reset actions. |
+| `logs/ravan.log` | — | **Diagnostic** | Local Rotating Log | Yes | Rotating diagnostic application logs (sanitized of auth tokens and passwords). |
 
 ---
 
@@ -39,18 +39,36 @@ All files are registered in Ravaan's single-source-of-truth manifest (`ravan.cor
 - **No telemetry**: Ravaan never phones home. There are no tracking scripts, analytics SDKs, or background metric collectors.
 - **Local processing**: All Persian text normalization, layout conversion (EN ↔ FA), spell-checking, and n-gram suggestions are performed 100% locally in memory on your CPU.
 
-### 3.2 Credential Protection via Windows DPAPI
-- When Cloud Sync is configured, sensitive credentials (GitHub Gist Personal Access Tokens and WebDAV passwords) are encrypted before being written to `config.json` using the **Windows Data Protection API (DPAPI)** via `CryptProtectData`.
-- DPAPI keys are tied to the local Windows user account and cannot be decrypted by other user accounts on the machine or from copied configuration files.
+### 3.2 Credential Protection via Windows Credential Manager
+- Sensitive synchronization credentials (GitHub Gist Personal Access Tokens, WebDAV passwords, and AI keys) are persisted to the **Windows Credential Manager** via native Win32 `advapi32.dll` (`CredWriteW` / `CredReadW`) under targets like `Ravaan/GitHubGistToken` and `Ravaan/WebDAVPassword`.
+- `config.json` contains only non-sensitive sentinel pointers (`wincred:<target>`), completely eliminating plaintext or exposed secrets in user files on disk.
 
-### 3.3 Sensitive Input & Clipboard Protection
+### 3.3 Learned Typing Vocabulary Encrypted at Rest (DPAPI)
+- The user's adaptive vocabulary and n-gram model (`user_learning.json`) is encrypted at rest using the **Windows Data Protection API (DPAPI)** (`CryptProtectData`).
+- Keys are tied to your logged-in Windows user account. Unauthorized users, other accounts on the machine, or external file scanners cannot inspect your typing vocabulary.
+- Users can toggle learning off at any time, export their data to standard JSON, or clear all learned vocabulary with a single click.
+
+### 3.4 Sensitive Input & Clipboard Protection
 - **Entropy screening**: Text copied to the clipboard is scanned for high-entropy tokens (e.g. AWS keys, JWT tokens, hex hashes) and password patterns before entering the clipboard history.
 - **Application exclusions**: Password managers (e.g., `1password.exe`, `keepass.exe`, `bitwarden.exe`) are excluded by default from suggestion tracking and keystroke capture.
 - **Secret redaction**: Application logs automatically redact sensitive authorization tokens and passwords before writing to disk.
 
 ---
 
-## 4. Cloud Sync & Synchronization Scope
+## 4. خلاصهٔ حریم خصوصی به زبان ساده (چه چیزی ذخیره می‌شود، چه چیزی نمی‌شود)
+
+| موضوع | وضعیت | توضیح شفاف |
+| :--- | :---: | :--- |
+| **متن تایپ‌شده و کلیدها** | ❌ **هرگز ذخیره نمی‌شود** | روان به هیچ عنوان گزارش کلیدهای فشرده‌شده (Keylogger) ندارد. بافر تایپ فقط در حافظهٔ موقت رم (RAM) برای حدس کلمهٔ جاری است و بلافاصله پس از فاصله یا جابجایی پاک می‌شود. |
+| **رمزهای عبور** | ❌ **کاملاً مسدود** | در فیلدهای کلمهٔ عبور (Password Fields)، پیش‌بینی، اصلاح خودکار و یادگیری فوراً متوقف شده و هیچ دیتایی دریافت نمی‌شود. |
+| **تلمتری و آمار آنلاین** | ❌ **صفر** | روان هیچ درخواست زمینه‌ای به سرور ارسال نمی‌کند و داده‌های شما را به هیچ سرور یا شرکتی نمی‌فرستد. |
+| **توکن‌ها و رمزهای همگام‌سازی** | 🔒 **مدیریت اعتبارنامه ویندوز** | رمز وب‌دیو یا توکن گیست مستقیماً در Windows Credential Manager رمزگذاری می‌شود و هیچ رمزی در فایل `config.json` ذخیره نمی‌گردد. |
+| **کلمات یادگرفته‌شده** | 🔒 **رمزنگاری در دیسک (DPAPI)** | واژگان پرتکرار شما در فایل `user_learning.json` با استاندارد رمزنگاری امن ویندوز (DPAPI) رمز می‌شود و فقط توسط حساب کاربری شما قابل خواندن است. |
+| **کنترل کاربر** | ✅ **اختیار تام** | می‌توانید از طریق برگهٔ تنظیمات: یادگیری را موقتاً یا دائم خاموش کنید، از تمام داده‌هایتان خروجی JSON بگیرید، یا کل داده‌ها را با یک کلیک پاک کنید. |
+
+---
+
+## 5. Cloud Sync & Synchronization Scope
 
 Cloud Sync is **strictly opt-in** and supports two backends:
 1. **GitHub Gist**: Stores `user_words.txt`, `snippets.json`, and optionally `learning_profile.json` in a secret Gist owned by the user.
