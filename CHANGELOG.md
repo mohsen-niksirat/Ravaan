@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive automated benchmark covering conversational expressions, inflected verbs, compound words, comparative adjectives, colloquial slang, and token screening.
   - Achieved **94.95% Top-1** and **100.00% Top-3** accuracy across the benchmark suite (exceeding 90% gate).
   - Maintained 100.00% accuracy on the 212-word corpus in `tests/test_translit.py`.
+- Safe Interactive Candidate Selection & Instant Undo (`ravan/ui/app_autofix.py`, `ravan/ui/app_dialogs.py`):
+  - Resolved candidate replacement bug: choosing alternative candidates (2..5) from the overlay popup dynamically replaces the previously inserted candidate without text corruption or character offset mismatch.
+  - Added instant undo support: pressing Backspace immediately (< 4.0s) or triggering global undo (`Ctrl+Shift+Z`) reverts the transliterated word back to the original Finglish token.
+  - Thread-safe UI toast notification: queued toast messages from background threads to `_ui_queue` on the main Tkinter thread, eliminating concurrency warnings.
+- Settings & Tray Integration with "Experimental" Labels (`ravan/ui/settings_builder.py`, `ravan/ui/settings_save.py`, `ravan/ui/settings_reset.py`, `ravan/ui/tray.py`):
+  - Added clearly labeled `(Experimental) / (آزمایشی)` toggle and hotkey configuration in Settings and System Tray.
+  - Maintained safe opt-in default (`translit_enabled = False`) across resets and new installations.
+  - Full bilingual parity across `en.json` and `fa.json` for tray labels, tooltips, examples, and undo toasts.
+  - Automated tests covering candidate replacement safety, instant undo, and settings persistence in `tests/test_translit_ui.py`.
 
 ## [Unreleased] - Phase 6
 

@@ -52,6 +52,7 @@ def build_hotkeys_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
         (t("settings.hotkey_undo", "Undo last autocorrect:"), "_undo_var", win.cfg.undo_autocorrect_hotkey, "e.g. Ctrl+Shift+Z"),
         (t("settings.hotkey_stats", "Quick text stats:"), "_stats_var", getattr(win.cfg, "quick_stats_hotkey", None) or win.cfg.quick_stats_hotkey, "e.g. Ctrl+Alt+S"),
         (t("settings.hotkey_pause", "Pause / Resume Ravaan:"), "_pause_var", getattr(win.cfg, "pause_hotkey", None) or win.cfg.pause_hotkey, "e.g. Ctrl+Alt+Pause"),
+        (t("settings.hotkey_translit", "Phonetic Finglish (Experimental):"), "_translit_hotkey_var", getattr(win.cfg, "translit_hotkey", None) or win.cfg.translit_hotkey, "e.g. Ctrl+Alt+T"),
     ]
 
     for label_text, var_attr, hotkey_spec, hint in entries_spec:
@@ -217,6 +218,20 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
     ttk.Label(
         frm,
         text=f"↳ {hints_ex}",
+        font=("Segoe UI" if not rtl else "Vazirmatn", 8),
+        foreground="gray",
+    ).grid(row=row, column=0, columnspan=3, sticky=align, padx=pad.get("padx", 10) + 14, pady=(0, 3))
+    row += 1
+
+    win._translit_var = tk.BooleanVar(value=getattr(win.cfg, "translit_enabled", False))
+    cb_translit = ttk.Checkbutton(frm, text=t("settings.enable_translit", "Phonetic Finglish typing (Experimental)"), variable=win._translit_var)
+    cb_translit.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    translit_ex = t("settings.enable_translit_example", "Example: Type 'salam' to convert to 'سلام' phonetically with candidates popup")
+    ToolTip(cb_translit, translit_ex)
+    row += 1
+    ttk.Label(
+        frm,
+        text=f"↳ {translit_ex}",
         font=("Segoe UI" if not rtl else "Vazirmatn", 8),
         foreground="gray",
     ).grid(row=row, column=0, columnspan=3, sticky=align, padx=pad.get("padx", 10) + 14, pady=(0, 3))

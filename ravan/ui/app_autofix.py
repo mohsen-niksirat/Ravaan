@@ -63,6 +63,7 @@ class AppAutofixMixin:
 
         top = cands[0]
         self._last_translit_word = (word, top)
+        self._last_translit_record = (word, top, delimiter, time.monotonic())
         self._record_event(f"Transliterated: '{word}' -> '{top}'", char=top)
         self._replace_word(word, top, delimiter=delimiter)
 
@@ -77,28 +78,82 @@ class AppAutofixMixin:
             ]
             caret = get_caret_rect()
             if caret:
+                state = {"current_fa": top}
+
+                def _on_pick(cand: Any) -> None:
+                    chosen_fa = cand.text
+                    curr_fa = state["current_fa"]
+                    if chosen_fa != curr_fa:
+                        self._accept_translit_candidate(
+                            word, curr_fa, chosen_fa, delimiter=delimiter
+                        )
+                        state["current_fa"] = chosen_fa
+
                 self.overlay.show_predictions(
                     cand_objs,
                     caret.x,
                     caret.y,
                     height=caret.height,
-                    on_accept=lambda cand: self._accept_translit_candidate(
-                        word, cand.text, delimiter
-                    ),
+                    on_accept=_on_pick,
                 )
                 set_popup_visible(True, swallow_digits=self.cfg.quickpick_digits)
 
         return True
 
     def _accept_translit_candidate(
-        self: Any, orig_word: str, chosen_fa: str, delimiter: str = ""
+        self: Any,
+        orig_word: str,
+        current_or_chosen_fa: str,
+        chosen_fa: str | None = None,
+        delimiter: str = "",
     ) -> None:
+        if chosen_fa is None:
+            current_fa = getattr(self, "_last_translit_word", ("", orig_word))[1] or orig_word
+            actual_chosen = current_or_chosen_fa
+        else:
+            current_fa = current_or_chosen_fa
+            actual_chosen = chosen_fa
+
         if hasattr(self, "translit") and self.translit is not None:
-            self.translit.record_pick(orig_word, chosen_fa)
-        self._replace_word(orig_word, chosen_fa, delimiter=delimiter)
+            self.translit.record_pick(orig_word, actual_chosen)
+        self._replace_word(current_fa, actual_chosen, delimiter=delimiter)
+        self._last_translit_word = (orig_word, actual_chosen)
+        self._last_translit_record = (orig_word, actual_chosen, delimiter, time.monotonic())
         self._record_event(
-            f"Accepted translit: '{orig_word}' -> '{chosen_fa}'", char=chosen_fa
+            f"Accepted translit: '{orig_word}' -> '{actual_chosen}'", char=actual_chosen
         )
+
+    def _undo_last_transliteration(self: Any, from_backspace: bool = False) -> bool:
+        """Revert the last transliterated word back to its original Finglish."""
+        rec = getattr(self, "_last_translit_record", None)
+        if rec is None:
+            return False
+        orig_word, inserted_fa, delimiter, t_done = rec
+        self._last_translit_record = None
+
+        max_elapsed = 4.0 if from_backspace else 10.0
+        if time.monotonic() - t_done > max_elapsed:
+            return False
+
+        del_len = len(inserted_fa) + len(delimiter)
+        replace_text = orig_word + delimiter
+        self._suppress_until = time.monotonic() + 0.08
+        from ravan.platform.inject import replace_last_n_with
+
+        replace_last_n_with(del_len, replace_text)
+        for _ in range(del_len):
+            if self.journal._chars:
+                self.journal._chars.pop()
+        for ch in replace_text:
+            self.journal.push(ch)
+
+        from ravan.core.i18n import t
+
+        msg = t("toast.translit_undo", f"لغو فینگلیش: {inserted_fa} ← {orig_word}", orig=orig_word)
+        self._show_toast(msg)
+        self._record_event(f"Undone transliteration: {inserted_fa} -> {orig_word}")
+        log.info("Undid transliteration: reverted %r back to %r", inserted_fa, orig_word)
+        return True
 
     def _maybe_autofix_word(self: Any, word: str, delimiter: str = "") -> bool:
         if not hasattr(self, "autofix") or self.autofix is None:
@@ -250,6 +305,8 @@ class AppAutofixMixin:
 
     def _undo_last_correction(self: Any) -> bool:
         """Global undo: reverts the last automatic correction (up to 50 steps)."""
+        if hasattr(self, "_undo_last_transliteration") and getattr(self, "_last_translit_record", None):
+            return self._undo_last_transliteration(from_backspace=False)
         if hasattr(self, "autofix") and self.autofix is not None:
             rec = self.autofix.pop_last_correction()
             if rec is not None:
@@ -284,6 +341,10 @@ class AppAutofixMixin:
 
     def _undo_last_correction_from_backspace(self: Any) -> bool:
         """Revert the last auto-fix when Backspace is typed immediately (< 2.5s)."""
+        if hasattr(self, "_undo_last_transliteration") and getattr(self, "_last_translit_record", None):
+            rec = self._last_translit_record
+            if time.monotonic() - rec[3] <= 4.0:
+                return self._undo_last_transliteration(from_backspace=True)
         if not hasattr(self, "autofix") or self.autofix is None:
             return False
         elapsed = time.monotonic() - getattr(self, "_last_autofix_time", 0.0)
@@ -351,7 +412,23 @@ class AppAutofixMixin:
         self.tray.notify(msg)
         return True
 
+    def _show_toast_sync(self: Any, message: str) -> None:
+        if hasattr(self, "_toast") and self._toast is not None:
+            from ravan.platform.caret import get_caret_rect
+
+            rc = get_caret_rect()
+            if rc:
+                self._toast.show(message, x=rc.x, y=rc.y)
+            else:
+                self._toast.show(message)
+        elif hasattr(self, "tray") and self.tray is not None:
+            self.tray.notify(message)
+
     def _show_toast(self: Any, message: str) -> None:
+        import threading
+        if threading.current_thread() is not threading.main_thread() and hasattr(self, "_ui_queue"):
+            self._ui_queue.put(("toast", message))
+            return
         if hasattr(self, "_toast") and self._toast is not None:
             from ravan.platform.caret import get_caret_rect
 

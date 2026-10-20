@@ -127,6 +127,11 @@ class AppDialogsMixin:
                     self._clean_clipboard_text()
             elif action == "quick_tips":
                 self._show_quick_tips()
+            elif action == "toast":
+                if hasattr(self, "_show_toast_sync"):
+                    self._show_toast_sync(str(arg))
+                elif hasattr(self, "_show_toast"):
+                    self._show_toast(str(arg))
 
     def set_prediction_enabled(self: Any, enabled: bool) -> None:
         self.cfg.prediction_enabled = enabled

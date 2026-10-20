@@ -29,6 +29,7 @@ def save_settings_window(win: Any) -> None:
         (win._undo_var.get(), "undo"),
         (win._stats_var.get() if hasattr(win, "_stats_var") else "", "stats"),
         (win._pause_var.get() if hasattr(win, "_pause_var") else "", "pause"),
+        (win._translit_hotkey_var.get() if hasattr(win, "_translit_hotkey_var") else "", "translit"),
     ]
     parsed = []
     for raw, name in hk_items:
@@ -37,12 +38,12 @@ def save_settings_window(win: Any) -> None:
             messagebox.showwarning("Ravan", f"Invalid {name} hotkey", parent=win._root)
             return
         parsed.append(val)
-    convert, lang, clip, norm, case, undo, stats, pause = parsed
+    convert, lang, clip, norm, case, undo, stats, pause, translit_hk = parsed
 
     # Validate no duplicate hotkeys
     active_hotkeys = [
         hotkey_to_text(h)
-        for h in [convert, lang, clip, norm, case, undo, stats, pause]
+        for h in [convert, lang, clip, norm, case, undo, stats, pause, translit_hk]
         if h
     ]
     if len(active_hotkeys) != len(set(active_hotkeys)):
@@ -70,6 +71,8 @@ def save_settings_window(win: Any) -> None:
         cfg.quick_stats_hotkey = stats
     if pause:
         cfg.pause_hotkey = pause
+    if translit_hk:
+        cfg.translit_hotkey = translit_hk
 
     if hasattr(win, "_global_undo_var") and win._global_undo_var.get().strip():
         val = text_to_hotkey(win._global_undo_var.get())
@@ -100,6 +103,8 @@ def save_settings_window(win: Any) -> None:
     cfg.shift_space_zwnj = win._shift_space_var.get()
     if hasattr(win, "_hints_var"):
         cfg.enable_feature_hints = win._hints_var.get()
+    if hasattr(win, "_translit_var"):
+        cfg.translit_enabled = win._translit_var.get()
     cfg.clipboard_history_enabled = win._cliphist_var.get()
     cfg.inline_calc_enabled = win._calc_var.get()
     cfg.quickpick_digits = win._digits_var.get()
