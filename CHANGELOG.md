@@ -5,6 +5,18 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 5
+
+### Added
+- Resilient low-level keyboard hook (`WH_KEYBOARD_LL`) architecture in `ravan/platform/hook.py`:
+  - Thread liveness checking (`is_alive()`) and auto-recovery health checking (`check_health()`).
+  - Thread-safe restart and reinstallation (`reinstall()`) with mutex guarding.
+  - Non-blocking event emission (`_emit()`): drops oldest event on queue overflow to guarantee the Windows hook thread never blocks or introduces keyboard lag.
+- Watchdog background monitoring in `ravan/ui/app_polling.py` (`_poll_hook_health()`):
+  - Monotonic clock-jump detection (> 4.0s) to instantly recover state and re-verify hook liveness after system sleep/resume or lock-screen transitions.
+  - Periodic 3.0s health checks ensuring automatic hook reinstallation if Windows silently unhooks `WH_KEYBOARD_LL`.
+- Unit tests for hook lifecycle, non-blocking queue overflow, and sleep clock-jump recovery in `tests/test_hook_resilience.py`.
+
 ## [Unreleased] - Phase 4
 
 ### Added

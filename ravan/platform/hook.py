@@ -64,10 +64,37 @@ class KeyboardHook:
         self._hook = None
         self._proc = None
         self._running = False
+        self._lock = threading.Lock()
 
     @property
     def events(self) -> queue.Queue[HookEvent]:
         return self._queue
+
+    def is_alive(self) -> bool:
+        """Return True if hook is actively running on an active thread with a valid hook handle."""
+        return bool(
+            self._running
+            and self._thread is not None
+            and self._thread.is_alive()
+            and self._hook
+        )
+
+    def reinstall(self) -> bool:
+        """Cleanly stop and reinstall hook thread."""
+        with self._lock:
+            log.warning("Reinstalling low-level keyboard hook...")
+            self.stop()
+            self.start()
+            return self.is_alive()
+
+    def check_health(self) -> bool:
+        """Verify that the hook thread is alive and has an active hook; auto-recover if broken."""
+        if not self._running:
+            return False
+        if self._thread is None or not self._thread.is_alive() or not self._hook:
+            log.warning("Keyboard hook thread unresponsive or unhooked; triggering auto-recovery.")
+            return self.reinstall()
+        return True
 
     def poll(self) -> HookEvent | None:
         try:
@@ -76,13 +103,14 @@ class KeyboardHook:
             return None
 
     def start(self) -> None:
-        if self._running:
-            return
-        self._running = True
-        self._thread = threading.Thread(
-            target=self._run, name="ravan-keyboard-hook", daemon=True
-        )
-        self._thread.start()
+        with self._lock:
+            if self._running and self._thread is not None and self._thread.is_alive():
+                return
+            self._running = True
+            self._thread = threading.Thread(
+                target=self._run, name="ravan-keyboard-hook", daemon=True
+            )
+            self._thread.start()
 
     def stop(self) -> None:
         self._running = False
@@ -97,13 +125,26 @@ class KeyboardHook:
                 )
             else:
                 self._thread = None
-
+        if self._hook:
+            try:
+                w.user32.UnhookWindowsHookEx(self._hook)
+            except Exception:  # noqa: BLE001
+                pass
+            self._hook = None
 
     def _emit(self, event: HookEvent) -> None:
         try:
             self._queue.put_nowait(event)
         except queue.Full:
-            pass
+            # Never block hook thread: discard oldest and push newest
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self._queue.put_nowait(event)
+            except queue.Full:
+                pass
 
     def _run(self) -> None:
         self._thread_id = int(w.kernel32.GetCurrentThreadId())

@@ -43,6 +43,32 @@ class AppPollingMixin:
             self.overlay.hide()
             set_popup_visible(False)
 
+    def _poll_hook_health(self: Any) -> None:
+        """Watchdog to verify keyboard hook is alive; detect sleep/resume and lock screen."""
+        now = time.monotonic()
+        last_tick = getattr(self, "_last_watchdog_tick", now)
+        elapsed = now - last_tick
+        self._last_watchdog_tick = now
+
+        # Detect sleep/resume or lock screen via monotonic clock jump (> 4.0s)
+        if elapsed > 4.0:
+            log.info("System clock jump detected (elapsed=%.2fs); recovering after wake/lock.", elapsed)
+            self.journal.clear()
+            self._pending_predict = False
+            if hasattr(self, "overlay") and self.overlay.predicting:
+                self.overlay.hide()
+                set_popup_visible(False)
+            if hasattr(self, "hook") and self.hook:
+                self.hook.check_health()
+            return
+
+        # Periodic health check every 3.0 seconds
+        last_check = getattr(self, "_last_hook_health_check", 0.0)
+        if now - last_check >= 3.0:
+            self._last_hook_health_check = now
+            if hasattr(self, "hook") and self.hook:
+                self.hook.check_health()
+
     def _check_elevated(self: Any, hwnd: int | None = None) -> bool:
         from ravan.platform.focus import is_window_elevated
 

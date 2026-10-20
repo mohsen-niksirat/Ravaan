@@ -123,6 +123,7 @@ class RavanApp(
                     self._drain_ui_actions()
                     self._drain_hook_events()
                     self._poll_focus()
+                    self._poll_hook_health()
                     self._poll_language()
                     self._poll_clipboard()
                     self._poll_background_sync()
