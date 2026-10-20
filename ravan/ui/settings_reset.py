@@ -31,6 +31,8 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._sound_var.set(d.sound_feedback_enabled)
         if hasattr(win, "_calc_var"):
             win._calc_var.set(d.inline_calc_enabled)
+        if hasattr(win, "_hints_var"):
+            win._hints_var.set(d.enable_feature_hints)
         if hasattr(win, "_theme_mode_var"):
             win._theme_mode_var.set(d.theme_mode)
     elif tab_name == "prediction":
@@ -73,6 +75,8 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._undo_var.set(hotkey_to_text(d.undo_autocorrect_hotkey))
         if hasattr(win, "_stats_var"):
             win._stats_var.set(hotkey_to_text(d.quick_stats_hotkey))
+        if hasattr(win, "_pause_var"):
+            win._pause_var.set(hotkey_to_text(d.pause_hotkey))
     elif tab_name == "exclusions":
         if hasattr(win, "_excl_text"):
             win._excl_text.delete("1.0", "end")

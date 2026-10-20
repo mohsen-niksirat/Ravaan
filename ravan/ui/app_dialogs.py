@@ -125,6 +125,8 @@ class AppDialogsMixin:
             elif action == "clean_clipboard":
                 if hasattr(self, "_clean_clipboard_text"):
                     self._clean_clipboard_text()
+            elif action == "quick_tips":
+                self._show_quick_tips()
 
     def set_prediction_enabled(self: Any, enabled: bool) -> None:
         self.cfg.prediction_enabled = enabled
@@ -170,3 +172,13 @@ class AppDialogsMixin:
     def _auto_resume(self: Any) -> None:
         if getattr(self, "is_paused", False):
             self._ui_queue.put(("toggle_pause", None))
+
+    def _show_quick_tips(self: Any) -> None:
+        from ravan.ui.quick_tips import QuickTipsWindow
+
+        if not hasattr(self, "_quick_tips_window") or self._quick_tips_window is None:
+            self._quick_tips_window = QuickTipsWindow(
+                parent=getattr(self.overlay, "_root", None),
+                cfg=self.cfg,
+            )
+        self._quick_tips_window.show()

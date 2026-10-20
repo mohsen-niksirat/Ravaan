@@ -20,6 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Inline "what does this do?" examples (`↳ Example: ...`) under major feature toggles (calculator, clipboard history, smart ZWNJ, punctuation spacing, auto-fix layout).
   - Bilingual tooltips and examples in `fa.json` and `en.json`.
   - Comprehensive automated tests in `tests/test_settings_search.py`.
+- Tray "Quick Tips & Shortcuts" Window (`QuickTipsWindow` in `ravan/ui/quick_tips.py`):
+  - In-app searchable cheat sheet and help guide categorized by Essential Shortcuts, Smart Everyday Features, and Privacy & Trust.
+  - Interactive search bar with instant clear button to find tips quickly.
+  - Full keyboard accessibility with `<Escape>` closing and Tab navigation.
+  - Complete bilingual localization and RTL support in `en.json` and `fa.json`.
+- Non-Annoying Educational Feature Hints (`HintManager` in `ravan/ui/hint_manager.py`):
+  - Strict guarantee: max one hint per feature ever, persisted across restarts in `Config.shown_hints`.
+  - Non-intrusive, dismissible forever with a dedicated setting toggle (`enable_feature_hints`).
+- Dedicated Pause / Resume Hotkey & Tray Integration (`pause_hotkey` in `ravan/core/config.py`, `ravan/ui/key_handler.py`, `ravan/ui/tray.py`):
+  - Configurable global hotkey (`Ctrl+Alt+Pause` by default) to pause/resume Ravaan assistance from anywhere.
+  - Works consistently both when active and when paused.
+  - One-click pause toggle in the system tray menu.
+  - Automated tests in `tests/test_quick_tips_and_hints.py`.
 
 
 ## [Unreleased] - Phase 5

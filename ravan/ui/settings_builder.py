@@ -51,6 +51,7 @@ def build_hotkeys_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
         (t("settings.hotkey_case", "Cycle text case:"), "_case_var", win.cfg.case_hotkey, "e.g. Shift+F12"),
         (t("settings.hotkey_undo", "Undo last autocorrect:"), "_undo_var", win.cfg.undo_autocorrect_hotkey, "e.g. Ctrl+Shift+Z"),
         (t("settings.hotkey_stats", "Quick text stats:"), "_stats_var", getattr(win.cfg, "quick_stats_hotkey", None) or win.cfg.quick_stats_hotkey, "e.g. Ctrl+Alt+S"),
+        (t("settings.hotkey_pause", "Pause / Resume Ravaan:"), "_pause_var", getattr(win.cfg, "pause_hotkey", None) or win.cfg.pause_hotkey, "e.g. Ctrl+Alt+Pause"),
     ]
 
     for label_text, var_attr, hotkey_spec, hint in entries_spec:
@@ -202,6 +203,20 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
     ttk.Label(
         frm,
         text=f"↳ {punct_ex}",
+        font=("Segoe UI" if not rtl else "Vazirmatn", 8),
+        foreground="gray",
+    ).grid(row=row, column=0, columnspan=3, sticky=align, padx=pad.get("padx", 10) + 14, pady=(0, 3))
+    row += 1
+
+    win._hints_var = tk.BooleanVar(value=getattr(win.cfg, "enable_feature_hints", True))
+    cb_hints = ttk.Checkbutton(frm, text=t("settings.enable_hints", "Show helpful feature tips (max once per feature)"), variable=win._hints_var)
+    cb_hints.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    hints_ex = t("settings.enable_hints_example", "Example: Shows friendly tips max once per feature, dismissible forever")
+    ToolTip(cb_hints, hints_ex)
+    row += 1
+    ttk.Label(
+        frm,
+        text=f"↳ {hints_ex}",
         font=("Segoe UI" if not rtl else "Vazirmatn", 8),
         foreground="gray",
     ).grid(row=row, column=0, columnspan=3, sticky=align, padx=pad.get("padx", 10) + 14, pady=(0, 3))

@@ -98,6 +98,9 @@ class Config:
     ai_replace_selection: bool = False
     voice_dictation_enabled: bool = False
     voice_dictation_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("V", ["Ctrl", "Alt"]))
+    pause_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Pause", ["Ctrl", "Alt"]))
+    enable_feature_hints: bool = True
+    shown_hints: list[str] = field(default_factory=list)
 
     @property
     def auto_zwnj(self) -> bool:
@@ -428,6 +431,9 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         ai_replace_selection=bool(data.get("ai_replace_selection", False)),
         voice_dictation_enabled=bool(data.get("voice_dictation_enabled", False)),
         voice_dictation_hotkey=_hotkey_from_dict(data.get("voice_dictation_hotkey"), HotkeySpec("V", ["Ctrl", "Alt"])),
+        pause_hotkey=_hotkey_from_dict(data.get("pause_hotkey"), HotkeySpec("Pause", ["Ctrl", "Alt"])),
+        enable_feature_hints=bool(data.get("enable_feature_hints", True)),
+        shown_hints=[str(h) for h in data.get("shown_hints", []) if str(h).strip()],
     )
 
 

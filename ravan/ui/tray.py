@@ -78,10 +78,12 @@ class TrayIcon:
         on_toggle_translit: Callable[[], None] | None = None,
         is_translit_enabled: Callable[[], bool] | None = None,
         on_clean_clipboard: Callable[[], None] | None = None,
+        on_quick_tips: Callable[[], None] | None = None,
     ) -> None:
         self._on_quit = on_quit
         self._on_show_lang = on_show_lang
         self._on_settings = on_settings
+        self._on_quick_tips = on_quick_tips
         self._on_snippets = on_snippets
         self._on_diagnostics = on_diagnostics
         self._on_clean_clipboard = on_clean_clipboard
@@ -173,6 +175,7 @@ class TrayIcon:
             Item(t("tray.clean_clipboard", "Clean Clipboard Text (Ctrl+Shift+F12)"), self._clean_clipboard),
             Item(t("tray.record_macro", "Record Macro…"), self._record_macro),
             Item(t("tray.snippet_editor", "Snippets…"), self._snippets),
+            Item(t("tray.quick_tips", "💡 Quick Tips & Shortcuts"), self._quick_tips),
             Item(t("tray.settings", "Settings…"), self._settings),
             Item(t("tray.diagnostics", "Diagnostics…"), self._diagnostics),
             Item(t("tray.open_logs", "Open logs folder"), lambda: open_logs_folder()),
@@ -248,6 +251,10 @@ class TrayIcon:
     def _snippets(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_snippets:
             self._on_snippets()
+
+    def _quick_tips(self, _icon: Any = None, _item: Any = None) -> None:
+        if self._on_quick_tips:
+            self._on_quick_tips()
 
     def _settings(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_settings:

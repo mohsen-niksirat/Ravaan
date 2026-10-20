@@ -30,4 +30,5 @@ def create_app_tray(app: Any) -> TrayIcon:
         on_toggle_translit=lambda: app._ui_queue.put(("toggle_translit", None)),
         is_translit_enabled=lambda: bool(getattr(app.cfg, "translit_enabled", False)),
         on_clean_clipboard=lambda: app._ui_queue.put(("clean_clipboard", None)),
+        on_quick_tips=lambda: app._ui_queue.put(("quick_tips", None)),
     )

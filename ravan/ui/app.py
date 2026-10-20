@@ -86,6 +86,13 @@ class RavanApp(
         self._own_pid = os.getpid()
         self.is_paused = False
         self._pause_timer: threading.Timer | None = None
+        self._quick_tips_window: Any = None
+        from ravan.ui.hint_manager import HintManager
+
+        self.hint_manager = HintManager(
+            self.cfg,
+            on_show_toast=self._show_toast if hasattr(self, "_show_toast") else None,
+        )
         self._init_autofix()
         self._init_accent()
         self._init_ai()
@@ -138,6 +145,8 @@ class RavanApp(
                         self._snippet_window.tick()
                     if self._wizard_window is not None:
                         self._wizard_window.tick()
+                    if self._quick_tips_window is not None:
+                        self._quick_tips_window.tick()
                 except Exception:  # noqa: BLE001
                     log.exception("Main loop iteration failed")
                 time.sleep(0.008)

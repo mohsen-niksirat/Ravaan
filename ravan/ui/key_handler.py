@@ -75,7 +75,11 @@ class KeyHandlerMixin:
             return
 
         if getattr(self, "is_paused", False):
-            if hasattr(self.cfg, "power_mode_hotkey") and matches_hotkey(
+            if hasattr(self.cfg, "pause_hotkey") and matches_hotkey(
+                vk, self.cfg.pause_hotkey
+            ):
+                self._ui_queue.put(("toggle_pause", None))
+            elif hasattr(self.cfg, "power_mode_hotkey") and matches_hotkey(
                 vk, self.cfg.power_mode_hotkey
             ):
                 self._ui_queue.put(("toggle_pause", None))
@@ -161,6 +165,9 @@ class KeyHandlerMixin:
             # Note: Regular character keys fall through to typing, keeping prediction continuous!
 
         # Hotkeys
+        if hasattr(self.cfg, "pause_hotkey") and matches_hotkey(vk, self.cfg.pause_hotkey):
+            self._ui_queue.put(("toggle_pause", None))
+            return
         if hasattr(self.cfg, "power_mode_hotkey") and matches_hotkey(vk, self.cfg.power_mode_hotkey):
             self._ui_queue.put(("toggle_power_mode", None))
             return
