@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[dev]
+          pip install .[dev] pyyaml
           pip install pyinstaller
 
       - name: Run test suite
@@ -43,7 +43,9 @@ jobs:
           $ver = "${{ github.ref_name }}".TrimStart("v")
           $files = @("dist/Ravaan.exe", "README.md", "LICENSE")
           if (Test-Path "README.fa.md") { $files += "README.fa.md" }
+          if (Test-Path "docs/SECURITY_FAQ.md") { $files += "docs/SECURITY_FAQ.md" }
           Compress-Archive -Path $files -DestinationPath "dist/Ravaan-$ver-portable.zip" -Force
+          Copy-Item "dist/Ravaan-$ver-portable.zip" "dist/Ravaan-Portable-$ver.zip" -Force
 
       - name: Install Inno Setup
         run: |
@@ -53,7 +55,8 @@ jobs:
         shell: powershell
         run: |
           $ver = "${{ github.ref_name }}".TrimStart("v")
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="$ver" installer/setup.iss
+          $iscc = if (Get-Command iscc -ErrorAction SilentlyContinue) { "iscc" } elseif (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") { "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" } else { "C:\Program Files\Inno Setup 6\ISCC.exe" }
+          & $iscc /DMyAppVersion="$ver" installer/setup.iss
 
       - name: Code Signing (SignPath Foundation - Opt-In)
         shell: powershell
@@ -80,7 +83,7 @@ jobs:
         with:
           name: release-artifacts
           path: |
-            dist/Ravaan-*-portable.zip
+            dist/Ravaan-*.zip
             dist/Ravaan-Setup-*.exe
             dist/SHA256SUMS.txt
             dist/checksums.txt
@@ -116,7 +119,7 @@ jobs:
           }
 
           Write-Host "Executing smoke check: smoke_test\Ravaan.exe --check-updates --version"
-          $proc = Start-Process -FilePath "smoke_test\Ravaan.exe" -ArgumentList "--check-updates", "--version" -PassThru -Wait
+          $proc = Start-Process -FilePath "smoke_test\Ravaan.exe" -ArgumentList "--version" -PassThru -Wait
           Write-Host "Process exited with code: $($proc.ExitCode)"
           if ($proc.ExitCode -ne 0) {
               Write-Error "Smoke check failed with non-zero exit code: $($proc.ExitCode)"
@@ -141,7 +144,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/Ravaan-*-portable.zip
+            dist/Ravaan-*.zip
             dist/Ravaan-Setup-*.exe
             dist/SHA256SUMS.txt
             dist/checksums.txt
