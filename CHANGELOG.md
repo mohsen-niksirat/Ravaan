@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works consistently both when active and when paused.
   - One-click pause toggle in the system tray menu.
   - Automated tests in `tests/test_quick_tips_and_hints.py`.
+- Accessibility, High-Contrast & Typography Verification (`tests/test_accessibility.py`):
+  - Verified WCAG 2.1 AA compliant contrast ratios ($\ge$ 4.5:1 for normal text, $\ge$ 15.0:1 for high-contrast mode) across dark, light, and high-contrast palettes.
+  - Full keyboard navigation across all interactive dialogs (`<Escape>` to dismiss, Tab order, Enter to trigger primary actions).
+  - RTL font stack prioritization (`Vazirmatn` with fallbacks) and LTR stack (`Segoe UI`).
+  - No color-only signals: confidence meters use 4-step Unicode block indicators (` `, `▂`, `▅`, `█`) and status indicators feature distinct text/icons.
+
 
 
 ## [Unreleased] - Phase 5
