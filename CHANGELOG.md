@@ -5,6 +5,20 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 7
+
+### Added
+- High-Accuracy Transliteration & Phonetic Engine (`ravan/core/translit.py`):
+  - Retained fast exact dictionary lookups for ~10,000 common Finglish words.
+  - Added morphological affix decomposition for Persian verb prefixes (`mi-`, `nemi-`, `bi-`, `be-`, `ba-`, `na-`) and suffixes (`-ha`, `-haye`, `-am`, `-et`, `-esh`, `-emoon`, `-etoon`, `-eshoon`, `-tar`, `-tarin`, `-an`, `-yan`, `-i`, `-ei`, `-ee`).
+  - Added rule-based phonetic transducer (`_phonetic_transduce`) supporting Persian digraphs (`kh`, `sh`, `ch`, `zh`, `gh`, `ck`, `ph`, `th`, `dh`, `aa`, `ee`, `oo`) and position-aware letter mapping.
+  - Integrated 162k+ Persian lexicon (`Dictionary.persian()`) to validate and rank candidate outputs by true corpus frequency, prioritizing canonical ZWNJ typography.
+  - Implemented token safety screening (`is_safe_finglish_token`): strictly protects URLs, emails, file paths, code identifiers, numbers, hashtags, and @mentions from transliteration.
+- Transliteration Benchmark Suite (`tests/test_translit_benchmark.py`):
+  - Comprehensive automated benchmark covering conversational expressions, inflected verbs, compound words, comparative adjectives, colloquial slang, and token screening.
+  - Achieved **94.95% Top-1** and **100.00% Top-3** accuracy across the benchmark suite (exceeding 90% gate).
+  - Maintained 100.00% accuracy on the 212-word corpus in `tests/test_translit.py`.
+
 ## [Unreleased] - Phase 6
 
 ### Added
