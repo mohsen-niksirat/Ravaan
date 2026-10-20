@@ -17,9 +17,16 @@
     "quick_toggles": "Quick Toggles",
     "autocorrect": "Autocorrect",
     "auto_zwnj": "Auto-ZWNJ",
+    "clean_clipboard": "Clean Clipboard Text (Ctrl+Shift+F12)",
     "quit": "Quit"
   },
   "settings": {
+    "digit_mode_label": "Digit formatting:",
+    "digit_mode_auto": "Contextual (Persian in prose, Latin in code & URLs)",
+    "digit_mode_fa": "Always Persian digits (۰-۹)",
+    "digit_mode_en": "Always English digits (0-9)",
+    "digit_mode_keep": "Unchanged (keep as typed)",
+    "hotkey_clean_clip": "Clean & standardize clipboard text:",
     "title": "Ravaan — Settings",
     "tab_general": "General",
     "tab_prediction": "Prediction",

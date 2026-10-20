@@ -192,8 +192,9 @@ class KeyHandlerMixin:
             (self.cfg.normalize_hotkey, self._normalize_selection_or_last_word),
             (self.cfg.case_hotkey, self._cycle_case_selection_or_last_word),
             (self.cfg.convert_hotkey, self._convert_selection_or_last_word),
+            (getattr(self.cfg, "clean_clipboard_hotkey", None), self._clean_clipboard_text),
         ):
-            if matches_hotkey(vk, hk):
+            if hk is not None and matches_hotkey(vk, hk):
                 if now - self._last_convert_at > 0.3:
                     self._last_convert_at = now
                     action()

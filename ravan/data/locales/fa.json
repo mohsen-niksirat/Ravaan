@@ -17,9 +17,16 @@
     "quick_toggles": "تغییر سریع قابلیت‌ها",
     "autocorrect": "تصحیح خودکار",
     "auto_zwnj": "نیم‌فاصله هوشمند",
+    "clean_clipboard": "پاک‌سازی متن کلیپ‌بورد (Ctrl+Shift+F12)",
     "quit": "خروج"
   },
   "settings": {
+    "digit_mode_label": "قالب ارقام و اعداد:",
+    "digit_mode_auto": "هوشمند بر اساس بافت متن (فارسی در جملات، انگلیسی در کد و آدرس)",
+    "digit_mode_fa": "همیشه ارقام فارسی (۰-۹)",
+    "digit_mode_en": "همیشه ارقام انگلیسی (0-9)",
+    "digit_mode_keep": "بدون تغییر (همان‌گونه که تایپ شده)",
+    "hotkey_clean_clip": "پاک‌سازی و استانداردسازی متن کلیپ‌بورد:",
     "title": "روان — تنظیمات",
     "tab_general": "عمومی",
     "tab_prediction": "پیش‌بینی",

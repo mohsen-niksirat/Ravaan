@@ -77,12 +77,14 @@ class TrayIcon:
         is_paused: Callable[[], bool] | None = None,
         on_toggle_translit: Callable[[], None] | None = None,
         is_translit_enabled: Callable[[], bool] | None = None,
+        on_clean_clipboard: Callable[[], None] | None = None,
     ) -> None:
         self._on_quit = on_quit
         self._on_show_lang = on_show_lang
         self._on_settings = on_settings
         self._on_snippets = on_snippets
         self._on_diagnostics = on_diagnostics
+        self._on_clean_clipboard = on_clean_clipboard
         self._on_toggle_prediction = on_toggle_prediction
         self._is_prediction_enabled = is_prediction_enabled
         self._on_update_found = on_update_found
@@ -168,6 +170,7 @@ class TrayIcon:
             Item(t("tray.quick_toggles", "Quick Toggles"), quick_toggles_menu),
             pystray.Menu.SEPARATOR,
             Item(t("tray.show_language", "Show language (Alt+L)"), self._show_lang),
+            Item(t("tray.clean_clipboard", "Clean Clipboard Text (Ctrl+Shift+F12)"), self._clean_clipboard),
             Item(t("tray.record_macro", "Record Macro…"), self._record_macro),
             Item(t("tray.snippet_editor", "Snippets…"), self._snippets),
             Item(t("tray.settings", "Settings…"), self._settings),
@@ -233,6 +236,10 @@ class TrayIcon:
     def _toggle_pause_action(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_toggle_pause:
             self._on_toggle_pause()
+
+    def _clean_clipboard(self, _icon: Any = None, _item: Any = None) -> None:
+        if self._on_clean_clipboard:
+            self._on_clean_clipboard()
 
     def _record_macro(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_record_macro:

@@ -5,6 +5,25 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 3
+
+### Added
+- Data-driven Persian ZWNJ rules file `ravan/data/zwnj_rules.json` specifying verbal prefixes (`می`, `نمی`, `بی`), plural/comparative suffixes (`ها`, `های`, `تر`, `ترین`, etc.), personal/possessive endings (`ام`, `ای`, `ایم`, `اید`, `اند`, `مان`, `تان`, `شان`), compound words (`گفت‌وگو`, `سیستم‌عامل`, `پیش‌فرض`), and exception lists (`مینا`, `بیمار`, `شاهنامه`, `روزنامه`).
+- Context-aware Persian punctuation engine (`normalize_persian_punctuation` in `ravan/core/normalizer.py`):
+  - Persian punctuation conversion (`?` $\to$ `؟`, `,` $\to$ `،`, `;` $\to$ `؛`) strictly in Persian context while protecting numbers, HTML entities, and English text.
+  - Smart quotes conversion: straight and curly quotes (`"..."` / `“...”`) $\to$ Persian guillemets (`«...»`) when containing Persian text.
+  - Typographic ellipsis conversion: `...` $\to$ `…` (horizontal ellipsis U+2026).
+  - Typographic bracket/quote spacing: space outside, zero space inside (`( متن )` $\to$ `(متن)`, `« سخن »` $\to$ `«سخن»`).
+  - Spacing normalization around punctuation: zero space before, exactly one space after, preserving times (`10:30`), decimals (`3.14`), URLs, and emails.
+- Contextual digit formatting engine (`normalize_contextual_digits`):
+  - Intelligent `"auto"` mode formatting digits inside Persian prose as Persian digits (`۰-۹`) while preserving Latin digits in URLs, emails, file paths, IP addresses, versions, and code tokens.
+  - Added `digit_mode` setting to `Config` (`"auto"` | `"fa"` | `"en"` | `"keep"`).
+- "Clean Pasted Text" / "پاک‌سازی متن کلیپ‌بورد" feature (`clean_pasted_text`):
+  - Normalizes clipboard text with Arabic character unification, ZWNJ, punctuation, smart quotes, and contextual digits.
+  - Automatically preserves markdown code blocks (```` ```...``` ````) and inline code (`` `...` ``) completely untouched.
+  - Accessible via tray menu and default hotkey `Ctrl+Shift+F12` with toast feedback and localized strings (`fa.json`, `en.json`).
+- Golden-file test suite (`tests/data/typography_golden_cases.json` and `tests/test_normalizer.py::test_typography_golden_cases`) enforcing 100% fidelity on complex mixed Persian/English, code, and punctuation fixtures.
+
 ## [Unreleased] - Phase 2
 
 ### Added

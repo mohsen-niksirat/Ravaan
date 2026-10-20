@@ -122,6 +122,9 @@ class AppDialogsMixin:
             elif action == "toggle_translit":
                 if hasattr(self, "_toggle_translit"):
                     self._toggle_translit()
+            elif action == "clean_clipboard":
+                if hasattr(self, "_clean_clipboard_text"):
+                    self._clean_clipboard_text()
 
     def set_prediction_enabled(self: Any, enabled: bool) -> None:
         self.cfg.prediction_enabled = enabled

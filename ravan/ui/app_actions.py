@@ -164,6 +164,27 @@ class AppActionsMixin:
         send_shortcut([w.VK_CONTROL], ord("V"))
         log.info("Pasted clipboard item (%d chars)", len(text))
 
+    def _clean_clipboard_text(self: Any) -> bool:
+        from ravan.core.normalizer import clean_pasted_text
+        from ravan.platform.clipboard import get_clipboard_text, set_clipboard_text
+
+        raw = get_clipboard_text()
+        if not raw or not raw.strip():
+            self._show_toast("کلیپ‌بورد خالی است")
+            return False
+
+        digit_mode = getattr(self.cfg, "digit_mode", "auto")
+        cleaned = clean_pasted_text(raw, digit_mode=digit_mode)
+        if cleaned == raw:
+            self._show_toast("متن کلیپ‌بورد از قبل استاندارد است")
+            return True
+
+        set_clipboard_text(cleaned)
+        self._record_event(f"Cleaned clipboard text ({len(raw)} -> {len(cleaned)} chars)")
+        self._show_toast("متن کلیپ‌بورد پاک‌سازی و استاندارد شد")
+        log.info("Cleaned clipboard text: %d chars -> %d chars", len(raw), len(cleaned))
+        return True
+
     def _maybe_attach_suffix_zwnj(self: Any, suffix: str) -> bool:
         from ravan.core.zwnj import ZWNJ, should_attach_suffix
 

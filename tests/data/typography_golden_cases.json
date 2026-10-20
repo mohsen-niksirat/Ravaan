@@ -1,0 +1,32 @@
+[
+  {
+    "description": "Persian text with ZWNJ prefixes, suffixes, compounds, quotes, ellipsis, and punctuation",
+    "input": "آیا می دانید که در سال 1403 کتاب های جدیدی منتشر شده است ؟ بله ، به ویژه \"سیستم عامل\" ... ( بسیار عالی )",
+    "expected": "آیا می‌دانید که در سال ۱۴۰۳ کتاب‌های جدیدی منتشر شده است؟ بله، به‌ویژه «سیستم‌عامل»… (بسیار عالی)"
+  },
+  {
+    "description": "Mixed Persian and English with URL, version number and English commands",
+    "input": "برای دانلود نسخه v2.0 به سایت https://ravaan.dev/dl مراجعه کنید ، یا دستور pip install ravaan را اجرا نمایید .",
+    "expected": "برای دانلود نسخه v2.0 به سایت https://ravaan.dev/dl مراجعه کنید، یا دستور pip install ravaan را اجرا نمایید."
+  },
+  {
+    "description": "Silent Heh personal endings and compound words",
+    "input": "خانه ام را دوست دارم و به گفت و گو با دوستان مان می نشینم . دانش آموزان به مدرسه می روند .",
+    "expected": "خانه‌ام را دوست دارم و به گفت‌وگو با دوستان مان می‌نشینم. دانش‌آموزان به مدرسه می‌روند."
+  },
+  {
+    "description": "Punctuation spacing, brackets and semicolons",
+    "input": "سلام  (  خوبی ؟  )  من هم خوبم  !  امروز  [  شنبه  ]  است  ;  کارها عالی است  .",
+    "expected": "سلام (خوبی؟) من هم خوبم! امروز [شنبه] است؛ کارها عالی است."
+  },
+  {
+    "description": "English sentence preserved with Latin digits and punctuation",
+    "input": "Hello, world! How are you? There are 50 items in 3 boxes.",
+    "expected": "Hello, world! How are you? There are 50 items in 3 boxes."
+  },
+  {
+    "description": "Code block preservation inside markdown text",
+    "input": "توضیحات برنامه در زیر آمده است :\n```python\ndef add(a, b):\n    return a + b  # 123\n```\nپایان کد ...",
+    "expected": "توضیحات برنامه در زیر آمده است:\n```python\ndef add(a, b):\n    return a + b  # 123\n```\nپایان کد…"
+  }
+]

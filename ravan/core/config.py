@@ -46,10 +46,13 @@ class Config:
     clipboard_history_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("V", ["Alt"]))
     normalize_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", ["Ctrl"]))
     case_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", ["Shift"]))
+    clean_clipboard_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", ["Ctrl", "Shift"]))
     inline_calc_enabled: bool = True
     sound_feedback_enabled: bool = False
     undo_autocorrect_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Z", ["Ctrl", "Shift"]))
     fix_punctuation_spacing: bool = True
+    smart_punctuation_enabled: bool = True
+    digit_mode: str = "auto"  # "auto" | "fa" | "en" | "keep"
     autocorrect_mode: str = "safe"  # "off" | "safe" | "normal"
     ignored_words: list[str] = field(default_factory=list)
     theme_mode: str = "auto"  # "auto" | "dark" | "light"
@@ -322,10 +325,13 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         clipboard_history_hotkey=_hotkey_from_dict(data.get("clipboard_history_hotkey"), HotkeySpec("V", ["Alt"])),
         normalize_hotkey=_hotkey_from_dict(data.get("normalize_hotkey"), HotkeySpec("F12", ["Ctrl"])),
         case_hotkey=_hotkey_from_dict(data.get("case_hotkey"), HotkeySpec("F12", ["Shift"])),
+        clean_clipboard_hotkey=_hotkey_from_dict(data.get("clean_clipboard_hotkey"), HotkeySpec("F12", ["Ctrl", "Shift"])),
         inline_calc_enabled=bool(data.get("inline_calc_enabled", True)),
         sound_feedback_enabled=bool(data.get("sound_feedback_enabled", False)),
         undo_autocorrect_hotkey=_hotkey_from_dict(data.get("undo_autocorrect_hotkey"), HotkeySpec("Z", ["Ctrl", "Shift"])),
         fix_punctuation_spacing=bool(data.get("fix_punctuation_spacing", True)),
+        smart_punctuation_enabled=bool(data.get("smart_punctuation_enabled", True)),
+        digit_mode=str(data.get("digit_mode", "auto")),
         autocorrect_mode=str(data.get("autocorrect_mode", "safe")).lower(),
         ignored_words=[str(w).strip() for w in data.get("ignored_words", []) if str(w).strip()],
         theme_mode=str(data.get("theme_mode", "auto")),
