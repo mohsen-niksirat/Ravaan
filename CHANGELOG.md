@@ -5,6 +5,22 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-10-21 - Initial Stable Release
+
+### Summary
+The initial production release of **Ravaan (????)** ? the intelligent, privacy-first bilingual Persian/English typing assistant for Windows.
+
+### Phase 10: Final Polish, Release Automation & Version Harmonization
+- Release Build Pipeline (`scripts/build_release.py`):
+  - Automated workflow bundling `Ravaan.exe` via PyInstaller (`ravan.spec`), creating portable ZIP archives with multilingual documentation, and computing GNU `SHA256SUMS.txt`.
+  - Optional automated Inno Setup compilation via `ISCC.exe`.
+- Version Harmonization:
+  - Standardized version string `1.0.0` across all codebase components: `ravan/__init__.py`, `pyproject.toml`, `installer/setup.iss`, `packaging/winget/`, `packaging/scoop/`, and `packaging/chocolatey/`.
+- Release Readiness Test Suite (`tests/test_release_readiness.py`):
+  - 8 automated tests ensuring version consistency across all distribution manifests, PyInstaller spec compliance, binary lexicon integrity (162k words), and release packaging.
+- Quality Gates:
+  - Total test suite expanded to 458 automated tests passing at 100% with 0 linter errors.
+
 ## [Unreleased] - Phase 9
 
 ### Added
