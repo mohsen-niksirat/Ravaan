@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Monotonic clock-jump detection (> 4.0s) to instantly recover state and re-verify hook liveness after system sleep/resume or lock-screen transitions.
   - Periodic 3.0s health checks ensuring automatic hook reinstallation if Windows silently unhooks `WH_KEYBOARD_LL`.
 - Unit tests for hook lifecycle, non-blocking queue overflow, and sleep clock-jump recovery in `tests/test_hook_resilience.py`.
+- Global Crash Handler & Friendly Bilingual Crash Dialog in `ravan/ui/crash_dialog.py` and `ravan/ui/log_setup.py`:
+  - Sanitized technical diagnostic report generation (`build_diagnostic_report`) containing OS platform, architecture, Python version, app version, clean exception stack traces, and recent log entries.
+  - Strict privacy guarantee: guarantees that zero keystrokes, typed text, or personal credentials are ever recorded.
+  - Standalone modal `CrashDialog` with clear Persian and English explanations, reassuring users that their privacy is protected.
+  - "Copy Diagnostic Report" button with one-click clipboard copying and visual feedback.
+  - "Open Logs Folder", "Restart Ravaan", and "Close" controls.
+  - Localized strings in both `fa.json` and `en.json` with correct RTL layout.
+  - Automated tests in `tests/test_crash_handler.py`.
 
 ## [Unreleased] - Phase 4
 

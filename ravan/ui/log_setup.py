@@ -62,8 +62,12 @@ def open_logs_folder() -> None:
         log.warning("Could not open logs folder: %s", exc)
 
 
-def install_crash_handler(on_crash: Callable[[str], None] | None = None) -> None:
-    """Register global sys.excepthook that records traceback + last 50 log lines to %APPDATA%\\Ravan\\crash\\."""
+def install_crash_handler(
+    on_crash: Callable[[str], None] | None = None,
+    show_dialog: bool = True,
+) -> None:
+    """Register global sys.excepthook that records diagnostic crash report and shows dialog."""
+    from ravan.ui.crash_dialog import build_diagnostic_report, show_crash_dialog
 
     def handle_exception(exc_type, exc_value, exc_traceback):
         if issubclass(exc_type, KeyboardInterrupt):
@@ -84,27 +88,28 @@ def install_crash_handler(on_crash: Callable[[str], None] | None = None) -> None
             except Exception:  # noqa: BLE001
                 pass
 
-        tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-        content = (
-            f"Ravaan Crash Report — {datetime.now().isoformat()}\n"
-            f"{'='*60}\n"
-            f"Exception:\n{tb_text}\n"
-            f"{'='*60}\n"
-            f"Recent Logs (Last 50 lines):\n"
-            + "\n".join(last_logs)
-            + "\n"
+        content = build_diagnostic_report(
+            exc_type=exc_type,
+            exc_value=exc_value,
+            exc_tb=exc_traceback,
+            recent_logs=last_logs,
         )
         try:
             crash_file.write_text(content, encoding="utf-8")
         except Exception:  # noqa: BLE001
             pass
 
+        tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
         log.critical("Uncaught exception written to %s:\n%s", crash_file, tb_text)
         if on_crash:
             try:
                 on_crash(f"Ravaan encountered an unexpected error. Report saved to {crash_file.name}")
             except Exception:  # noqa: BLE001
                 pass
+
+        if show_dialog and os.environ.get("PYTEST_CURRENT_TEST") is None:
+            show_crash_dialog(report_text=content, crash_file=crash_file, interactive=True)
+
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
     sys.excepthook = handle_exception

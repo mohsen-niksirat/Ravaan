@@ -230,5 +230,17 @@
   "calc": {
     "toman": "Toman",
     "rial": "Rial"
+  },
+  "crash": {
+    "title": "Ravaan — Unexpected Error",
+    "header": "⚠️ Ravaan encountered an unexpected error",
+    "desc": "We apologize for the inconvenience. The application needs to close.\n\n🔒 Your privacy is strictly protected: your typed text, keystrokes, and sensitive personal information are NEVER included in crash reports.",
+    "diagnostic_report_label": "Diagnostic Report (no private text):",
+    "btn_copy": "📋 Copy Diagnostic Report",
+    "btn_copied": "✓ Copied to Clipboard!",
+    "btn_logs": "📁 Open Logs Folder",
+    "btn_restart": "🔄 Restart Ravaan",
+    "btn_close": "✕ Close"
   }
 }
+
