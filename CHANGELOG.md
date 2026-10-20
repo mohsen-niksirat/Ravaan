@@ -5,6 +5,16 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 6
+
+### Added
+- Enhanced 3-step First-Run Onboarding Wizard (`FirstRunWizard` in `ravan/ui/wizard.py`):
+  - Presets selection: Simple (minimalist, smart ZWNJ only), Standard (recommended balance of predictions and auto-fix), and Power User (full feature set with next-word, clipboard history, calc, macros).
+  - Primary conversion hotkey selector with dropdown choices (`Pause`, `Alt+L`, `Ctrl+Shift+L`, `F12`, `Alt+Shift`).
+  - 30-second live interactive typing demo sandbox: real-time simulation of layout conversion (`sghl ` → `سلام `), smart ZWNJ (`می ` → `می‌`), and live suggestion pills.
+  - Full keyboard accessibility and bilingual localization in `fa.json` and `en.json`.
+  - Comprehensive unit tests in `tests/test_wizard_v2.py`.
+
 ## [Unreleased] - Phase 5
 
 ### Added

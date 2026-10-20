@@ -241,6 +241,34 @@
     "btn_logs": "📁 Open Logs Folder",
     "btn_restart": "🔄 Restart Ravaan",
     "btn_close": "✕ Close"
+  },
+  "wizard": {
+    "title": "Welcome to Ravaan • به روان خوش آمدید",
+    "step_indicator": "Step {current} of {total}",
+    "btn_next": "Next →",
+    "btn_back": "← Back",
+    "btn_finish": "Start using Ravaan",
+    "btn_skip": "Skip",
+    "step1_title": "✨ Welcome to Ravaan!",
+    "step1_sub": "Choose your language and preferred mode",
+    "lang_label": "Interface Language:",
+    "preset_title": "Choose your preset:",
+    "preset_simple_title": "Simple Mode",
+    "preset_simple_desc": "Ultra-lightweight: smart ZWNJ and punctuation spacing only. No prediction popups.",
+    "preset_standard_title": "Standard Mode (Recommended)",
+    "preset_standard_desc": "Smart word prediction, auto-ZWNJ, and safe layout auto-fix.",
+    "preset_power_title": "Power User Mode",
+    "preset_power_desc": "Full power: next-word prediction, clipboard history (Alt+V), calc (=), and macros.",
+    "step2_title": "⌨️ Essential Hotkeys",
+    "step2_sub": "Review and customize your primary shortcuts",
+    "convert_hotkey_label": "Primary Layout Reverse Hotkey:",
+    "clean_clip_hotkey_label": "Clean Clipboard Text:",
+    "step3_title": "🎯 30-Second Interactive Demo",
+    "step3_sub": "Try typing in the sandbox below to experience Ravaan live!",
+    "demo_placeholder": "Type here: try 'sghl ' or 'می '...",
+    "demo_autofix_badge": "✓ Layout Converted ('sghl' → 'سلام')",
+    "demo_zwnj_badge": "✓ Smart ZWNJ Inserted ('می‌')",
+    "demo_pred_label": "Live Suggestions:"
   }
 }
 
