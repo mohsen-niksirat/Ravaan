@@ -96,3 +96,70 @@ def test_learn_trigrams(tmp_path: Path):
     engine2 = UserLearningEngine(storage_path=model_file)
     preds2 = engine2.predict_next_words("machine learning", limit=3)
     assert "models" in preds2
+
+
+def test_learning_dpapi_encryption_at_rest(tmp_path: Path):
+    model_file = tmp_path / "learning.json"
+    engine = UserLearningEngine(storage_path=model_file)
+    engine.learn_word("رمزگذاری")
+    engine.save()
+
+    raw_content = model_file.read_text(encoding="utf-8").strip()
+    assert raw_content.startswith(("dpapi:", "mock-dpapi:"))
+    assert not raw_content.startswith("{")
+
+    # Transparent reload
+    engine2 = UserLearningEngine(storage_path=model_file)
+    assert "رمزگذاری" in engine2.word_counts
+
+
+def test_learning_legacy_plaintext_load(tmp_path: Path):
+    import json
+
+    model_file = tmp_path / "learning.json"
+    legacy_data = {
+        "artifact": "ravaan_learning_profile",
+        "version": 3,
+        "word_counts": {"قدیمی": 5.0},
+        "transitions": {},
+        "trigrams": {},
+        "app_word_counts": {},
+    }
+    model_file.write_text(json.dumps(legacy_data), encoding="utf-8")
+
+    engine = UserLearningEngine(storage_path=model_file)
+    assert "قدیمی" in engine.word_counts
+
+    # Saving will now encrypt with DPAPI
+    engine.save()
+    re_saved = model_file.read_text(encoding="utf-8").strip()
+    assert re_saved.startswith(("dpapi:", "mock-dpapi:"))
+
+
+def test_learning_clear_learned_data(tmp_path: Path):
+    model_file = tmp_path / "learning.json"
+    engine = UserLearningEngine(storage_path=model_file)
+    engine.learn_word("کلمه_خصوصی")
+    engine.learn_transition("کلمه_خصوصی", "مخفی")
+    assert "کلمه_خصوصی" in engine.word_counts
+
+    engine.clear_learned_data()
+    assert "کلمه_خصوصی" not in engine.word_counts
+    assert "کلمه_خصوصی" not in engine.transitions
+
+    # Check persistence after clear
+    engine2 = UserLearningEngine(storage_path=model_file)
+    assert "کلمه_خصوصی" not in engine2.word_counts
+
+
+def test_learning_disabled_toggle(tmp_path: Path):
+    model_file = tmp_path / "learning.json"
+    engine = UserLearningEngine(storage_path=model_file, learning_enabled=False)
+
+    engine.learn_word("تست_غیرفعال")
+    engine.learn_transition("کلمه_یک", "کلمه_دو")
+    engine.learn_trigram("الف", "ب", "ج")
+
+    assert "تست_غیرفعال" not in engine.word_counts
+    assert "کلمه_یک" not in engine.transitions
+    assert "الف ب" not in engine.trigrams

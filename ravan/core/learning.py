@@ -67,8 +67,14 @@ _SEEDED_SENTENCES: list[str] = [
 class UserLearningEngine:
     """Adaptive typing engine v2: n-gram smoothing, exponential decay, and per-app weighting."""
 
-    def __init__(self, storage_path: Path | None = None, auto_load: bool = True) -> None:
+    def __init__(
+        self,
+        storage_path: Path | None = None,
+        auto_load: bool = True,
+        learning_enabled: bool = True,
+    ) -> None:
         self.storage_path = storage_path or (config_dir() / "user_learning.json")
+        self.learning_enabled = learning_enabled
         self.word_counts: dict[str, float] = {}
         self.transitions: dict[str, dict[str, float]] = {}
         self.trigrams: dict[str, dict[str, float]] = {}
@@ -92,6 +98,8 @@ class UserLearningEngine:
                     target_map.setdefault(nxt, float(max(10, 50 - idx * 5)))
 
     def learn_word(self, word: str, app_name: str | None = None) -> None:
+        if not self.learning_enabled:
+            return
         clean = word.strip()
         if not clean or len(clean) < 2:
             return
@@ -103,8 +111,9 @@ class UserLearningEngine:
                 app_map = self.app_word_counts.setdefault(app_key, {})
                 app_map[clean] = app_map.get(clean, 0.0) + 1.0
 
-
     def learn_transition(self, prev_word: str, next_word: str, app_name: str | None = None) -> None:
+        if not self.learning_enabled:
+            return
         w1, w2 = prev_word.strip(), next_word.strip()
         if not w1 or not w2:
             return
@@ -113,6 +122,8 @@ class UserLearningEngine:
         trans[w2] = trans.get(w2, 0.0) + 1.0
 
     def learn_trigram(self, w1: str, w2: str, w3: str, app_name: str | None = None) -> None:
+        if not self.learning_enabled:
+            return
         k1, k2, target = w1.strip(), w2.strip(), w3.strip()
         if not k1 or not k2 or not target:
             return
@@ -328,12 +339,25 @@ class UserLearningEngine:
 
         return count
 
+    def clear_learned_data(self) -> None:
+        """Clear all user learned vocabulary, transitions, trigrams, and per-app weights."""
+        self.word_counts.clear()
+        self.transitions.clear()
+        self.trigrams.clear()
+        self.app_word_counts.clear()
+        self._top_cache = None
+        self._seed_defaults()
+        self.save()
+
     def save(self) -> None:
         try:
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
             tmp = self.storage_path.with_suffix(".tmp")
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(self.export_profile(), f, ensure_ascii=False, indent=2)
+            raw_json = json.dumps(self.export_profile(), ensure_ascii=False, indent=2)
+            from ravan.core.crypto import protect_secret
+
+            encrypted = protect_secret(raw_json)
+            tmp.write_text(encrypted, encoding="utf-8")
             tmp.replace(self.storage_path)
         except Exception as exc:  # noqa: BLE001
             log.warning("Failed to save user learning model: %s", exc)
@@ -342,8 +366,16 @@ class UserLearningEngine:
         if not self.storage_path.is_file():
             return
         try:
-            with open(self.storage_path, encoding="utf-8") as f:
-                data = json.load(f)
+            text = self.storage_path.read_text(encoding="utf-8").strip()
+            if not text:
+                return
+            from ravan.core.crypto import DPAPI_PREFIX, MOCK_PREFIX, unprotect_secret
+
+            if text.startswith((DPAPI_PREFIX, MOCK_PREFIX)):
+                decrypted, _ = unprotect_secret(text)
+                data = json.loads(decrypted)
+            else:
+                data = json.loads(text)
             self.import_profile(data, merge=True)
             self.last_decay_time = float(data.get("last_decay_time", time.time()))
             self.decay_frequencies(half_life_days=self.half_life_days)

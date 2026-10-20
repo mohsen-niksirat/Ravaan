@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Credential targets for sensitive tokens: `Ravaan/GitHubGistToken`, `Ravaan/WebDAVPassword`, and `Ravaan/AIApiKey`.
 - Automatic migration in `ravan/core/config.py`: plaintext and legacy DPAPI tokens in `config.json` are transparently migrated into Windows Credential Manager and replaced with sentinel markers (`wincred:<target>`), eliminating plaintext secret storage on disk.
 - Direct round-trip and auto-migration unit tests in `tests/test_crypto.py`.
+- Windows DPAPI encryption at rest for user learning profile (`user_learning.json`) in `ravan/core/learning.py`, preventing unauthorized inspection of learned typing vocabulary on disk, with transparent legacy plaintext migration.
+- `clear_learned_data()` method in `UserLearningEngine` to completely reset learned vocabulary, n-grams, and per-app weights to factory defaults.
+- `learning_enabled: bool = True` preference in `Config` and `UserLearningEngine` with instant opt-out suppressing all word and n-gram tracking.
+- Automated tests for DPAPI encryption at rest, legacy import, clear learned data, and learning disabled toggle in `tests/test_learning.py`.
 
 ## [Unreleased] - Phase 3
 

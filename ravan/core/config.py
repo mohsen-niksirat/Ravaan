@@ -28,6 +28,7 @@ class Config:
     lang_indicator_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("L", ["Alt"]))
     autocorrect_enabled: bool = True
     prediction_enabled: bool = True
+    learning_enabled: bool = True
     quickpick_digits: bool = True
     prediction_debounce_ms: int = 50
     prediction_max_candidates: int = 5
@@ -357,6 +358,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         lang_indicator_hotkey=_hotkey_from_dict(data.get("lang_indicator_hotkey"), HotkeySpec("L", ["Alt"])),
         autocorrect_enabled=bool(data.get("autocorrect_enabled", True)),
         prediction_enabled=bool(data.get("prediction_enabled", True)),
+        learning_enabled=bool(data.get("learning_enabled", True)),
         quickpick_digits=bool(data.get("quickpick_digits", True)),
         prediction_debounce_ms=_bounded_int(data, "prediction_debounce_ms", 50, 0, 5000),
         prediction_max_candidates=_bounded_int(data, "prediction_max_candidates", 5, 1, 20),

@@ -274,7 +274,10 @@ class DictPredictor(Predictor):
             return d
 
         def _load_learning() -> UserLearningEngine:
-            return UserLearningEngine(auto_load=True)
+            return UserLearningEngine(
+                auto_load=True,
+                learning_enabled=getattr(cfg, "learning_enabled", True),
+            )
 
         return cls(
             english=None,
