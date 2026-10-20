@@ -22,6 +22,17 @@ def _is_windows() -> bool:
     return sys.platform == "win32"
 
 
+CRED_TYPE_GENERIC = 1
+CRED_PERSIST_LOCAL_MACHINE = 2
+
+WINCRED_PREFIX = "wincred:"
+CRED_TARGET_GIST = "Ravaan/GitHubGistToken"
+CRED_TARGET_WEBDAV = "Ravaan/WebDAVPassword"
+CRED_TARGET_AI = "Ravaan/AIApiKey"
+
+_MOCK_CREDENTIAL_STORE: dict[str, str] = {}
+
+
 if _is_windows():
     from ctypes import wintypes
 
@@ -29,6 +40,22 @@ if _is_windows():
         _fields_ = [
             ("cbData", wintypes.DWORD),
             ("pbData", ctypes.POINTER(ctypes.c_char)),
+        ]
+
+    class _CREDENTIALW(ctypes.Structure):
+        _fields_ = [
+            ("Flags", wintypes.DWORD),
+            ("Type", wintypes.DWORD),
+            ("TargetName", wintypes.LPWSTR),
+            ("Comment", wintypes.LPWSTR),
+            ("LastWritten", wintypes.FILETIME),
+            ("CredentialBlobSize", wintypes.DWORD),
+            ("CredentialBlob", ctypes.c_char_p),
+            ("Persist", wintypes.DWORD),
+            ("AttributeCount", wintypes.DWORD),
+            ("Attributes", ctypes.c_void_p),
+            ("TargetAlias", wintypes.LPWSTR),
+            ("UserName", wintypes.LPWSTR),
         ]
 
 
@@ -140,4 +167,83 @@ def decrypt_secret(cipher: str) -> str:
     """Convenience decrypt returning plain string."""
     plain, _ = unprotect_secret(cipher)
     return plain
+
+
+def save_credential(target: str, secret: str, user_name: str = "Ravaan") -> bool:
+    """Save a secret string to Windows Credential Manager (or mock store on non-Windows)."""
+    if not target:
+        return False
+    if not secret:
+        delete_credential(target)
+        return True
+
+    if not _is_windows():
+        _MOCK_CREDENTIAL_STORE[target] = secret
+        return True
+
+    try:
+        advapi32 = ctypes.windll.advapi32
+        secret_bytes = secret.encode("utf-8")
+        cred = _CREDENTIALW()
+        cred.Flags = 0
+        cred.Type = CRED_TYPE_GENERIC
+        cred.TargetName = target
+        cred.CredentialBlobSize = len(secret_bytes)
+        cred.CredentialBlob = secret_bytes
+        cred.Persist = CRED_PERSIST_LOCAL_MACHINE
+        cred.UserName = user_name
+        res = advapi32.CredWriteW(ctypes.byref(cred), 0)
+        if not res:
+            log.warning("CredWriteW failed for target %s; falling back to mock", target)
+            _MOCK_CREDENTIAL_STORE[target] = secret
+            return False
+        _MOCK_CREDENTIAL_STORE[target] = secret
+        return True
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Windows Credential Manager save error for %s: %s", target, exc)
+        _MOCK_CREDENTIAL_STORE[target] = secret
+        return False
+
+
+def get_credential(target: str) -> str:
+    """Retrieve a secret string from Windows Credential Manager (or mock store)."""
+    if not target:
+        return ""
+
+    if not _is_windows():
+        return _MOCK_CREDENTIAL_STORE.get(target, "")
+
+    try:
+        advapi32 = ctypes.windll.advapi32
+        pcred = ctypes.POINTER(_CREDENTIALW)()
+        res = advapi32.CredReadW(target, CRED_TYPE_GENERIC, 0, ctypes.byref(pcred))
+        if not res or not pcred:
+            return _MOCK_CREDENTIAL_STORE.get(target, "")
+        try:
+            raw_blob = ctypes.string_at(
+                pcred.contents.CredentialBlob, pcred.contents.CredentialBlobSize
+            )
+            val = raw_blob.decode("utf-8")
+            _MOCK_CREDENTIAL_STORE[target] = val
+            return val
+        finally:
+            advapi32.CredFree(pcred)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Windows Credential Manager read error for %s: %s", target, exc)
+        return _MOCK_CREDENTIAL_STORE.get(target, "")
+
+
+def delete_credential(target: str) -> bool:
+    """Delete a credential from Windows Credential Manager (and mock store)."""
+    _MOCK_CREDENTIAL_STORE.pop(target, None)
+    if not _is_windows():
+        return True
+
+    try:
+        advapi32 = ctypes.windll.advapi32
+        res = advapi32.CredDeleteW(target, CRED_TYPE_GENERIC, 0)
+        return bool(res)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Windows Credential Manager delete error for %s: %s", target, exc)
+        return False
 

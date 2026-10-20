@@ -5,6 +5,14 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 4
+
+### Added
+- Windows Credential Manager integration in `ravan/core/crypto.py` via native `advapi32.dll` (`CredWriteW`, `CredReadW`, `CredDeleteW`, `CredFree`) with zero external dependencies and safe in-memory fallback for non-Windows platforms.
+- Credential targets for sensitive tokens: `Ravaan/GitHubGistToken`, `Ravaan/WebDAVPassword`, and `Ravaan/AIApiKey`.
+- Automatic migration in `ravan/core/config.py`: plaintext and legacy DPAPI tokens in `config.json` are transparently migrated into Windows Credential Manager and replaced with sentinel markers (`wincred:<target>`), eliminating plaintext secret storage on disk.
+- Direct round-trip and auto-migration unit tests in `tests/test_crypto.py`.
+
 ## [Unreleased] - Phase 3
 
 ### Added

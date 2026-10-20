@@ -43,14 +43,14 @@ def test_config_dpapi_integration():
     cfg.gist_token = "dummy_sync_token_12345"
     cfg.webdav_password = "my_strong_webdav_password"
 
-    # Serializing to dict (what gets saved to config.json) must encrypt tokens
+    # Serializing to dict (what gets saved to config.json) must not expose plaintext tokens
     d = config_to_dict(cfg)
     assert d["gist_token"] != "dummy_sync_token_12345"
-    assert d["gist_token"].startswith("dpapi:") or d["gist_token"].startswith("mock-dpapi:")
+    assert d["gist_token"].startswith(("wincred:", "dpapi:", "mock-dpapi:"))
     assert d["webdav_password"] != "my_strong_webdav_password"
-    assert d["webdav_password"].startswith("dpapi:") or d["webdav_password"].startswith("mock-dpapi:")
+    assert d["webdav_password"].startswith(("wincred:", "dpapi:", "mock-dpapi:"))
 
-    # Loading dict back must decrypt tokens into memory
+    # Loading dict back must resolve tokens into memory
     loaded_cfg = config_from_dict(d)
     assert loaded_cfg.gist_token == "dummy_sync_token_12345"
     assert loaded_cfg.webdav_password == "my_strong_webdav_password"
@@ -65,4 +65,24 @@ def test_config_plaintext_token_auto_migration(caplog):
     cfg = config_from_dict(legacy_dict)
     assert cfg.gist_token == "old_plaintext_token_12345"
     assert cfg.webdav_password == "old_plaintext_password"
-    assert any("Migrated plaintext sync credentials" in r.message for r in caplog.records)
+    assert any("Migrated credentials" in r.message for r in caplog.records)
+
+
+def test_wincred_direct_roundtrip():
+    from ravan.core.crypto import delete_credential, get_credential, save_credential
+
+    target = "RavaanTest/DirectCredential"
+    secret = "secret_token_val_456"
+
+    # Save
+    ok = save_credential(target, secret)
+    assert ok is True
+
+    # Read back
+    retrieved = get_credential(target)
+    assert retrieved == secret
+
+    # Delete
+    del_ok = delete_credential(target)
+    assert del_ok is True
+    assert get_credential(target) == ""

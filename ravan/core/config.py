@@ -294,13 +294,63 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
     if not isinstance(excluded, list):
         excluded = DEFAULT_EXCLUDED_APPS
 
-    from ravan.core.crypto import unprotect_secret
+    from ravan.core.crypto import (
+        CRED_TARGET_AI,
+        CRED_TARGET_GIST,
+        CRED_TARGET_WEBDAV,
+        WINCRED_PREFIX,
+        get_credential,
+        save_credential,
+        unprotect_secret,
+    )
 
-    gist_tok, g_mig = unprotect_secret(str(data.get("gist_token", "")))
-    webdav_pwd, w_mig = unprotect_secret(str(data.get("webdav_password", "")))
-    ai_key, a_mig = unprotect_secret(str(data.get("ai_api_key", "")))
+    # Gist token resolution
+    raw_gist = str(data.get("gist_token", "")).strip()
+    if raw_gist.startswith(WINCRED_PREFIX):
+        target = raw_gist[len(WINCRED_PREFIX) :].strip() or CRED_TARGET_GIST
+        gist_tok = get_credential(target)
+        g_mig = False
+    elif raw_gist:
+        gist_tok, g_mig = unprotect_secret(raw_gist)
+        if gist_tok:
+            save_credential(CRED_TARGET_GIST, gist_tok)
+            g_mig = True
+    else:
+        gist_tok = get_credential(CRED_TARGET_GIST)
+        g_mig = False
+
+    # WebDAV password resolution
+    raw_webdav = str(data.get("webdav_password", "")).strip()
+    if raw_webdav.startswith(WINCRED_PREFIX):
+        target = raw_webdav[len(WINCRED_PREFIX) :].strip() or CRED_TARGET_WEBDAV
+        webdav_pwd = get_credential(target)
+        w_mig = False
+    elif raw_webdav:
+        webdav_pwd, w_mig = unprotect_secret(raw_webdav)
+        if webdav_pwd:
+            save_credential(CRED_TARGET_WEBDAV, webdav_pwd)
+            w_mig = True
+    else:
+        webdav_pwd = get_credential(CRED_TARGET_WEBDAV)
+        w_mig = False
+
+    # AI API key resolution
+    raw_ai = str(data.get("ai_api_key", "")).strip()
+    if raw_ai.startswith(WINCRED_PREFIX):
+        target = raw_ai[len(WINCRED_PREFIX) :].strip() or CRED_TARGET_AI
+        ai_key = get_credential(target)
+        a_mig = False
+    elif raw_ai:
+        ai_key, a_mig = unprotect_secret(raw_ai)
+        if ai_key:
+            save_credential(CRED_TARGET_AI, ai_key)
+            a_mig = True
+    else:
+        ai_key = get_credential(CRED_TARGET_AI)
+        a_mig = False
+
     if g_mig or w_mig or a_mig:
-        log.info("Migrated plaintext sync credentials to DPAPI encryption.")
+        log.info("Migrated credentials to Windows Credential Manager.")
 
     return Config(
         convert_hotkey=_hotkey_from_dict(data.get("convert_hotkey"), HotkeySpec("Pause")),
@@ -381,14 +431,36 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
 
 def config_to_dict(cfg: Config) -> dict[str, Any]:
     d = asdict(cfg)
-    from ravan.core.crypto import protect_secret
+    from ravan.core.crypto import (
+        CRED_TARGET_AI,
+        CRED_TARGET_GIST,
+        CRED_TARGET_WEBDAV,
+        WINCRED_PREFIX,
+        delete_credential,
+        save_credential,
+    )
 
-    if d.get("gist_token"):
-        d["gist_token"] = protect_secret(d["gist_token"])
-    if d.get("webdav_password"):
-        d["webdav_password"] = protect_secret(d["webdav_password"])
-    if d.get("ai_api_key"):
-        d["ai_api_key"] = protect_secret(d["ai_api_key"])
+    if cfg.gist_token:
+        save_credential(CRED_TARGET_GIST, cfg.gist_token)
+        d["gist_token"] = f"{WINCRED_PREFIX}{CRED_TARGET_GIST}"
+    else:
+        d["gist_token"] = ""
+        delete_credential(CRED_TARGET_GIST)
+
+    if cfg.webdav_password:
+        save_credential(CRED_TARGET_WEBDAV, cfg.webdav_password)
+        d["webdav_password"] = f"{WINCRED_PREFIX}{CRED_TARGET_WEBDAV}"
+    else:
+        d["webdav_password"] = ""
+        delete_credential(CRED_TARGET_WEBDAV)
+
+    if cfg.ai_api_key:
+        save_credential(CRED_TARGET_AI, cfg.ai_api_key)
+        d["ai_api_key"] = f"{WINCRED_PREFIX}{CRED_TARGET_AI}"
+    else:
+        d["ai_api_key"] = ""
+        delete_credential(CRED_TARGET_AI)
+
     return d
 
 
