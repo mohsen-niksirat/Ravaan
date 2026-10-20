@@ -1,9 +1,10 @@
 ; Inno Setup 6 Script for Ravaan (روان)
 ; Produces a per-user, non-admin installer with optional startup, desktop icon, and ravan:// protocol handler.
-; Leaves %APPDATA%\Ravaan intact upon uninstall to preserve user dictionaries and settings.
+; Preserves %APPDATA%\Ravaan upon upgrade.
+; Prompts the user upon uninstall with an optional clean data removal choice.
 
 #ifndef MyAppVersion
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "1.0.0"
 #endif
 
 #define MyAppName "Ravaan"
@@ -35,13 +36,20 @@ CloseApplications=force
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[CustomMessages]
+english.LaunchStartup=Launch Ravaan at Windows startup
+english.RegisterProtocol=Register ravan:// URL protocol handler
+english.DeleteDataPrompt=Do you also want to permanently delete your personal settings, custom snippets, and learned vocabulary?%n%nآیا می‌خواهید تمام تنظیمات، کلمات اختصاری و واژگان یادگرفته‌شده نیز از سیستم حذف شوند؟
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "startup"; Description: "Launch Ravaan at Windows startup"; GroupDescription: "Windows Integration:"
-Name: "registerprotocol"; Description: "Register ravan:// URL protocol handler"; GroupDescription: "Windows Integration:"
+Name: "startup"; Description: "{cm:LaunchStartup}"; GroupDescription: "Windows Integration:"
+Name: "registerprotocol"; Description: "{cm:RegisterProtocol}"; GroupDescription: "Windows Integration:"
 
 [Files]
 Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\README.fa.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
@@ -58,3 +66,22 @@ Root: HKCU; Subkey: "Software\Classes\ravan\shell\open\command"; ValueType: stri
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// Clean uninstall option: prompt user if they also wish to delete %APPDATA%\Ravaan
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir: string;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    DataDir := ExpandConstant('{userappdata}\Ravaan');
+    if DirExists(DataDir) then
+    begin
+      if MsgBox(CustomMessage('DeleteDataPrompt'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      begin
+        DelTree(DataDir, True, True, True);
+      end;
+    end;
+  end;
+end;

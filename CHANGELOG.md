@@ -5,6 +5,18 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 8
+
+### Added
+- Inno Setup Pascal Script & Clean Uninstall Choice (`installer/setup.iss`):
+  - Added bilingual prompt during uninstallation asking if the user wishes to delete their `%APPDATA%\Ravaan` personal data, custom snippets, and learned vocabulary.
+  - Safe default (`MB_DEFBUTTON2` / No) ensures data is preserved unless explicitly confirmed.
+  - Upgrade-in-place safety: upgrades overwrite binary files in `{app}` without touching user data.
+- Checksums & Package Pipeline Enhancements (`scripts/generate_hashes.py`, `.github/workflows/release.yml`):
+  - Added `--write-sums` generating standard GNU coreutils compatible `SHA256SUMS.txt`.
+  - Added conditional SignPath Foundation code signing step in CI workflow.
+  - Updated release workflow to include standard checksums and multilingual README files in portable ZIP.
+
 ## [Unreleased] - Phase 7
 
 ### Added

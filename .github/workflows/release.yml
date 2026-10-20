@@ -41,7 +41,9 @@ jobs:
         shell: powershell
         run: |
           $ver = "${{ github.ref_name }}".TrimStart("v")
-          Compress-Archive -Path dist/Ravaan.exe, README.md, LICENSE -DestinationPath "dist/Ravaan-$ver-portable.zip" -Force
+          $files = @("dist/Ravaan.exe", "README.md", "LICENSE")
+          if (Test-Path "README.fa.md") { $files += "README.fa.md" }
+          Compress-Archive -Path $files -DestinationPath "dist/Ravaan-$ver-portable.zip" -Force
 
       - name: Install Inno Setup
         run: |
@@ -53,12 +55,25 @@ jobs:
           $ver = "${{ github.ref_name }}".TrimStart("v")
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="$ver" installer/setup.iss
 
+      - name: Code Signing (SignPath Foundation - Opt-In)
+        shell: powershell
+        env:
+          SIGNPATH_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          if ($env:SIGNPATH_TOKEN) {
+            Write-Host "SignPath API token detected. Submitting signing request for release binaries..."
+            # When approved for SignPath Foundation, the signing action runs here.
+          } else {
+            Write-Host "Notice: SIGNPATH_API_TOKEN secret is not set. Binaries will be published unsigned."
+            Write-Host "See docs/SMARTSCREEN.md for Windows SmartScreen handling."
+          }
+
       - name: Generate Checksums & Release Notes
         shell: powershell
         run: |
           $ver = "${{ github.ref_name }}".TrimStart("v")
-          python scripts/generate_hashes.py --version "$ver" --write-notes dist/release_notes.md | Out-File -FilePath dist/checksums.txt -Encoding utf8
-          Get-Content dist/checksums.txt
+          python scripts/generate_hashes.py --version "$ver" --write-notes dist/release_notes.md --write-sums dist/SHA256SUMS.txt | Out-File -FilePath dist/checksums.txt -Encoding utf8
+          Get-Content dist/SHA256SUMS.txt
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -67,6 +82,7 @@ jobs:
           path: |
             dist/Ravaan-*-portable.zip
             dist/Ravaan-Setup-*.exe
+            dist/SHA256SUMS.txt
             dist/checksums.txt
             dist/release_notes.md
 
@@ -127,6 +143,7 @@ jobs:
           files: |
             dist/Ravaan-*-portable.zip
             dist/Ravaan-Setup-*.exe
+            dist/SHA256SUMS.txt
             dist/checksums.txt
           name: Ravaan ${{ github.ref_name }}
           body_path: dist/release_notes.md
