@@ -351,6 +351,7 @@ class Dictionary:
         self._count: int = 0
         self._file_handle: Any = None
         self._top_cached_by_len: dict[int, list[tuple[DictEntry, str]]] | None = None
+        self._completions_cache: dict[tuple[str, int], list[DictEntry]] = {}
 
         if _mmap_info is not None:
             self._mmap, self._count, self._file_handle = _mmap_info
@@ -373,12 +374,16 @@ class Dictionary:
             self._sorted_entries = []
             self._entries_seq = self._entries_list
 
+    def __len__(self) -> int:
+        return self._count if self._mmap is not None else len(self._entries_list)
+
     @property
     def entries(self) -> Sequence[DictEntry]:
         return self._entries_seq
 
     @entries.setter
     def entries(self, value: Sequence[DictEntry]) -> None:
+        self._completions_cache.clear()
         if isinstance(value, list):
             self._entries_list = value
             self._entries_seq = value
@@ -412,6 +417,7 @@ class Dictionary:
         clean = word.strip()
         if not clean:
             return
+        self._completions_cache.clear()
         key = clean.lower()
 
         if self._mmap is not None:
@@ -522,19 +528,27 @@ class Dictionary:
 
     def completions(self, prefix: str, limit: int) -> list[DictEntry]:
         prefix_lower = prefix.lower()
-        if self._mmap is not None:
-            return self._completions_mmap(prefix_lower, limit)
+        cache_key = (prefix_lower, limit)
+        if cache_key in self._completions_cache:
+            return self._completions_cache[cache_key]
 
-        if not prefix_lower:
-            return self._entries_list[:limit]
-        idx = bisect.bisect_left(self._sorted_keys, prefix_lower)
-        matches: list[DictEntry] = []
-        n = len(self._sorted_keys)
-        while idx < n and self._sorted_keys[idx].startswith(prefix_lower):
-            matches.append(self._sorted_entries[idx])
-            idx += 1
-        matches.sort(key=lambda e: e.rank)
-        return matches[:limit]
+        if self._mmap is not None:
+            res = self._completions_mmap(prefix_lower, limit)
+        elif not prefix_lower:
+            res = self._entries_list[:limit]
+        else:
+            idx = bisect.bisect_left(self._sorted_keys, prefix_lower)
+            matches: list[DictEntry] = []
+            n = len(self._sorted_keys)
+            while idx < n and self._sorted_keys[idx].startswith(prefix_lower):
+                matches.append(self._sorted_entries[idx])
+                idx += 1
+            matches.sort(key=lambda e: e.rank)
+            res = matches[:limit]
+
+        if len(self._completions_cache) < 1024:
+            self._completions_cache[cache_key] = res
+        return res
 
     def _completions_mmap(self, prefix_lower: str, limit: int) -> list[DictEntry]:
         mm = self._mmap

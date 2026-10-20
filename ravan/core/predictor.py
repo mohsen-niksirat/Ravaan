@@ -63,6 +63,10 @@ _CODE_KEYWORDS: frozenset[str] = frozenset({
 })
 
 
+_PUNCT_CHARS: frozenset[str] = frozenset(".,;:!?()[]{}+*=&|<>~`^%\"'")
+_DIGITS_SET: frozenset[str] = frozenset("0123456789۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧۸۹")
+
+
 def is_safe_autocorrect_token(token: str) -> bool:
     """Return False if token should never be modified by autocorrect.
 
@@ -80,43 +84,35 @@ def is_safe_autocorrect_token(token: str) -> bool:
     if not token or len(token) < 3:
         return False
 
+    tok_set = set(token)
+
     # 1. Digits check (Latin and Persian/Arabic digits)
-    if any(c.isdigit() or c in "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧۸۹" for c in token):
+    if not tok_set.isdisjoint(_DIGITS_SET):
         return False
 
-    # 2. Email or @mention
-    if "@" in token:
+    # 2. Email, @mention, hashtag, code identifiers
+    if "@" in tok_set or "#" in tok_set or "_" in tok_set or "$" in tok_set:
         return False
 
-    # 3. Hashtag
-    if "#" in token:
+    # 3. Path separators
+    if "/" in tok_set or "\\" in tok_set or ":" in tok_set:
         return False
 
-    # 4. URLs, protocols, domains, paths
+    # 4. Punctuation
+    if not tok_set.isdisjoint(_PUNCT_CHARS):
+        return False
+
+    # 5. URLs, protocols, domains, file extensions
     tok_low = token.lower()
     if tok_low.startswith(("http://", "https://", "ftp://", "www.")):
         return False
-    if "/" in token or "\\" in token or ":" in token:
+    if tok_low.endswith(_URL_DOMAIN_SUFFIXES):
         return False
-    if any(tok_low.endswith(sfx) for sfx in _URL_DOMAIN_SUFFIXES):
-        return False
-    if any(tok_low.endswith(ext) for ext in _FILE_EXTENSIONS):
+    if tok_low.endswith(_FILE_EXTENSIONS):
         return False
 
-    # 5. Code keywords & developer tokens
+    # 6. Code keywords & developer tokens
     if tok_low in _CODE_KEYWORDS:
-        return False
-
-    # 6. Code identifiers & punctuation
-    if "_" in token or "$" in token:
-        return False
-    if any(c in ".,;:!?()[]{}+*=&|<>~`^%\"'" for c in token):
-        return False
-    if _CAMEL_CASE_PAT.search(token):
-        return False
-
-    # 7. All-uppercase English acronyms (API, SDK, HTML, USA, etc.)
-    if token.isupper() and token.isascii():
         return False
 
     # 7. Check script consistency (never mixed script)
@@ -125,8 +121,14 @@ def is_safe_autocorrect_token(token: str) -> bool:
     if has_ascii and has_fa:
         return False
 
+    # 8. CamelCase and all-uppercase acronyms
     if has_ascii:
+        if _CAMEL_CASE_PAT.search(token):
+            return False
+        if token.isupper() and token.isascii():
+            return False
         return bool(_ENGLISH_CHAR_PAT.match(token))
+
     if has_fa:
         return bool(_PERSIAN_CHAR_PAT.match(token))
 
