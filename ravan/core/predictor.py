@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import re
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -10,6 +12,125 @@ from .config import Config
 from .dict import DictEntry, Dictionary
 from .events import Candidate, CandidateKind
 from .learning import UserLearningEngine
+
+_URL_DOMAIN_SUFFIXES = (
+    ".com", ".org", ".net", ".ir", ".io", ".me", ".edu", ".gov", ".co", ".app", ".dev", ".xyz", ".info"
+)
+_FILE_EXTENSIONS = (
+    ".py", ".json", ".txt", ".md", ".exe", ".dll", ".cpp", ".c", ".h", ".ts", ".js", ".jsx", ".tsx",
+    ".css", ".html", ".pdf", ".zip", ".tar", ".gz", ".png", ".jpg", ".jpeg", ".gif", ".svg",
+    ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".xml", ".yml", ".yaml", ".log", ".ico",
+    ".toml", ".ini", ".cfg", ".bat", ".sh", ".ps1", ".rs", ".go", ".java", ".class", ".bin"
+)
+_CAMEL_CASE_PAT = re.compile(r"[a-z][A-Z]")
+_PERSIAN_CHAR_PAT = re.compile(r"^[\u0600-\u06FF\u200C]+$")
+_ENGLISH_CHAR_PAT = re.compile(r"^[a-zA-Z]+$")
+
+_CODE_KEYWORDS: frozenset[str] = frozenset({
+    # Language keywords (Python, JS/TS, C/C++, Rust, Go, Java, C#, SQL, Bash, etc.)
+    "abstract", "alignas", "alignof", "and", "arguments", "as", "asm", "assert",
+    "async", "auto", "await", "bool", "boolean", "break", "byte", "bytes", "case",
+    "catch", "char", "class", "clone", "cmp", "compl", "concept", "const",
+    "constexpr", "consteval", "continue", "crate", "debugger", "decltype", "def",
+    "default", "defer", "del", "delete", "do", "double", "dyn", "elif", "else",
+    "enum", "eval", "except", "exec", "export", "extends", "extern", "false",
+    "final", "finally", "float", "fn", "for", "from", "func", "function", "global",
+    "go", "goto", "if", "impl", "import", "in", "inline", "instanceof", "int",
+    "interface", "is", "lambda", "let", "long", "match", "module", "move", "mut",
+    "namespace", "native", "new", "nil", "noexcept", "none", "nonlocal", "not",
+    "null", "nullptr", "operator", "or", "override", "package", "pass", "private",
+    "protected", "pub", "public", "raise", "range", "ref", "register", "requires",
+    "return", "self", "select", "short", "signed", "sizeof", "static", "struct",
+    "super", "switch", "synchronized", "template", "this", "throw", "throws",
+    "trait", "transient", "true", "try", "type", "typedef", "typeid", "typename",
+    "typeof", "union", "unsigned", "use", "using", "val", "var", "virtual", "void",
+    "volatile", "where", "while", "with", "yield",
+    # Common standard library, types & dev tools
+    "argv", "argc", "ascii", "ast", "bin", "cfg", "chmod", "chown", "cli", "cmd",
+    "config", "curl", "cwd", "diff", "dir", "dist", "doc", "docs", "docker",
+    "env", "err", "errno", "fifo", "fmt", "git", "grep", "guid", "gzip",
+    "hostname", "html", "http", "https", "hwnd", "idx", "init", "io", "ip",
+    "ipc", "json", "k8s", "kill", "len", "libc", "lib", "lint", "log", "lparam",
+    "ls", "make", "malloc", "md5", "mkdir", "mmap", "msg", "mutex", "nginx",
+    "noop", "num", "opt", "os", "param", "params", "path", "pid",
+    "pip", "pkg", "posix", "proc", "ptr", "pwd", "pydantic", "pytest", "regex",
+    "repo", "repr", "req", "res", "rm", "root", "rpc", "rsa", "sdk", "sed",
+    "sem", "sha", "shutil", "sig", "sock", "socket", "spawn", "spec", "sql",
+    "ssh", "ssl", "stderr", "stdin", "stdout", "str", "sub", "sudo", "sync",
+    "sys", "tar", "tcp", "temp", "tmp", "tls", "tmux", "toml", "tty", "udp",
+    "uri", "url", "user", "util", "utils", "uuid", "vec", "venv", "vim",
+    "vm", "wait", "wget", "win32", "wparam", "xml", "yaml", "yarn", "zip", "zsh",
+})
+
+
+def is_safe_autocorrect_token(token: str) -> bool:
+    """Return False if token should never be modified by autocorrect.
+
+    Conservative screening rules prevent modifying:
+    - Tokens containing digits (Latin or Persian/Arabic)
+    - URLs, domains, and protocols (http://, https://, www., .com, .ir, etc.)
+    - Emails and @mentions (@username, user@domain.com)
+    - Hashtags (#topic)
+    - File paths and filenames with extensions (C:\\..., /path/..., file.py)
+    - Code identifiers (snake_case, camelCase, $var, __init__, operators, keywords)
+    - Punctuation-containing tokens or short abbreviations (< 3 chars)
+    - All-uppercase English acronyms (API, SDK, HTML, USA)
+    - Mixed-script tokens (e.g. Persian letters mixed with Latin letters)
+    """
+    if not token or len(token) < 3:
+        return False
+
+    # 1. Digits check (Latin and Persian/Arabic digits)
+    if any(c.isdigit() or c in "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧۸۹" for c in token):
+        return False
+
+    # 2. Email or @mention
+    if "@" in token:
+        return False
+
+    # 3. Hashtag
+    if "#" in token:
+        return False
+
+    # 4. URLs, protocols, domains, paths
+    tok_low = token.lower()
+    if tok_low.startswith(("http://", "https://", "ftp://", "www.")):
+        return False
+    if "/" in token or "\\" in token or ":" in token:
+        return False
+    if any(tok_low.endswith(sfx) for sfx in _URL_DOMAIN_SUFFIXES):
+        return False
+    if any(tok_low.endswith(ext) for ext in _FILE_EXTENSIONS):
+        return False
+
+    # 5. Code keywords & developer tokens
+    if tok_low in _CODE_KEYWORDS:
+        return False
+
+    # 6. Code identifiers & punctuation
+    if "_" in token or "$" in token:
+        return False
+    if any(c in ".,;:!?()[]{}+*=&|<>~`^%\"'" for c in token):
+        return False
+    if _CAMEL_CASE_PAT.search(token):
+        return False
+
+    # 7. All-uppercase English acronyms (API, SDK, HTML, USA, etc.)
+    if token.isupper() and token.isascii():
+        return False
+
+    # 7. Check script consistency (never mixed script)
+    has_ascii = any(c.isascii() and c.isalpha() for c in token)
+    has_fa = any(is_arabic_persian(c) for c in token)
+    if has_ascii and has_fa:
+        return False
+
+    if has_ascii:
+        return bool(_ENGLISH_CHAR_PAT.match(token))
+    if has_fa:
+        return bool(_PERSIAN_CHAR_PAT.match(token))
+
+    return False
 
 
 def is_arabic_persian(c: str) -> bool:
@@ -289,14 +410,15 @@ class DictPredictor(Predictor):
         if self.autocorrect_mode == "off":
             return None
 
-        if len(word) < 3 or not word.isalpha():
+        # 1. Conservative token screening: reject digits, URLs, emails, code, paths, etc.
+        if not is_safe_autocorrect_token(word):
             return None
 
         w_low = word.lower()
         if w_low in self.ignored_words or w_low in self.session_suppressed:
             return None
 
-        # Bilingual check: never mix languages
+        # 2. Bilingual consistency check
         if lang == "fa" and not any(is_arabic_persian(c) for c in word):
             return None
         if lang == "en" and any(is_arabic_persian(c) for c in word):
@@ -306,52 +428,71 @@ class DictPredictor(Predictor):
         if dict_ is None:
             return None
 
-        # Exact word → already correct
+        # 3. Exact dictionary match: already valid word
         if dict_.contains(word):
             return None
 
-        # 1. Persian confusable typo normalization (highest confidence)
+        # Cross-dictionary check: if valid in other language (e.g. English word in Persian text), don't touch
+        other_dict = self._persian if dict_ is self._english else self._english
+        if other_dict is not None and other_dict.contains(word):
+            return None
+
+        # 4. Persian confusable typo normalization (ك->ک, ي->ی, ة->ه/ت, etc.)
         if any(is_arabic_persian(c) for c in word):
             from .normalizer import normalize_persian_typos
 
             for variant in normalize_persian_typos(word):
                 if dict_.contains(variant):
-                    entry = dict_._lower[variant.lower()]
-                    boost = self._selection_counts.get(variant.lower(), 0)
-                    score = 1000.0 + (1.0 / (entry.rank + 1.0)) + boost
-                    return Candidate(
-                        text=entry.word,
-                        score=score,
-                        kind=CandidateKind.AUTOCORRECT,
-                    )
+                    entry = dict_.get(variant)
+                    if entry is not None:
+                        boost = self._selection_counts.get(variant.lower(), 0)
+                        score = 1000.0 + (1.0 / (entry.rank + 1.0)) + boost
+                        return Candidate(
+                            text=entry.word,
+                            score=score,
+                            kind=CandidateKind.AUTOCORRECT,
+                        )
 
-        # 2. Still typing a plausible prefix of a short word? Don't auto-mangle in safe mode
+        # 5. Still typing a plausible prefix of a short word? Don't auto-mangle in safe mode
         if self.autocorrect_mode == "safe" and len(word) >= 3:
             limit_len = len(word) + 2
-            if any(len(e.word) <= limit_len for e in dict_.completions(word, 8)):
+            comps = dict_.completions(word, 8)
+            if any(len(e.word) <= limit_len and e.rank <= 5000 for e in comps):
                 return None
 
-        # 3. Fuzzy matches with frequency probability
-        max_dist = 1 if len(word) <= 4 else 2
+        # 6. Fuzzy matches with conservative edit-distance rules
+        word_len = len(word)
+        if word_len <= 5:
+            max_dist = 1
+        elif self.autocorrect_mode == "safe":
+            max_dist = 2 if word_len >= 6 else 1
+        else:
+            max_dist = 2
+
         matches = dict_.fuzzy_matches(word, max_dist, 8)
         if not matches:
             return None
 
-        import math
-
         scored: list[tuple[float, DictEntry, int]] = []
         for entry, dist in matches:
+            # Conservative constraints:
+            # Distance 2 requires word length >= 6 and high-frequency target word
+            if dist > 1:
+                if word_len < 6 or entry.rank > 1000:
+                    continue
+            if word_len == 3:
+                # 3-letter tokens: only allow identical length with top-ranked vocabulary (e.g. teh -> the)
+                if len(entry.word) != 3 or entry.rank > 200:
+                    continue
+
             boost = self._selection_counts.get(entry.word.lower(), 0)
             if entry.rank == 0:
                 prob = 1000.0 + boost
             else:
-                freq = entry.frequency if entry.frequency > 0 else max(1, 15000 - entry.rank * 2)
+                freq = entry.frequency if entry.frequency > 0 else max(1, 20000 - entry.rank * 2)
                 log_freq = math.log10(freq + 10)
-                dist_penalty = 1.0 if dist == 1 else 3.5
+                dist_penalty = 1.0 if dist == 1 else 4.0
                 prob = (log_freq / dist_penalty) + (boost * 0.5)
-
-                if dist > 1 and entry.rank > 2000:
-                    continue
 
             scored.append((prob, entry, dist))
 
@@ -360,6 +501,17 @@ class DictPredictor(Predictor):
 
         scored.sort(key=lambda t: t[0], reverse=True)
         best_prob, best_entry, best_dist = scored[0]
+
+        # In safe mode, never strip ZWNJ from a user-typed word
+        if "\u200c" in word and "\u200c" not in best_entry.word and self.autocorrect_mode == "safe":
+            return None
+
+        # Confidence gap: if runner-up exists, ensure clear margin of confidence in safe mode
+        if len(scored) > 1 and self.autocorrect_mode == "safe":
+            runner_up_prob, runner_up_entry, runner_up_dist = scored[1]
+            if runner_up_dist == best_dist and abs(best_prob - runner_up_prob) < 0.25:
+                # Ambiguous correction: prefer safe default (do NOT modify user text)
+                return None
 
         return Candidate(
             text=best_entry.word,

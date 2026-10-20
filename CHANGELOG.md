@@ -8,16 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - Phase 1
 
 ### Added
-- Large, license-checked Persian dictionary (162,935 words with frequency weights) and English dictionary (46,827 words with frequency weights) sourced from Hermit Dave FrequencyWords (MIT License) and merged with Ravaan's curated Persian lexicon.
+- Large, license-checked Persian dictionary (162,937 words with frequency weights) and English dictionary (46,827 words with frequency weights) sourced from Hermit Dave FrequencyWords (MIT License) and merged with Ravaan's curated Persian lexicon.
 - High-performance binary dictionary compiler `scripts/compile_dictionary.py` and `compile_dict_binary` generating `RVN2` format with dual-offset index tables (alphabetical and rank-ordered).
 - Memory-mapped zero-heap dictionary sequence (`_MmapEntriesSequence`) in `ravan/core/dict.py` achieving < 4 ms load time and reducing idle RAM from 30.4 MB to 18.5 MB.
 - Created `THIRD_PARTY_LICENSES.md` and added Section 7 to `DATA.md` documenting lexicon licenses and binary index architecture.
+- Autocorrect safe token screening (`is_safe_autocorrect_token`) filtering digits, URLs, emails, @mentions, hashtags, file paths, code identifiers, camelCase, snake_case, and extensive programming keywords (`_CODE_KEYWORDS`).
+- Persian ZWNJ morphological decomposition in `Dictionary.contains` and `Dictionary.get` handling verbal prefixes (`می‌`, `نمی‌`), suffixes (`‌ها`, `‌های`, `‌ترین`, `‌ام`, `‌اش`, etc.), and compound words (`دوزبانه`, `متن‌باز`, `سیستم‌عامل`).
+- Realistic false-positive test corpus `tests/data/false_positive_corpus.json` covering formal Persian, colloquial Persian, mixed Persian/English, and code syntax.
+- Automated false-positive benchmark `scripts/check_false_positives.py` and CI quality gate `tests/test_false_positives.py` strictly enforcing False Positive Rate < 0.1% (achieved 0.000% error rate).
+- Automated tests verifying complete password-field and excluded-app suppression across keyboard hook handling, text predictions, autofix, layout switching, and clipboard history (`tests/test_suppression.py`).
 
 ### Changed
 - Reassigned default layout conversion hotkey to `Pause` (avoiding F12 conflicts with Chrome/Edge DevTools and VS Code). Added `VK_PAUSE` mapping in `ravan/platform/keys.py` and `ravan/platform/winapi.py`.
 - Reassigned default quick text statistics hotkey to `Ctrl+Alt+S` (avoiding Alt+S conflicts in office and graphics applications).
 - Added duplicate hotkey detection in Settings to prevent configuration conflicts.
 - Updated English and Persian localizations (`en.json`, `fa.json`) and onboarding hints to reflect new default hotkeys.
+- Enforced safe autocorrect invariants: 3-letter tokens cannot expand via edit distance; autocorrect never strips ZWNJ from user-typed text; ambiguous corrections require confidence margin.
+- Enhanced excluded application matching in `Config.is_excluded` to support extension-agnostic process matching (e.g. `keepass` matching `keepass.exe`).
 
 ## [Unreleased] - Phase 0
 

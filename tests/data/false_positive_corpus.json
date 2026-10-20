@@ -1,0 +1,166 @@
+{
+  "description": "Ravaan False-Positive Benchmark Corpus — Real Persian, Chat, Mixed FA/EN, and Code Snippets",
+  "version": "1.0",
+  "samples": [
+    {
+      "category": "formal_persian",
+      "text": "برنامه روان یک دستیار تایپ هوشمند و متن‌باز برای سیستم‌عامل ویندوز است که تجربه تایپ کاربران دوزبانه فارسی و انگلیسی را بهبود می‌بخشد."
+    },
+    {
+      "category": "formal_persian",
+      "text": "دانشگاه تهران یکی از کهن‌ترین و معتبرترین مراکز آموزش عالی و پژوهشی در سراسر ایران به شمار می‌رود."
+    },
+    {
+      "category": "formal_persian",
+      "text": "توسعه پایدار نیازمند برنامه‌ریزی دقیق، مدیریت منابع مالی و استفاده بهینه از نیروهای متخصص و دانش‌بنیان است."
+    },
+    {
+      "category": "formal_persian",
+      "text": "فرهنگستان زبان و ادب فارسی کاربرد نیم‌فاصله را در ترکیب‌های اضافی و پیشوندهای فعلی الزامی دانسته است."
+    },
+    {
+      "category": "formal_persian",
+      "text": "در نشست روز گذشته، وزرای اقتصاد درباره کاهش تورم و گسترش صادرات غیرنفتی به توافق‌های مهمی دست یافتند."
+    },
+    {
+      "category": "formal_persian",
+      "text": "مطالعه کتاب‌های تاریخی به درک بهتر رویدادهای معاصر و تحلیل عمیق‌تر تحولات اجتماعی کمک شایانی می‌کند."
+    },
+    {
+      "category": "formal_persian",
+      "text": "حفاظت از محیط زیست، منابع طبیعی و تنوع زیستی وظیفه‌ای همگانی و ضرورتی اجتناب‌ناپذیر برای نسل‌های آینده است."
+    },
+    {
+      "category": "formal_persian",
+      "text": "پیشرفت فناوری اطلاعات و هوش مصنوعی الگوهای کسب‌وکار و زندگی روزمره انسان‌ها را دستخوش دگرگونی بنیادین کرده است."
+    },
+    {
+      "category": "formal_persian",
+      "text": "پزشکان توصیه می‌کنند که مصرف آب کافی، ورزش منظم و خواب به موقع ضامن سلامت جسمی و روانی خواهد بود."
+    },
+    {
+      "category": "formal_persian",
+      "text": "صنایع دستی و هنرهای سنتی بخش مهمی از هویت فرهنگی و تاریخی مردمان این سرزمین را تشکیل می‌دهند."
+    },
+    {
+      "category": "chat_persian",
+      "text": "سلام مخلصم چطوری؟ خوبی؟ دمت گرم بابت فایلی که فرستادی خیلی به کارم اومد قربانت."
+    },
+    {
+      "category": "chat_persian",
+      "text": "آره داداش هماهنگه، فردا ساعت ۵ عصر دم دانشگاه می‌بینمت حتما یادت نره."
+    },
+    {
+      "category": "chat_persian",
+      "text": "دستت درد نکنه واقعا عالی بود، ایشالا همیشه شاد و سلامت باشی در پناه حق."
+    },
+    {
+      "category": "chat_persian",
+      "text": "من الان تو راه شرکت هستم برسم سیستم رو روشن می‌کنم خبرت می‌کنم باشه؟"
+    },
+    {
+      "category": "chat_persian",
+      "text": "فدات شم مرسی از پیگیریت، پروژه تقریبا تمومه فقط یه تست نهایی مونده که انجام بدم."
+    },
+    {
+      "category": "chat_persian",
+      "text": "نه مشکلی نیست، هر وقت فرصت کردی بفرست عجله‌ای ندارم خیالت کاملا راحت."
+    },
+    {
+      "category": "chat_persian",
+      "text": "عجب هوای خوبی شده امروز جان میده برای پیاده‌روی تو کوچه باغ‌های اطراف."
+    },
+    {
+      "category": "chat_persian",
+      "text": "چاکرم، فقط حواست باشه نسخه قبلی رو بازنویسی نکنی چون روی سرور بکاپ نگرفتیم."
+    },
+    {
+      "category": "chat_persian",
+      "text": "اوکی پس تا شب هماهنگ می‌کنیم دوباره، مراقب خودت باش خداحافظ."
+    },
+    {
+      "category": "chat_persian",
+      "text": "سلام صبحت بخیر، قهوه رو زدی بریم سراغ دیباگ کردن اون باگ عجیب و غریب؟"
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "من برای توسعه بک‌اند از FastAPI و Python استفاده می‌کنم و فرانت‌اند رو با React و TypeScript نوشتم."
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "لطفا تنظیمات config.json را در مسیر C:\\Users\\Ravaan بررسی کنید تا دیتابیس SQLite متصل شود."
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "در گیت بعد از git pull باید دستور pytest و ruff check اجرا شود تا هیچ تست فیل شده‌ای وارد main نشود."
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "کانال تلگرامی ما در t.me/ravaan_app قرار دارد و برای گزارش باگ می‌توانید به info@ravaan.io ایمیل بزنید."
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "نسخه v2.0 روان قابلیت sync با GitHub Gist و سرور اختصاصی WebDAV را با رمزنگاری DPAPI دارا می‌باشد."
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "کلید میانبر Pause برای Layout Switch و کلید Ctrl+Alt+S برای مشاهده آمار کلمات انتخاب شده استفاده می‌شود."
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "در نرم‌افزارهای VS Code و Chrome و Word نرخ تاخیر هوک صفحه‌کلید باید زیر ۱۰۰ میکروثانیه باشد."
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "برای نصب پکیج روی ویندوز از دستور pip install -e . استفاده کنید تا پکیج به صورت لوکال بارگذاری شود."
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "فایل‌های لاگ در پوشه logs/ ذخیره می‌شوند و تمام توکن‌های محرمانه Bearer و auth خودکار sanitize خواهند شد."
+    },
+    {
+      "category": "mixed_persian_english",
+      "text": "هشتگ‌های #برنامه‌نویسی و #ویندوز در شبکه‌های اجتماعی برای ترند شدن پروژه انتخاب شده‌اند."
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "def calculate_statistics(text: str, max_words: int = 100) -> dict[str, int]:"
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "import os, sys, struct, mmap\nfrom pathlib import Path\nlog = logging.getLogger(__name__)"
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "git commit -m \"fix(hook): prevent 64-bit integer truncation in SendInput\""
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "SELECT id, username, email FROM users WHERE is_active = 1 AND score > 95.5;"
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "const handleKeyPress = (event: KeyboardEvent<HTMLInputElement>) => { event.preventDefault(); };"
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "docker run -d -p 8080:80 --name web_server -v /var/data:/app nginx:alpine"
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "curl -X POST https://api.github.com/gists -H \"Authorization: token ghp_secret123\" -d '{\"public\": false}'"
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "assert total_records == 162935 and cold_start_ms < 300.0 and ram_usage_mb <= 25.0"
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "$env:PYTHONIOENCODING = \"utf-8\"; python -m pytest tests/test_autocorrect.py -v"
+    },
+    {
+      "category": "code_and_syntax",
+      "text": "class DictPredictor(Predictor):\n    def __init__(self, english: Dictionary, persian: Dictionary):"
+    }
+  ]
+}

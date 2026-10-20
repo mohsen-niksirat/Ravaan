@@ -310,6 +310,33 @@ class _MmapEntriesSequence(Sequence[DictEntry]):
                 yield DictEntry(word=w, rank=rank, frequency=freq)
 
 
+_PERSIAN_ZWNJ_PREFIXES: tuple[str, ...] = ("می\u200c", "نمی\u200c", "بی\u200c")
+_PERSIAN_ZWNJ_SUFFIXES: tuple[str, ...] = (
+    "\u200cهایمان",
+    "\u200cهایتان",
+    "\u200cهایشان",
+    "\u200cهایی",
+    "\u200cهایم",
+    "\u200cهایت",
+    "\u200cهایش",
+    "\u200cترین",
+    "\u200cهای",
+    "\u200cمان",
+    "\u200cتان",
+    "\u200cشان",
+    "\u200cها",
+    "\u200cتر",
+    "\u200cام",
+    "\u200cات",
+    "\u200cاش",
+    "\u200cای",
+    "\u200cاست",
+    "\u200cیم",
+    "\u200cید",
+    "\u200cاند",
+)
+
+
 class Dictionary:
     def __init__(
         self,
@@ -607,23 +634,114 @@ class Dictionary:
         matches.sort(key=lambda t: (t[1], t[0].rank))
         return matches[:limit]
 
-    def contains(self, word: str) -> bool:
-        key = word.lower()
+    def _exact_contains(self, key: str) -> bool:
         if key in self._overlay:
             return True
         if self._mmap is not None:
             return self._find_in_mmap(key) is not None
         return key in self._lower
 
-    def rank_of(self, word: str) -> int | None:
-        key = word.lower()
+    def _exact_get(self, key: str) -> DictEntry | None:
         if key in self._overlay:
-            return self._overlay[key].rank
+            return self._overlay[key]
         if self._mmap is not None:
-            entry = self._find_in_mmap(key)
-            return entry.rank if entry else None
-        entry = self._lower.get(key)
-        return entry.rank if entry else None
+            return self._find_in_mmap(key)
+        return self._lower.get(key)
+
+    def contains(self, word: str) -> bool:
+        key = word.lower()
+        if self._exact_contains(key):
+            return True
+
+        if "\u200c" in key:
+            # 1. Joined form without ZWNJ (e.g. می‌کند -> میکند)
+            joined = key.replace("\u200c", "")
+            if self._exact_contains(joined):
+                return True
+
+            # 2. Verbal & privative prefixes (می‌رود -> رود, بی‌دلیل -> دلیل)
+            for prefix in _PERSIAN_ZWNJ_PREFIXES:
+                if key.startswith(prefix):
+                    stem = key[len(prefix):]
+                    if stem and (self._exact_contains(stem) or self._exact_contains(stem.replace("\u200c", ""))):
+                        return True
+
+            # 3. Standard suffixes (کتاب‌ها -> کتاب, کهن‌ترین -> کهن)
+            for suffix in _PERSIAN_ZWNJ_SUFFIXES:
+                if key.endswith(suffix):
+                    base = key[:-len(suffix)]
+                    if base and (self._exact_contains(base) or self._exact_contains(base.replace("\u200c", ""))):
+                        return True
+
+            # 4. Compound words: all components separated by ZWNJ are dictionary words (دوزبانه -> دو + زبانه)
+            parts = key.split("\u200c")
+            if len(parts) >= 2 and all(p and self._exact_contains(p) for p in parts):
+                return True
+
+        return False
+
+    def get(self, word: str) -> DictEntry | None:
+        key = word.lower()
+        entry = self._exact_get(key)
+        if entry is not None:
+            return entry
+
+        if "\u200c" in key:
+            # 1. Joined form
+            joined = key.replace("\u200c", "")
+            joined_entry = self._exact_get(joined)
+            if joined_entry is not None:
+                return DictEntry(word=word, rank=joined_entry.rank, frequency=joined_entry.frequency)
+
+            # 2. Verbal & privative prefixes
+            for prefix in _PERSIAN_ZWNJ_PREFIXES:
+                if key.startswith(prefix):
+                    stem = key[len(prefix):]
+                    stem_entry = self._exact_get(stem) or self._exact_get(stem.replace("\u200c", ""))
+                    if stem_entry is not None:
+                        return DictEntry(
+                            word=word,
+                            rank=stem_entry.rank + 500,
+                            frequency=max(1, stem_entry.frequency // 2),
+                        )
+
+            # 3. Standard suffixes
+            for suffix in _PERSIAN_ZWNJ_SUFFIXES:
+                if key.endswith(suffix):
+                    base = key[:-len(suffix)]
+                    base_entry = self._exact_get(base) or self._exact_get(base.replace("\u200c", ""))
+                    if base_entry is not None:
+                        return DictEntry(
+                            word=word,
+                            rank=base_entry.rank + 200,
+                            frequency=max(1, base_entry.frequency // 2),
+                        )
+
+            # 4. Compound words
+            parts = key.split("\u200c")
+            if len(parts) >= 2:
+                part_entries = [self._exact_get(p) for p in parts]
+                if all(e is not None for e in part_entries):
+                    max_rank = max(e.rank for e in part_entries if e is not None)
+                    min_freq = min(e.frequency for e in part_entries if e is not None)
+                    return DictEntry(
+                        word=word,
+                        rank=max_rank + 1000,
+                        frequency=max(1, min_freq // 4),
+                    )
+
+        return None
+
+    def rank_of(self, word: str) -> int | None:
+        entry = self.get(word)
+        return entry.rank if entry is not None else None
+
+    def __getitem__(self, word: str) -> DictEntry:
+        entry = self.get(word)
+        if entry is None:
+            raise KeyError(word)
+        return entry
+
 
 
 def _dedupe(words: list[str]) -> list[str]:
@@ -726,4 +844,5 @@ _PERSIAN_WORDS: list[str] = [
     "باشه", "اجازه", "شرمنده", "متاسفانه",
     "خواهش", "قابل", "ندارد", "فدات", "شما", "تو",
     "ایشان", "اینها", "خودم", "خودت", "خودش",
+    "دوزبانه", "دوطرفه", "دوجانبه",
 ]

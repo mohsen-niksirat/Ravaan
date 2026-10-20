@@ -136,8 +136,11 @@ def is_app_excluded(
             target_class = excl[6:].strip()
             if target_class and c_name == target_class:
                 return True
-        elif name and (name == excl or name.endswith(excl)):
-            return True
+        elif name:
+            name_stem = name[:-4] if name.endswith(".exe") else name
+            excl_stem = excl[:-4] if excl.endswith(".exe") else excl
+            if name == excl or name.endswith(excl) or name_stem == excl_stem:
+                return True
         elif c_name and c_name == excl:
             return True
     return False

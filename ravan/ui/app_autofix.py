@@ -105,6 +105,12 @@ class AppAutofixMixin:
             return False
         if not word or getattr(self, "power_mode_active", False):
             return False
+        if hasattr(self, "_is_excluded") and self._is_excluded():
+            return False
+        from ravan.platform.focus import is_password_focused
+
+        if is_password_focused():
+            return False
 
         active_lang = getattr(self, "_active_layout_tag", "en") or "en"
         app_name = getattr(self, "_current_exe", "") or ""

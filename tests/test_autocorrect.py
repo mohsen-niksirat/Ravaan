@@ -118,3 +118,83 @@ def test_config_undo_hotkey_persistence():
     assert cfg.undo_autocorrect_hotkey.key == "Z"
     assert "Ctrl" in cfg.undo_autocorrect_hotkey.modifiers
     assert cfg.fix_punctuation_spacing is True
+
+
+def test_autocorrect_token_screening_never_touches_special_tokens():
+    from ravan.core.predictor import is_safe_autocorrect_token
+
+    en_dict = Dictionary.english()
+    fa_dict = Dictionary.persian()
+    predictor = DictPredictor(english=en_dict, persian=fa_dict, autocorrect_mode="safe")
+
+    # Tokens with digits
+    digits_tokens = ["v2", "win32", "x86", "100m", "3x", "۱۰درصد", "۱۰۰متر", "۳راه", "5تومان", "h2o"]
+    for tok in digits_tokens:
+        assert not is_safe_autocorrect_token(tok), f"Expected {tok} to be screened out"
+        assert predictor.correct(tok, lang="en") is None
+        assert predictor.correct(tok, lang="fa") is None
+
+    # URLs and web domains
+    url_tokens = ["http://example.com", "https://google.com", "www.site.ir", "t.me/channel", "github.com"]
+    for tok in url_tokens:
+        assert not is_safe_autocorrect_token(tok), f"Expected URL {tok} to be screened out"
+        assert predictor.correct(tok, lang="en") is None
+        assert predictor.correct(tok, lang="fa") is None
+
+    # Emails and @mentions
+    email_tokens = ["user@example.com", "info@site.org", "@username", "@admin", "@mohammad"]
+    for tok in email_tokens:
+        assert not is_safe_autocorrect_token(tok), f"Expected email/mention {tok} to be screened out"
+        assert predictor.correct(tok, lang="en") is None
+        assert predictor.correct(tok, lang="fa") is None
+
+    # Hashtags
+    hashtag_tokens = ["#iran", "#خبر", "#python", "#coding"]
+    for tok in hashtag_tokens:
+        assert not is_safe_autocorrect_token(tok), f"Expected hashtag {tok} to be screened out"
+        assert predictor.correct(tok, lang="en") is None
+        assert predictor.correct(tok, lang="fa") is None
+
+    # File paths and filenames with extensions
+    file_tokens = [r"C:\Windows\System32", "/usr/bin/python", "config.json", "main.py", "document.pdf", "data.txt"]
+    for tok in file_tokens:
+        assert not is_safe_autocorrect_token(tok), f"Expected file path {tok} to be screened out"
+        assert predictor.correct(tok, lang="en") is None
+        assert predictor.correct(tok, lang="fa") is None
+
+    # Code identifiers and mixed syntax
+    code_tokens = ["snake_case", "__init__", "my_var", "$variable", "jQuery", "camelCase", "XmlParser", "getById"]
+    for tok in code_tokens:
+        assert not is_safe_autocorrect_token(tok), f"Expected code token {tok} to be screened out"
+        assert predictor.correct(tok, lang="en") is None
+        assert predictor.correct(tok, lang="fa") is None
+
+    # Acronyms
+    acronym_tokens = ["API", "SDK", "URL", "HTML", "USA", "CSS", "RAM"]
+    for tok in acronym_tokens:
+        assert not is_safe_autocorrect_token(tok), f"Expected acronym {tok} to be screened out"
+        assert predictor.correct(tok, lang="en") is None
+
+
+def test_autocorrect_safe_defaults_valid_words():
+    en_dict = Dictionary.english()
+    fa_dict = Dictionary.persian()
+    predictor = DictPredictor(english=en_dict, persian=fa_dict, autocorrect_mode="safe")
+
+    # Valid words in English dictionary must never be changed
+    valid_en = ["the", "information", "computer", "hello", "keyboard", "window", "language"]
+    for w in valid_en:
+        assert predictor.correct(w, lang="en") is None
+
+    # Valid words in Persian dictionary must never be changed
+    valid_fa = ["سلام", "دانشگاه", "کتاب", "اطلاعات", "برنامه", "توسعه", "زندگی", "ممنون"]
+    for w in valid_fa:
+        assert predictor.correct(w, lang="fa") is None
+
+    # Real typos ARE corrected
+    c1 = predictor.correct("teh", lang="en")
+    assert c1 is not None and c1.text == "the"
+
+    c2 = predictor.correct("دانشگاهي", lang="fa")
+    assert c2 is not None and c2.text == "دانشگاهی"
+

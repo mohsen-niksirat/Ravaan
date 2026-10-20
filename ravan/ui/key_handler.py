@@ -45,6 +45,19 @@ class KeyHandlerMixin:
             if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
+            if hasattr(self, "journal"):
+                self.journal.clear()
+            return
+
+        # Suppress all features inside password fields for privacy & security
+        from ravan.platform.focus import is_password_focused
+
+        if is_password_focused():
+            if self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
+            if hasattr(self, "journal"):
+                self.journal.clear()
             return
 
         # Suppress assistance in elevated (admin) windows (single tray warning, never spam)
@@ -225,10 +238,10 @@ class KeyHandlerMixin:
             self._schedule_predict()
             return
 
-        # Suppress features inside password fields for security
+        # Suppress features inside password fields and excluded apps for security
         from ravan.platform.focus import is_password_focused
 
-        if is_password_focused():
+        if is_password_focused() or (hasattr(self, "_is_excluded") and self._is_excluded()):
             self.overlay.hide()
             set_popup_visible(False)
             self.journal.clear()
