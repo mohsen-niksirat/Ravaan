@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Chocolatey package (`packaging/chocolatey/ravaan/`) including `ravaan.nuspec` (schema 2015/06), `chocolateyinstall.ps1`, and `chocolateyuninstall.ps1` with `/ALLUSERS=0` user-scope install.
 - Automated Packaging Test Suite (`tests/test_installer_and_packaging.py`):
   - 18 automated tests verifying Inno Setup configuration, checksum script outputs (GNU format & Markdown table), Winget YAML schema fields, Scoop JSON persistence and paths, and Chocolatey XML metadata.
+- Security & Trust Documentation (`docs/SECURITY_FAQ.md`, `docs/SMARTSCREEN.md`):
+  - Created bilingual Security, Privacy & Transparency FAQ explaining why low-level keyboard hooks (`SetWindowsHookExW`) are required, offering ironclad guarantees of zero keystroke logging, zero telemetry, local-only storage, and guidelines for auditing via Process Monitor and Resource Monitor.
+  - Created bilingual Windows Defender SmartScreen bypass guide with step-by-step instructions (More info -> Run anyway), SHA-256 hash verification instructions via PowerShell, and SignPath Foundation code-signing roadmap.
+- Expanded Automated Packaging Test Suite (`tests/test_installer_and_packaging.py`):
+  - 20 automated tests validating installer configurations, package manager manifests, checksum generator, and security documentation completeness.
 
 ## [Unreleased] - Phase 7
 

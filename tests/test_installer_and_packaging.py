@@ -232,3 +232,40 @@ class TestChocolateyPackage:
         content = script_path.read_text(encoding="utf-8")
         assert "Uninstall-ChocolateyPackage" in content
         assert "/VERYSILENT" in content
+
+
+class TestSecurityAndTrustDocumentation:
+    """Verifies security, privacy FAQ, and SmartScreen documentation."""
+
+    def test_security_faq_bilingual(self):
+        faq_path = REPO_ROOT / "docs" / "SECURITY_FAQ.md"
+        assert faq_path.is_file()
+        content = faq_path.read_text(encoding="utf-8")
+
+        # English section
+        assert "Zero Keystroke Logging" in content
+        assert "Zero Telemetry" in content
+        assert "SetWindowsHookExW" in content
+        assert "SHA256SUMS.txt" in content
+
+        # Persian section
+        assert "حریم خصوصی" in content
+        assert "Zero Keystroke Logging" in content
+        assert "عدم ثبت کلیدها" in content
+        assert "قلاب صفحه‌کلید" in content
+
+    def test_smartscreen_guide_bilingual(self):
+        ss_path = REPO_ROOT / "docs" / "SMARTSCREEN.md"
+        assert ss_path.is_file()
+        content = ss_path.read_text(encoding="utf-8")
+
+        # English
+        assert "More info" in content
+        assert "Run anyway" in content
+        assert "Get-FileHash" in content
+
+        # Persian
+        assert "اسمارت‌اسکرین" in content
+        assert "اطلاعات بیشتر" in content
+        assert "در هر صورت اجرا شود" in content
+
