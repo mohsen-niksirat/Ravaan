@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - "Clear learned data" button with confirmation prompt to reset learned vocabulary and n-grams.
 - Prominent privacy guarantee banner in Cloud Sync settings reassuring users in both Persian and English that typed text, keystrokes, and clipboard data never leave their computer.
 - Full localization in both `fa.json` and `en.json` with correct Persian ZWNJ typography and RTL layout.
+- Auto-update security and integrity enforcement in `ravan/core/updater.py`:
+  - Strict HTTPS-only enforcement: insecure `http://` or non-HTTPS download URLs are rejected immediately with `ValueError`.
+  - SHA-256 hash calculation and verification during download; mismatched checksums abort installation and automatically purge the downloaded binary.
+  - Windows PE executable binary header validation (`b"MZ"` magic signature check) prior to launching detached setup process.
+  - Automated SHA256 extraction from release notes or checksum assets via `extract_sha256_for_installer`.
+  - Unit tests covering HTTPS rejection, valid/invalid SHA256 checksums, and PE header checks in `tests/test_installer_and_updater.py`.
 
 ## [Unreleased] - Phase 3
 

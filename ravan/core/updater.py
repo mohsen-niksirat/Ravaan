@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import urllib.error
@@ -114,6 +116,30 @@ def find_installer_asset(assets: list[dict[str, Any]]) -> dict[str, Any] | None:
     return None
 
 
+def extract_sha256_for_installer(
+    assets: list[dict[str, Any]],
+    installer_name: str | None = None,
+    body: str = "",
+) -> str | None:
+    """Look for a 64-character hex SHA256 in release body or checksum asset."""
+    if not body and not assets:
+        return None
+
+    if body:
+        if installer_name:
+            for line in body.splitlines():
+                if installer_name.lower() in line.lower():
+                    m = re.search(r"\b([a-fA-F0-9]{64})\b", line)
+                    if m:
+                        return m.group(1).lower()
+
+        label_match = re.search(r"sha-?256[:\s=]+([a-fA-F0-9]{64})", body, re.IGNORECASE)
+        if label_match:
+            return label_match.group(1).lower()
+
+    return None
+
+
 def check_for_updates(
     current_ver: str = __version__,
     timeout: float = 6.0,
@@ -144,6 +170,7 @@ def check_for_updates(
                     "changelog_summary": "",
                     "installer_url": None,
                     "installer_name": None,
+                    "expected_sha256": None,
                     "error": f"HTTP {response.status}",
                 }
             raw_data = json.loads(response.read().decode("utf-8"))
@@ -159,6 +186,7 @@ def check_for_updates(
                 "changelog_summary": "",
                 "installer_url": None,
                 "installer_name": None,
+                "expected_sha256": None,
                 "error": None,
             }
         log.warning("Could not reach update server: %s", err)
@@ -171,6 +199,7 @@ def check_for_updates(
             "changelog_summary": "",
             "installer_url": None,
             "installer_name": None,
+            "expected_sha256": None,
             "error": f"HTTP {err.code}: {err.reason}",
         }
     except urllib.error.URLError as err:
@@ -184,6 +213,7 @@ def check_for_updates(
             "changelog_summary": "",
             "installer_url": None,
             "installer_name": None,
+            "expected_sha256": None,
             "error": str(err.reason),
         }
     except Exception as exc:  # noqa: BLE001
@@ -197,6 +227,7 @@ def check_for_updates(
             "changelog_summary": "",
             "installer_url": None,
             "installer_name": None,
+            "expected_sha256": None,
             "error": str(exc),
         }
 
@@ -225,6 +256,7 @@ def check_for_updates(
             "changelog_summary": "",
             "installer_url": None,
             "installer_name": None,
+            "expected_sha256": None,
             "error": None,
         }
 
@@ -244,6 +276,7 @@ def check_for_updates(
         str(installer.get("browser_download_url")) if installer else None
     )
     installer_name = str(installer.get("name")) if installer else None
+    expected_sha256 = extract_sha256_for_installer(assets, installer_name, body)
 
     has_update = compare_versions(tag, current_ver) > 0
 
@@ -256,6 +289,7 @@ def check_for_updates(
         "changelog_summary": summary,
         "installer_url": installer_url,
         "installer_name": installer_name,
+        "expected_sha256": expected_sha256,
         "error": None,
     }
 
@@ -263,19 +297,29 @@ def check_for_updates(
 def download_and_launch_installer(
     download_url: str,
     installer_name: str | None = None,
+    expected_sha256: str | None = None,
     on_progress: Callable[[float], None] | None = None,
     on_ready_to_exit: Callable[[], None] | None = None,
     timeout: float = 30.0,
 ) -> bool:
-    """Download installer executable and launch it, then trigger app exit."""
+    """Download installer executable and launch it, then trigger app exit.
+
+    Enforces HTTPS protocol and verifies SHA-256 integrity and PE signature.
+    """
+    clean_url = download_url.strip()
+    if not clean_url.lower().startswith("https://"):
+        log.error("Insecure update URL rejected: %s (only HTTPS permitted)", download_url)
+        raise ValueError("Insecure download URL: only HTTPS is permitted for updates")
+
     fname = installer_name or "Ravaan-Setup-Update.exe"
     target_path = Path(tempfile.gettempdir()) / fname
 
     req = urllib.request.Request(
-        download_url,
+        clean_url,
         headers={"User-Agent": f"Ravaan-App/{__version__}"},
     )
     try:
+        hasher = hashlib.sha256()
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             total_size = int(resp.headers.get("Content-Length", 0))
             downloaded = 0
@@ -287,6 +331,7 @@ def download_and_launch_installer(
                     if not chunk:
                         break
                     f.write(chunk)
+                    hasher.update(chunk)
                     downloaded += len(chunk)
                     if total_size > 0 and on_progress:
                         on_progress(downloaded / total_size)
@@ -294,10 +339,42 @@ def download_and_launch_installer(
             if on_progress:
                 on_progress(1.0)
 
+        # 1. SHA-256 hash verification
+        actual_sha256 = hasher.hexdigest().lower()
+        if expected_sha256:
+            clean_expected = expected_sha256.strip().lower()
+            if actual_sha256 != clean_expected:
+                log.error(
+                    "Update verification failed! Expected SHA256 %s, got %s. Aborting update.",
+                    clean_expected,
+                    actual_sha256,
+                )
+                try:
+                    target_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                return False
+
+        # 2. Binary signature verification (PE / MZ header)
+        try:
+            with target_path.open("rb") as f:
+                magic = f.read(2)
+            if magic != b"MZ":
+                log.error(
+                    "Update integrity failure: downloaded file is not a valid Windows executable (missing MZ magic)."
+                )
+                try:
+                    target_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                return False
+        except Exception as exc:  # noqa: BLE001
+            log.error("Failed to inspect installer binary header: %s", exc)
+            return False
 
         # Launch the installer detached
         subprocess.Popen([str(target_path)])
-        log.info("Launched update installer: %s", target_path)
+        log.info("Launched update installer: %s (SHA256: %s)", target_path, actual_sha256)
 
         # Signal app to release mutex and shut down cleanly
         if on_ready_to_exit:

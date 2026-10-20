@@ -148,6 +148,80 @@ def test_download_and_launch_installer(tmp_path):
         assert (tmp_path / "Test-Setup.exe").is_file()
 
 
+def test_download_insecure_url_rejected():
+    import pytest
+
+    with pytest.raises(ValueError, match="only HTTPS is permitted"):
+        download_and_launch_installer(download_url="http://insecure.test/setup.exe")
+
+
+def test_download_sha256_verification(tmp_path):
+    import hashlib
+
+    fake_exe = b"MZ" + b"\x01" * 512
+    valid_hash = hashlib.sha256(fake_exe).hexdigest()
+
+    mock_resp = MagicMock()
+    mock_resp.headers = {"Content-Length": str(len(fake_exe))}
+    mock_resp.read.side_effect = [fake_exe, b""]
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp), \
+         patch("subprocess.Popen"), \
+         patch("tempfile.gettempdir", return_value=str(tmp_path)):
+
+        # 1. Matching SHA256 passes
+        ok = download_and_launch_installer(
+            download_url="https://test/setup.exe",
+            installer_name="Verified-Setup.exe",
+            expected_sha256=valid_hash,
+        )
+        assert ok is True
+        assert (tmp_path / "Verified-Setup.exe").is_file()
+
+        # 2. Mismatched SHA256 fails and removes file
+        mock_resp.read.side_effect = [fake_exe, b""]
+        bad_ok = download_and_launch_installer(
+            download_url="https://test/setup.exe",
+            installer_name="Bad-Setup.exe",
+            expected_sha256="0000000000000000000000000000000000000000000000000000000000000000",
+        )
+        assert bad_ok is False
+        assert not (tmp_path / "Bad-Setup.exe").is_file()
+
+
+def test_download_invalid_pe_magic_rejected(tmp_path):
+    fake_non_exe = b"NOT_A_PE_BINARY" + b"\x00" * 100
+
+    mock_resp = MagicMock()
+    mock_resp.headers = {"Content-Length": str(len(fake_non_exe))}
+    mock_resp.read.side_effect = [fake_non_exe, b""]
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp), \
+         patch("subprocess.Popen"), \
+         patch("tempfile.gettempdir", return_value=str(tmp_path)):
+
+        ok = download_and_launch_installer(
+            download_url="https://test/fake.exe",
+            installer_name="Fake.exe",
+        )
+        assert ok is False
+        assert not (tmp_path / "Fake.exe").is_file()
+
+
+def test_extract_sha256_for_installer_helper():
+    from ravan.core.updater import extract_sha256_for_installer
+
+    body = (
+        "## Release v1.1.0\n"
+        "SHA256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n"
+        "Download below:"
+    )
+    extracted = extract_sha256_for_installer([], "Ravaan-Setup.exe", body)
+    assert extracted == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+
 def test_parse_protocol_url():
     # Simple action
     p1 = parse_protocol_url("ravan://settings")
