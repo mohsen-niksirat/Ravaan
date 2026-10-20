@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Do not remove this test for UTF-8: if “Ω” doesn’t appear as greek uppercase letter omega trim leads to issue -->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>ravaan</id>
+    <version>1.0.0</version>
+    <packageSourceUrl>https://github.com/mohsen-niksirat/Ravaan/tree/main/packaging/chocolatey/ravaan</packageSourceUrl>
+    <owners>Mohsen Niksirat</owners>
+    <title>Ravaan (روان)</title>
+    <authors>Mohsen Niksirat</authors>
+    <projectUrl>https://github.com/mohsen-niksirat/Ravaan</projectUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/mohsen-niksirat/Ravaan@main/ravan/data/icon.ico</iconUrl>
+    <copyright>Copyright (c) 2026 Mohsen Niksirat</copyright>
+    <licenseUrl>https://github.com/mohsen-niksirat/Ravaan/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/mohsen-niksirat/Ravaan</projectSourceUrl>
+    <docsUrl>https://github.com/mohsen-niksirat/Ravaan/blob/main/README.md</docsUrl>
+    <bugTrackerUrl>https://github.com/mohsen-niksirat/Ravaan/issues</bugTrackerUrl>
+    <tags>ravaan persian farsi typing assistant autocomplete zwnj finglish privacy</tags>
+    <summary>Intelligent Persian and bilingual typing assistant for Windows with zero telemetry</summary>
+    <description><![CDATA[
+Ravaan (روان) is an intelligent, privacy-first Persian/English typing assistant for Windows.
+
+Features:
+- Offline local text prediction and autocompletion
+- Real-time typo correction and wrong keyboard layout detection
+- Persian typography and ZWNJ (نیم‌فاصله) normalization
+- Finglish phonetic conversion
+- Snippet expansion and inline calculator
+- Zero telemetry, zero keystroke logging, open source
+]]></description>
+    <releaseNotes>https://github.com/mohsen-niksirat/Ravaan/releases/tag/v1.0.0</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

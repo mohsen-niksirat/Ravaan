@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `--write-sums` generating standard GNU coreutils compatible `SHA256SUMS.txt`.
   - Added conditional SignPath Foundation code signing step in CI workflow.
   - Updated release workflow to include standard checksums and multilingual README files in portable ZIP.
+- Windows Package Manager Manifests (`packaging/`):
+  - Winget v1.6.0 multi-file manifests: `MohsenNiksirat.Ravaan.yaml`, `MohsenNiksirat.Ravaan.installer.yaml`, `MohsenNiksirat.Ravaan.locale.en-US.yaml`, and `MohsenNiksirat.Ravaan.locale.fa-IR.yaml`. Configured with silent switch `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` and user-scope installer.
+  - Scoop manifest (`packaging/scoop/ravaan.json`) targeting 64-bit portable release with `persist: "data"`, shortcut, and GitHub autoupdate.
+  - Chocolatey package (`packaging/chocolatey/ravaan/`) including `ravaan.nuspec` (schema 2015/06), `chocolateyinstall.ps1`, and `chocolateyuninstall.ps1` with `/ALLUSERS=0` user-scope install.
+- Automated Packaging Test Suite (`tests/test_installer_and_packaging.py`):
+  - 18 automated tests verifying Inno Setup configuration, checksum script outputs (GNU format & Markdown table), Winget YAML schema fields, Scoop JSON persistence and paths, and Chocolatey XML metadata.
 
 ## [Unreleased] - Phase 7
 
