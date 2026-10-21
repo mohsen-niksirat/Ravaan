@@ -234,3 +234,33 @@ def test_check_for_updates_multiple_releases_stable_fallback():
         res2 = check_for_updates(current_ver="0.7.0")
         assert res2["has_update"] is False
 
+
+def test_in_app_updater_1_0_0_sees_2_0_0_update():
+    """Verify in-app updater running v1.0.0 detects v2.0.0 and offers installer download."""
+    fake_body = json.dumps([
+        {
+            "tag_name": "v2.0.0",
+            "prerelease": False,
+            "html_url": "https://github.com/mohsen-niksirat/Ravaan/releases/tag/v2.0.0",
+            "body": "Ravaan v2.0.0 - Major milestone with Snippets 3.0, .ravaanpack, and AI Assistant.",
+            "assets": [
+                {
+                    "name": "Ravaan-Setup-2.0.0.exe",
+                    "browser_download_url": "https://github.com/mohsen-niksirat/Ravaan/releases/download/v2.0.0/Ravaan-Setup-2.0.0.exe",
+                }
+            ],
+        }
+    ]).encode("utf-8")
+
+    mock_resp = MagicMock()
+    mock_resp.status = 200
+    mock_resp.read.return_value = fake_body
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        res = check_for_updates(current_ver="1.0.0")
+        assert res["has_update"] is True
+        assert res["latest_version"] == "2.0.0"
+        assert res["installer_url"] == "https://github.com/mohsen-niksirat/Ravaan/releases/download/v2.0.0/Ravaan-Setup-2.0.0.exe"
+        assert "v2.0.0" in res["release_notes"]
+

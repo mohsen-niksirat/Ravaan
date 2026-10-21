@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-21 - Major Milestone (Snippets 3.0, .ravaanpack Hub-lite & Feature Parity)
+
+### Overview / خلاصه‌ی تغییرات
+Ravaan v2.0.0 is a milestone release delivering complete parity with international tools (Punto Switcher, Espanso, Beeftext, PowerToys) and introducing native Persian typing superpowers:
+- **English**: Adds Snippets 3.0 with ReDoS-safe regex triggers, interactive modal forms (`{{field:choice}}`, `{{field:multiline}}`), native clipboard image snippets, per-app application groups, and verified `.ravaanpack` portable packages with SHA-256 tamper refusal. Fully integrates auto-fix layout correction, Finglish transliteration, Quick Accent Persian character variants, AI Assistant, and offline Voice Dictation.
+- **فارسی**: نگارش ۲.۰.۰ روان جهشی بزرگ در امکانات و امنیت است؛ مجهز به اسنیپت‌های نسخه ۳.۰ (عبارات باقاعده ایمن، فرم‌های تعاملی، درج مستقیم تصویر و فیلتر برنامه‌ها)، پکیج‌های اشتراک‌گذاری آفلاین `.ravaanpack` با راستی‌آزمایی هش SHA-256، اصلاح خودکار چیدمان اشتباه کیبورد، تایپ فینگلیش به فارسی، نوار انتخابگر تنوع حروف و دستیار هوش مصنوعی و صوتی.
+
 ### Added - Round 5 Phase 4: Snippets 3.0 .ravaanpack Packages (Offline Hub-lite)
 - **Portable Package Format (`.ravaanpack`)**:
   - ZIP-based bundle format with `manifest.json` containing metadata, snippet definitions, application groups, and word lists.

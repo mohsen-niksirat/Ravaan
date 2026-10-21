@@ -131,7 +131,10 @@ def test_translit_settings_persistence():
         cfg.translit_enabled = False
         cfg.translit_hotkey = HotkeySpec("T", ["Ctrl", "Alt"])
 
-        root = tk.Tk()
+        try:
+            root = tk.Tk()
+        except (tk.TclError, Exception) as exc:
+            pytest.skip(f"Tkinter display not available: {exc}")
         root.withdraw()
         try:
             win = SettingsWindow(cfg, on_saved=lambda c: None)
