@@ -5,21 +5,21 @@ from __future__ import annotations
 import copy
 import tkinter as tk
 from collections.abc import Callable
-from tkinter import filedialog, messagebox, ttk
+from tkinter import messagebox, ttk
 
 from ravan.core.config import Snippet
 from ravan.core.i18n import t
 from ravan.core.snippet import (
     parse_cursor_placeholder,
+    preview_regex_expansion,
     render_template,
-    snippets_from_json,
-    snippets_to_json,
+    validate_regex_trigger,
 )
+from ravan.ui.snippet_editor_io import export_snippets_dialog, import_snippets_dialog
 
 _PLACEHOLDERS = [
-    ("+ $0 (Cursor)", "$0"), ("+ {{shamsi}}", "{{shamsi}}"),
-    ("+ {{tarikh}}", "{{tarikh}}"), ("+ {{time}}", "{{time}}"),
-    ("+ {{weekday}}", "{{weekday}}"), ("+ {{uuid}}", "{{uuid}}"),
+    ("+ $0", "$0"), ("+ {{shamsi}}", "{{shamsi}}"), ("+ {{tarikh}}", "{{tarikh}}"),
+    ("+ {{time}}", "{{time}}"), ("+ {{weekday}}", "{{weekday}}"), ("+ {{uuid}}", "{{uuid}}"),
     ("+ {{calc:...}}", "{{calc: 100 * 1.09}}"),
 ]
 
@@ -30,15 +30,10 @@ class SnippetEditorWindow:
     def __init__(self, snippets: list[Snippet], on_saved: Callable[[list[Snippet]], None]) -> None:
         self.snippets: list[Snippet] = copy.deepcopy(snippets)
         self.on_saved = on_saved
-        self._open = False
-        self._built = False
-        self._root: tk.Toplevel | None = None
-        self._selected_index: int | None = None
-        self._tree: ttk.Treeview | None = None
-        self._filter_var: tk.StringVar | None = None
-        self._trigger_var: tk.StringVar | None = None
-        self._text_editor: tk.Text | None = None
-        self._preview_text: tk.Text | None = None
+        self._open = self._built = False
+        self._root = self._selected_index = self._tree = None
+        self._filter_var = self._trigger_var = self._test_input_var = None
+        self._test_status_lbl = self._text_editor = self._preview_text = None
 
     @property
     def open(self) -> bool:
@@ -64,8 +59,8 @@ class SnippetEditorWindow:
     def _build(self) -> None:
         self._root = tk.Toplevel()
         self._root.title(t("snippets_editor.title", "Ravaan — Snippet Editor"))
-        self._root.geometry("820x560")
-        self._root.minsize(720, 480)
+        self._root.geometry("840x580")
+        self._root.minsize(740, 500)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
 
         main_frm = ttk.Frame(self._root, padding=10)
@@ -102,8 +97,8 @@ class SnippetEditorWindow:
 
         self._tree.heading("trigger", text=t("snippets_editor.col_trigger", "Trigger"), anchor="w")
         self._tree.heading("preview", text=t("snippets_editor.col_preview", "Preview"), anchor="w")
-        self._tree.column("trigger", width=100, stretch=False)
-        self._tree.column("preview", width=200, stretch=True)
+        self._tree.column("trigger", width=120, stretch=False)
+        self._tree.column("preview", width=180, stretch=True)
         self._tree.bind("<<TreeviewSelect>>", self._on_tree_select)
 
         list_btns = ttk.Frame(left_frm)
@@ -115,7 +110,7 @@ class SnippetEditorWindow:
         ]:
             ttk.Button(list_btns, text=txt, command=cmd).pack(side="left", padx=px)
 
-        # ── RIGHT PANE: Multi-line Editor & Placeholders ──
+        # ── RIGHT PANE: Multi-line Editor, Placeholders & Regex Test ──
         right_frm = ttk.Frame(paned, padding=5)
         paned.add(right_frm, weight=2)
 
@@ -127,7 +122,7 @@ class SnippetEditorWindow:
         self._trigger_var = tk.StringVar()
         self._trigger_var.trace_add("write", lambda *_: self._on_editor_modified())
         ttk.Entry(trig_frm, textvariable=self._trigger_var, width=24).pack(side="left")
-        ttk.Label(trig_frm, text=t("snippets_editor.trigger_hint", "e.g. @@, /sig, fn"), foreground="gray").pack(
+        ttk.Label(trig_frm, text=t("snippets_editor.trigger_hint", "e.g. @@, /sig, re:;d(\\d+)"), foreground="gray").pack(
             side="left", padx=8
         )
 
@@ -141,16 +136,16 @@ class SnippetEditorWindow:
         ed_frm.pack(fill="both", expand=True)
         ed_scroll = ttk.Scrollbar(ed_frm, orient="vertical")
         self._text_editor = tk.Text(
-            ed_frm, wrap="word", height=8, font=("Consolas", 10), yscrollcommand=ed_scroll.set
+            ed_frm, wrap="word", height=7, font=("Consolas", 10), yscrollcommand=ed_scroll.set
         )
         ed_scroll.config(command=self._text_editor.yview)
         ed_scroll.pack(side="right", fill="y")
         self._text_editor.pack(side="left", fill="both", expand=True)
         self._text_editor.bind("<KeyRelease>", lambda *_: self._on_editor_modified())
 
-        # Placeholder Quick Insertion Toolbar
-        helper_box = ttk.LabelFrame(right_frm, text=t("snippets_editor.insert_placeholders", "Insert Placeholders"), padding=6)
-        helper_box.pack(fill="x", pady=(6, 6))
+        # Placeholder Toolbar
+        helper_box = ttk.LabelFrame(right_frm, text=t("snippets_editor.insert_placeholders", "Insert Placeholders"), padding=4)
+        helper_box.pack(fill="x", pady=(4, 4))
         h_btns = ttk.Frame(helper_box)
         h_btns.pack(fill="x")
 
@@ -163,16 +158,22 @@ class SnippetEditorWindow:
         for label, val in _PLACEHOLDERS:
             ttk.Button(h_btns, text=label, command=lambda v=val: add_ph(v)).pack(side="left", padx=2)
 
-        preview_box = ttk.LabelFrame(right_frm, text=t("snippets_editor.live_preview", "Live Output Preview"), padding=6)
-        preview_box.pack(fill="x", pady=(0, 6))
+        # Live Regex / Trigger Test Box
+        test_box = ttk.LabelFrame(right_frm, text=t("snippets_editor.regex_test_label", "Live Trigger Test"), padding=4)
+        test_box.pack(fill="x", pady=(0, 4))
+        t_row = ttk.Frame(test_box)
+        t_row.pack(fill="x")
+        ttk.Label(t_row, text=t("snippets_editor.sample_input_label", "Test Input:")).pack(side="left", padx=(0, 4))
+        self._test_input_var = tk.StringVar()
+        self._test_input_var.trace_add("write", lambda *_: self._update_test_preview())
+        ttk.Entry(t_row, textvariable=self._test_input_var, width=18).pack(side="left", fill="x", expand=True)
+        self._test_status_lbl = ttk.Label(test_box, text="", font=("Segoe UI", 9))
+        self._test_status_lbl.pack(anchor="w", pady=(2, 0))
+
+        preview_box = ttk.LabelFrame(right_frm, text=t("snippets_editor.live_preview", "Live Output Preview"), padding=4)
+        preview_box.pack(fill="x", pady=(0, 4))
         self._preview_text = tk.Text(
-            preview_box,
-            wrap="word",
-            height=3,
-            state="disabled",
-            background="#f8f9fa",
-            foreground="#212529",
-            font=("Segoe UI", 9),
+            preview_box, wrap="word", height=2, state="disabled", background="#f8f9fa", foreground="#212529", font=("Segoe UI", 9)
         )
         self._preview_text.pack(fill="x", expand=True)
 
@@ -201,8 +202,7 @@ class SnippetEditorWindow:
         if self._root is None:
             return
         self._root.update_idletasks()
-        w = self._root.winfo_width()
-        h = self._root.winfo_height()
+        w, h = self._root.winfo_width(), self._root.winfo_height()
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 3
         self._root.geometry(f"+{x}+{y}")
@@ -212,13 +212,16 @@ class SnippetEditorWindow:
             return
         filter_str = self._filter_var.get().strip().lower()
         self._tree.delete(*self._tree.get_children())
+        badge = t("snippets_editor.regex_badge", "[Regex] ")
         for idx, s in enumerate(self.snippets):
             if filter_str and filter_str not in s.trigger.lower() and filter_str not in s.replacement.lower():
                 continue
+            is_reg = s.trigger.startswith("re:") or getattr(s, "is_regex", False)
+            display_trig = f"{badge}{s.trigger}" if is_reg else s.trigger
             first_line = s.replacement.splitlines()[0] if s.replacement.splitlines() else ""
-            if len(first_line) > 40:
-                first_line = first_line[:37] + "..."
-            self._tree.insert("", "end", iid=str(idx), values=(s.trigger, first_line))
+            if len(first_line) > 35:
+                first_line = first_line[:32] + "..."
+            self._tree.insert("", "end", iid=str(idx), values=(display_trig, first_line))
 
     def _load_snippet_to_editor(self, idx: int) -> None:
         s = self.snippets[idx]
@@ -227,7 +230,16 @@ class SnippetEditorWindow:
         if self._text_editor:
             self._text_editor.delete("1.0", tk.END)
             self._text_editor.insert("1.0", s.replacement)
+        if self._test_input_var:
+            # Set intelligent default sample
+            if s.trigger.startswith("re:;d"):
+                self._test_input_var.set(";d25")
+            elif not s.trigger.startswith("re:"):
+                self._test_input_var.set(s.trigger)
+            else:
+                self._test_input_var.set("")
         self._update_preview()
+        self._update_test_preview()
 
     def _select_index(self, idx: int) -> None:
         if self._tree and 0 <= idx < len(self.snippets):
@@ -242,6 +254,7 @@ class SnippetEditorWindow:
 
     def _on_editor_modified(self) -> None:
         self._update_preview()
+        self._update_test_preview()
 
     def _update_preview(self) -> None:
         if self._text_editor is None or self._preview_text is None:
@@ -255,19 +268,50 @@ class SnippetEditorWindow:
         self._preview_text.insert("1.0", f"{clean_text}{cursor_info}")
         self._preview_text.config(state="disabled")
 
+    def _update_test_preview(self) -> None:
+        if not self._test_status_lbl or not self._trigger_var or not self._text_editor:
+            return
+        trig, repl = self._trigger_var.get().strip(), self._text_editor.get("1.0", tk.END).rstrip("\n")
+        sample = self._test_input_var.get().strip() if self._test_input_var else ""
+        if not trig or not sample:
+            self._test_status_lbl.config(text="", foreground="gray")
+            return
+        if trig.startswith("re:"):
+            ok, res = preview_regex_expansion(trig, repl, sample)
+            color = "#2b8a3e" if ok else ("gray" if res == "No match" else "#c92a2a")
+            txt = t("snippets_editor.regex_test_matched", "Matched: {result}", result=res) if ok else (t("snippets_editor.regex_test_no_match", "No match") if res == "No match" else res)
+            self._test_status_lbl.config(text=txt, foreground=color)
+        else:
+            matched = (sample == trig)
+            res = render_template(repl) if matched else ""
+            txt = t("snippets_editor.regex_test_matched", "Matched: {result}", result=res) if matched else t("snippets_editor.regex_test_no_match", "No match")
+            self._test_status_lbl.config(text=txt, foreground="#2b8a3e" if matched else "gray")
+
+    def _validate_trigger(self, trig: str) -> bool:
+        if not trig:
+            messagebox.showwarning(t("app_name", "Ravaan"), t("snippets_editor.empty_trigger_warn", "Trigger cannot be empty"), parent=self._root)
+            return False
+        if trig.startswith("re:"):
+            is_valid, err = validate_regex_trigger(trig)
+            if not is_valid:
+                messagebox.showerror(t("snippets_editor.regex_error_title", "Regex Error"), t("snippets_editor.regex_error_msg", "Invalid regex:\n{err}", err=err), parent=self._root)
+                return False
+        return True
+
     def _save_current_to_list(self) -> None:
         if self._trigger_var is None or self._text_editor is None:
             return
         trig = self._trigger_var.get().strip()
         repl = self._text_editor.get("1.0", tk.END).rstrip("\n")
-        if not trig:
-            messagebox.showwarning(t("app_name", "Ravaan"), t("snippets_editor.empty_trigger_warn", "Trigger cannot be empty"), parent=self._root)
+        if not self._validate_trigger(trig):
             return
 
+        is_reg = trig.startswith("re:")
+        snip = Snippet(trigger=trig, replacement=repl, is_regex=is_reg)
         if self._selected_index is not None and 0 <= self._selected_index < len(self.snippets):
-            self.snippets[self._selected_index] = Snippet(trigger=trig, replacement=repl)
+            self.snippets[self._selected_index] = snip
         else:
-            self.snippets.append(Snippet(trigger=trig, replacement=repl))
+            self.snippets.append(snip)
             self._selected_index = len(self.snippets) - 1
 
         self._refresh_list()
@@ -295,78 +339,48 @@ class SnippetEditorWindow:
                 if self._text_editor:
                     self._text_editor.delete("1.0", tk.END)
                 self._update_preview()
+                self._update_test_preview()
 
     def _duplicate_snippet(self) -> None:
         if self._selected_index is not None and 0 <= self._selected_index < len(self.snippets):
             cur = self.snippets[self._selected_index]
-            dup = Snippet(trigger=f"{cur.trigger}_copy", replacement=cur.replacement)
+            dup = Snippet(trigger=f"{cur.trigger}_copy", replacement=cur.replacement, is_regex=getattr(cur, "is_regex", False))
             self.snippets.insert(self._selected_index + 1, dup)
             self._refresh_list()
             self._select_index(self._selected_index + 1)
 
     def _import_json(self) -> None:
-        path = filedialog.askopenfilename(
-            parent=self._root,
-            title=t("snippets_editor.import_title", "Import Snippets"),
-            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
-        )
-        if not path:
-            return
-        try:
-            with open(path, encoding="utf-8") as f:
-                imported = snippets_from_json(f.read())
-            if not imported:
-                messagebox.showinfo(t("app_name", "Ravaan"), t("snippets_editor.no_snippets_found", "No valid snippets found in file."), parent=self._root)
-                return
-
-            ans = messagebox.askyesnocancel(
-                t("snippets_editor.import_title", "Import Snippets"),
-                t("snippets_editor.import_prompt", "Found {count} snippets.\n\nClick 'Yes' to Merge with existing snippets.\nClick 'No' to Replace all existing snippets.\nClick 'Cancel' to abort.", count=len(imported)),
-                parent=self._root,
-            )
-            if ans is None:
-                return
-            if ans:
-                by_trig = {s.trigger: s for s in self.snippets}
-                for s in imported:
-                    by_trig[s.trigger] = s
-                self.snippets = list(by_trig.values())
-            else:
-                self.snippets = imported
-
+        res = import_snippets_dialog(self._root, self.snippets)
+        if res is not None:
+            self.snippets = res
             self._refresh_list()
             if self.snippets:
                 self._select_index(0)
-            messagebox.showinfo(t("app_name", "Ravaan"), t("snippets_editor.import_success", "Successfully imported {count} snippets.", count=len(imported)), parent=self._root)
-        except Exception as ex:  # noqa: BLE001
-            messagebox.showerror(t("notifications.error_title", "Ravaan Error"), t("snippets_editor.import_err", "Failed to import snippets:\n{ex}", ex=ex), parent=self._root)
 
     def _sync_current(self) -> None:
         if self._selected_index is not None and self._trigger_var and self._text_editor:
             trig = self._trigger_var.get().strip()
             if trig:
                 repl = self._text_editor.get("1.0", tk.END).rstrip("\n")
-                self.snippets[self._selected_index] = Snippet(trigger=trig, replacement=repl)
+                is_reg = trig.startswith("re:")
+                self.snippets[self._selected_index] = Snippet(trigger=trig, replacement=repl, is_regex=is_reg)
 
     def _export_json(self) -> None:
         self._sync_current()
-        path = filedialog.asksaveasfilename(
-            parent=self._root,
-            title=t("snippets_editor.btn_export", "Export JSON…"),
-            defaultextension=".json",
-            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
-        )
-        if not path:
-            return
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(snippets_to_json(self.snippets))
-            messagebox.showinfo(t("app_name", "Ravaan"), t("snippets_editor.export_success", "Exported {count} snippets successfully.", count=len(self.snippets)), parent=self._root)
-        except Exception as ex:  # noqa: BLE001
-            messagebox.showerror(t("notifications.error_title", "Ravaan Error"), t("snippets_editor.export_err", "Failed to export snippets:\n{ex}", ex=ex), parent=self._root)
+        export_snippets_dialog(self._root, self.snippets)
 
     def _save_all_and_close(self) -> None:
         self._sync_current()
+        for s in self.snippets:
+            if s.trigger.startswith("re:"):
+                valid, err = validate_regex_trigger(s.trigger)
+                if not valid:
+                    messagebox.showerror(
+                        t("snippets_editor.regex_error_title", "Regex Validation Error"),
+                        t("snippets_editor.regex_error_msg", "Invalid or unsafe regex pattern:\n{err}", err=err),
+                        parent=self._root,
+                    )
+                    return
         self.on_saved(self.snippets)
         self._close()
 

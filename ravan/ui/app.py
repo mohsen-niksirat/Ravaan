@@ -64,29 +64,20 @@ class RavanApp(
         from ravan.ui.app_tray import create_app_tray
 
         self.tray = create_app_tray(self)
-        self._settings_window = None
-        self._diagnostics_window = None
-        self._snippet_window = None
-        self._wizard_window = None
+        self._settings_window = self._diagnostics_window = None
+        self._snippet_window = self._wizard_window = self._quick_tips_window = None
         self.recent_events: deque[dict[str, Any]] = deque(maxlen=50)
 
         self._last_lang_hkl: int | None = None
         self._active_layout_tag: str | None = None
-        self._last_key_time = 0.0
-        self._pending_predict = False
-        self._running = False
-        self._suppress_until = 0.0  # ignore real keys briefly after inject
-        self._last_convert_at = 0.0  # hotkey repeat throttle
-        self._popup_shown_at = 0.0
+        self._last_key_time = self._suppress_until = self._last_convert_at = 0.0
+        self._popup_shown_at = self._last_focus_poll = self._last_lang_poll = self._last_clip_poll = 0.0
+        self._pending_predict = self._running = False
         self._current_exe: str | None = None
-        self._last_focus_poll = 0.0
-        self._last_lang_poll = 0.0
-        self._last_clip_poll = 0.0
         self._last_autocorrect: tuple[str, str, float, str] | None = None
         self._own_pid = os.getpid()
         self.is_paused = False
         self._pause_timer: threading.Timer | None = None
-        self._quick_tips_window: Any = None
         from ravan.ui.hint_manager import HintManager
 
         self.hint_manager = HintManager(
@@ -137,16 +128,15 @@ class RavanApp(
                     self._maybe_predict()
                     self._maybe_timeout_popup()
                     self.overlay.tick()
-                    if self._settings_window is not None:
-                        self._settings_window.tick()
-                    if self._diagnostics_window is not None:
-                        self._diagnostics_window.tick()
-                    if self._snippet_window is not None:
-                        self._snippet_window.tick()
-                    if self._wizard_window is not None:
-                        self._wizard_window.tick()
-                    if self._quick_tips_window is not None:
-                        self._quick_tips_window.tick()
+                    for win in (
+                        self._settings_window,
+                        self._diagnostics_window,
+                        self._snippet_window,
+                        self._wizard_window,
+                        self._quick_tips_window,
+                    ):
+                        if win is not None:
+                            win.tick()
                 except Exception:  # noqa: BLE001
                     log.exception("Main loop iteration failed")
                 time.sleep(0.008)
@@ -233,75 +223,81 @@ class RavanApp(
             if self.journal._chars:
                 self.journal._chars.pop()
 
+    def _expand_snippet_match(
+        self, snip_match: tuple[Any, str], word: str, delimiter: str = ""
+    ) -> bool:
+        snippet, repl_text = snip_match
+        if getattr(snippet, "is_image", False):
+            self._erase_word_and_delimiter(word, delimiter)
+            from ravan.platform.clipboard import set_clipboard_image
+
+            if set_clipboard_image(snippet.replacement):
+                from ravan.platform.inject import send_ctrl_v
+
+                send_ctrl_v()
+            return True
+
+        from ravan.core.snippet import (
+            extract_form_fields,
+            parse_cursor_placeholder,
+            render_template,
+        )
+
+        fields = extract_form_fields(repl_text)
+        if fields:
+            self._erase_word_and_delimiter(word, delimiter)
+            from ravan.ui.form_dialog import QuickFormDialog
+
+            def _on_form_submit(rendered_text: str) -> None:
+                cl, off = parse_cursor_placeholder(rendered_text)
+                self._suppress_until = time.monotonic() + 0.08
+                replace_last_n_with(0, cl, cursor_offset=off)
+                for c in cl:
+                    self.journal.push(c)
+
+            QuickFormDialog(
+                parent=getattr(self.overlay, "_root", None),
+                template=repl_text,
+                fields=fields,
+                on_submit=_on_form_submit,
+                theme_mode=getattr(self.cfg, "theme_mode", "auto"),
+            ).show()
+            return True
+
+        expansion, cursor_offset = parse_cursor_placeholder(
+            render_template(repl_text)
+        )
+        from ravan.core.macro import is_macro_snippet, parse_macro_snippet
+
+        if is_macro_snippet(expansion):
+            macro_data = parse_macro_snippet(expansion)
+            if macro_data:
+                self._erase_word_and_delimiter(word, delimiter)
+                from ravan.core.macro import MacroPlayer
+
+                MacroPlayer.play(
+                    macro_data,
+                    on_suppress=lambda d: setattr(
+                        self, "_suppress_until", time.monotonic() + d
+                    ),
+                )
+                return True
+        self._replace_word(
+            word, expansion, delimiter=delimiter, cursor_offset=cursor_offset
+        )
+        return True
+
     def _on_word_completed(self, word: str, delimiter: str = "") -> bool:
         if not word or self._is_excluded():
             return False
 
         app_name = getattr(self, "_current_exe", "")
-        snip_match = self.snippets.find_matching_snippet(word, app_name)
+        # 1. Exact snippets (exclude regex triggers)
+        snip_match = self.snippets.find_matching_snippet(word, app_name, include_regex=False)
         if snip_match is not None:
-            snippet, repl_text = snip_match
-            if getattr(snippet, "is_image", False):
-                self._erase_word_and_delimiter(word, delimiter)
-                from ravan.platform.clipboard import set_clipboard_image
+            return self._expand_snippet_match(snip_match, word, delimiter)
 
-                if set_clipboard_image(snippet.replacement):
-                    from ravan.platform.inject import send_ctrl_v
-
-                    send_ctrl_v()
-                return True
-
-            from ravan.core.snippet import (
-                extract_form_fields,
-                parse_cursor_placeholder,
-                render_template,
-            )
-
-            fields = extract_form_fields(repl_text)
-            if fields:
-                self._erase_word_and_delimiter(word, delimiter)
-                from ravan.ui.form_dialog import QuickFormDialog
-
-                def _on_form_submit(rendered_text: str) -> None:
-                    cl, off = parse_cursor_placeholder(rendered_text)
-                    self._suppress_until = time.monotonic() + 0.08
-                    replace_last_n_with(0, cl, cursor_offset=off)
-                    for c in cl:
-                        self.journal.push(c)
-
-                QuickFormDialog(
-                    parent=getattr(self.overlay, "_root", None),
-                    template=repl_text,
-                    fields=fields,
-                    on_submit=_on_form_submit,
-                    theme_mode=getattr(self.cfg, "theme_mode", "auto"),
-                ).show()
-                return True
-
-            expansion, cursor_offset = parse_cursor_placeholder(
-                render_template(repl_text)
-            )
-            from ravan.core.macro import is_macro_snippet, parse_macro_snippet
-
-            if is_macro_snippet(expansion):
-                macro_data = parse_macro_snippet(expansion)
-                if macro_data:
-                    self._erase_word_and_delimiter(word, delimiter)
-                    from ravan.core.macro import MacroPlayer
-
-                    MacroPlayer.play(
-                        macro_data,
-                        on_suppress=lambda d: setattr(
-                            self, "_suppress_until", time.monotonic() + d
-                        ),
-                    )
-                    return True
-            self._replace_word(
-                word, expansion, delimiter=delimiter, cursor_offset=cursor_offset
-            )
-            return True
-
-        res = self.snippets.expand_with_cursor(word, app_name=app_name)
+        res = self.snippets.expand_with_cursor(word, app_name=app_name, include_regex=False)
         if res is not None:
             expansion, cursor_offset = res
             self._replace_word(
@@ -315,6 +311,7 @@ class RavanApp(
             if hasattr(self.journal, "previous_context")
             else getattr(self.journal, "previous_word", lambda: None)()
         )
+        # 2. Autocorrect
         if self.cfg.autocorrect_enabled:
             cand = self.predictor.correct(word, lang=lang_tag)
             if cand is not None and cand.text != word:
@@ -325,14 +322,21 @@ class RavanApp(
                 self.predictor.record_selection(cand.text, context=prev_context)
                 return True
 
+        # 3. Auto-fix (wrong keyboard layout e.g. sghl -> سلام)
         if self._maybe_autofix_word(word, delimiter=delimiter):
             return True
 
+        # 4. Transliteration (e.g. ketab -> کتاب)
         if getattr(self.cfg, "translit_enabled", False):
             if hasattr(self, "_maybe_translit_word") and self._maybe_translit_word(
                 word, delimiter=delimiter
             ):
                 return True
+
+        # 5. Regex snippets! (Runs AFTER auto-fix/translit in priority chain)
+        regex_match = self.snippets.find_matching_regex_snippet(word, app_name)
+        if regex_match is not None:
+            return self._expand_snippet_match(regex_match, word, delimiter)
 
         if word:
             self.predictor.record_selection(word, context=prev_context)

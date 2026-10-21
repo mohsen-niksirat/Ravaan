@@ -5,6 +5,25 @@ All notable changes to Ravaan (روان) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added - Round 5 Phase 1: Snippets 3.0 Regex Triggers
+- **Regex Triggers (`re:`)**:
+  - Full support for regular expression triggers with capture group expansions `$1`..`$9` (and `\1`..`\9`, `${1}`).
+  - Double-dollar `$$` escaping to output literal `$` symbols in replacement templates.
+  - Dedicated module `ravan/core/snippet_regex.py` for pattern extraction, compilation, and evaluation.
+- **Safety & Catastrophic Backtracking Guard**:
+  - Implemented `validate_regex_trigger()` with rejection of patterns that match empty strings (preventing unwanted triggers on empty typing states).
+  - Built-in ReDoS / catastrophic backtracking test battery rejecting patterns exceeding a 1.0 ms budget.
+  - Safe execution engine with length bounding and timeout protection (`safe_regex_match`).
+- **Priority Chain Ordering**:
+  - Regex triggers evaluate strictly *after* auto-fix (`sghl` -> `سلام`) and transliteration (`ketab` -> `کتاب`), preventing loose regexes from intercepting wrong-layout keystrokes.
+  - Full backward compatibility with exact snippet triggers (`find_matching_snippet(..., include_regex=False)`).
+- **Snippet Editor Upgrades**:
+  - Added visual `[Regex]` badge for regex triggers in the Snippets table view.
+  - Added interactive Live Trigger Test box with real-time feedback (matched replacement preview, syntax errors, or no-match indicator).
+  - Validation at save time with user-facing alerts.
+
 ## [1.0.0] - 2026-10-21 - Initial Stable Release
 
 ### Summary

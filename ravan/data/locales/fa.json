@@ -193,7 +193,14 @@
     "import_success": "{count} کلمهٔ اختصاری با موفقیت اضافه شد.",
     "export_success": "{count} کلمهٔ اختصاری با موفقیت صادر شد.",
     "import_err": "خطا در ورود کلمات اختصاری:\n{ex}",
-    "export_err": "خطا در خروج کلمات اختصاری:\n{ex}"
+    "export_err": "خطا در خروج کلمات اختصاری:\n{ex}",
+    "regex_badge": "[عبارت منظم] ",
+    "regex_test_label": "تست زنده کلمه میانبر",
+    "sample_input_label": "ورودی نمونه:",
+    "regex_test_matched": "تطابق یافت: {result}",
+    "regex_test_no_match": "عدم تطابق",
+    "regex_error_title": "خطای اعتبارسنجی عبارت منظم",
+    "regex_error_msg": "الگوی عبارت منظم نامعتبر یا ناامن است:\n{err}"
   },
   "onboarding": {
     "title": "به برنامهٔ روان خوش آمدید!",

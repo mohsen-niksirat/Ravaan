@@ -5,6 +5,8 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from ravan.core.config import Snippet
 from ravan.core.package import export_package, import_package
 from ravan.core.snippet import (
@@ -132,3 +134,145 @@ def test_cli_pack_command():
         # Test CLI import
         ret_import = main(["pack", "import", str(pack_path)])
         assert ret_import == 0
+
+
+
+
+@pytest.mark.parametrize(
+    ("trigger", "replacement", "input_word", "expected"),
+    [
+        (r"re:;d(\d+)", "Day $1 report", ";d25", "Day 25 report"),
+        (r"re:;u:([a-zA-Z]+)", "User: $1", ";u:mohsen", "User: mohsen"),
+        (r"re:;date:(\d{4})-(\d{2})-(\d{2})", "$1/$2/$3", ";date:2026-10-21", "2026/10/21"),
+        (r"re:([a-zA-Z0-9_.]+)@gm", "$1@gmail.com", "info@gm", "info@gmail.com"),
+        (r"re:;price:(\d+)", "$$$1 USD", ";price:50", "$50 USD"),
+        (r"re:;sh(\d+)", "شماره $1", ";sh104", "شماره 104"),
+        (r"re:;calc:(\d+)\+(\d+)", "{{calc: $1 + $2}}", ";calc:10+20", "30"),
+    ],
+)
+def test_regex_table_driven_cases(
+    trigger: str, replacement: str, input_word: str, expected: str
+) -> None:
+    engine = SnippetEngine([Snippet(trigger=trigger, replacement=replacement)])
+    res = engine.expand(input_word)
+    assert res == expected
+
+
+def test_regex_validation_safety_guards() -> None:
+    from ravan.core.snippet_regex import validate_regex_trigger
+
+    # 1. Valid patterns
+    assert validate_regex_trigger(r"re:;d(\d+)")[0] is True
+    assert validate_regex_trigger(r"re:^issue-\d+$")[0] is True
+
+    # 2. Syntax errors
+    ok, err = validate_regex_trigger(r"re:[a-z(")
+    assert not ok
+    assert "Invalid regex syntax" in err
+
+    # 3. Empty patterns
+    assert not validate_regex_trigger("re:")[0]
+    assert not validate_regex_trigger("")[0]
+
+    # 4. Matches empty string guard (must require at least 1 char)
+    ok_empty, err_empty = validate_regex_trigger(r"re:a*")
+    assert not ok_empty
+    assert "cannot match empty strings" in err_empty
+
+    ok_empty2, err_empty2 = validate_regex_trigger(r"re:^$")
+    assert not ok_empty2
+    assert "cannot match empty strings" in err_empty2
+
+    # 5. Catastrophic backtracking guard (>1ms ReDoS guard)
+    catastrophic_pat = r"re:(a+)+$"
+    ok_cat, err_cat = validate_regex_trigger(catastrophic_pat, max_bench_ms=1.0)
+    assert not ok_cat
+    assert "Catastrophic backtracking detected" in err_cat
+
+
+def test_regex_live_preview() -> None:
+    from ravan.core.snippet_regex import preview_regex_expansion
+
+    # Valid match
+    ok, res = preview_regex_expansion(r"re:;t(\d+)", "Ticket #$1", ";t99")
+    assert ok is True
+    assert res == "Ticket #99"
+
+    # Non-match
+    ok, res = preview_regex_expansion(r"re:;t(\d+)", "Ticket #$1", ";other")
+    assert ok is False
+    assert res == "No match"
+
+    # Invalid regex
+    ok, res = preview_regex_expansion(r"re:[unclosed", "text", ";test")
+    assert ok is False
+    assert "Invalid regex" in res
+
+
+def test_priority_chain_exact_vs_autofix_vs_translit_vs_regex() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from ravan.core.config import Config, Snippet
+    from ravan.ui.app import RavanApp
+
+    cfg = Config()
+    cfg.autofix_mode = "safe"
+    cfg.translit_enabled = True
+    cfg.snippets = [
+        Snippet(trigger=";exact", replacement="EXACT_EXPANDED"),
+        # Loose regex trigger that could match general English words if allowed first
+        Snippet(trigger=r"re:([a-z]+)", replacement="REGEX_$1"),
+    ]
+
+    with patch("ravan.ui.app.KeyboardHook"):
+        app = RavanApp(cfg, overlay=MagicMock())
+        app._active_layout_tag = "en"
+        replaced: list[tuple[str, str]] = []
+        app._replace_word = lambda old, new, **kwargs: replaced.append((old, new))
+
+        # 1. Exact snippet takes priority over everything
+        replaced.clear()
+        handled = app._on_word_completed(";exact", delimiter=" ")
+        assert handled is True
+        assert replaced == [(";exact", "EXACT_EXPANDED")]
+
+        # 2. Autofix priority over regex:
+        # "sghl" is Persian "سلام" typed on English keyboard layout.
+        # Autofix MUST claim "sghl" -> "سلام", rather than the loose regex matching it!
+        replaced.clear()
+        handled = app._on_word_completed("sghl", delimiter=" ")
+        assert handled is True
+        assert len(replaced) == 1
+        assert replaced[0][0] == "sghl"
+        assert replaced[0][1] == "سلام"
+
+        # 3. Regex trigger fires when neither exact snippet nor autofix/translit handled it
+        replaced.clear()
+        handled = app._on_word_completed("custompattern", delimiter=" ")
+        assert handled is True
+        assert replaced == [("custompattern", "REGEX_custompattern")]
+
+
+def test_regex_trigger_does_not_interfere_with_zwnj() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from ravan.core.config import Config, Snippet
+    from ravan.core.zwnj import ZWNJ
+    from ravan.ui.app import RavanApp
+
+    cfg = Config()
+    cfg.auto_zwnj_enabled = True
+    cfg.snippets = [
+        Snippet(trigger=r"re:;sh(\d+)", replacement="شماره $1"),
+    ]
+
+    with patch("ravan.ui.app.KeyboardHook"):
+        app = RavanApp(cfg, overlay=MagicMock())
+        replaced: list[tuple[str, str]] = []
+        app._replace_word = lambda old, new, **kwargs: replaced.append((old, new))
+
+        # Expanding regex snippet does not inject unwanted ZWNJ or corrupt text
+        handled = app._on_word_completed(";sh55", delimiter=" ")
+        assert handled is True
+        assert replaced == [(";sh55", "شماره 55")]
+        assert ZWNJ not in replaced[0][1]

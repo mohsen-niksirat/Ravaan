@@ -193,7 +193,14 @@
     "import_success": "Successfully imported {count} snippets.",
     "export_success": "Exported {count} snippets successfully.",
     "import_err": "Failed to import snippets:\n{ex}",
-    "export_err": "Failed to export snippets:\n{ex}"
+    "export_err": "Failed to export snippets:\n{ex}",
+    "regex_badge": "[Regex] ",
+    "regex_test_label": "Live Trigger Test",
+    "sample_input_label": "Test Input:",
+    "regex_test_matched": "Matched: {result}",
+    "regex_test_no_match": "No match",
+    "regex_error_title": "Regex Validation Error",
+    "regex_error_msg": "Invalid or unsafe regex pattern:\n{err}"
   },
   "onboarding": {
     "title": "Welcome to Ravaan (روان)!",

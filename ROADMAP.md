@@ -22,7 +22,8 @@
   - Bigram and trigram sentence continuations with dimmed subtext styling and `Shift+Enter` whole-phrase acceptance.
   - Strict suppression in password, numeric, and IME fields; multi-monitor DPI work-area clamping.
 - **Phase 6: Snippets 3.0: Forms, Images, Per-App, Regex (Target F - Espanso/Beeftext Parity)**
-  - Regex triggers (`re:...`) with capture group expansions (`$1/$2`) and 5ms ReDoS timeout protection.
+  - Regex triggers (`re:...`) with capture group expansions (`$1`..`$9`), ReDoS & catastrophic backtracking guard (<1ms test battery), empty-string rejection, and live trigger test box in Settings.
+  - Priority chain enforcement: regex triggers execute after auto-fix (`sghl` -> `سلام`) and transliteration (`ketab` -> `کتاب`).
   - Interactive placeholder forms (`QuickFormDialog`) with text, choice, and date macros.
   - Native image snippets via Win32 `CF_DIB` clipboard injection.
   - Per-app inclusion/exclusion filters and CLI `pack export/import`.

@@ -6,7 +6,6 @@ import json
 import logging
 import os
 import re
-import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -15,10 +14,33 @@ from datetime import date
 from .config import Config, Snippet
 from .jalali import JalaliDate, current_time_str
 from .snippet_macros import BUILTIN_PLACEHOLDERS, fetch_clipboard, get_macro_values
+from .snippet_regex import (
+    expand_capture_groups,
+    extract_regex_pattern,
+    preview_regex_expansion,
+    safe_regex_match,
+    validate_regex_trigger,
+)
 
 _fetch_clipboard = fetch_clipboard
 
 log = logging.getLogger(__name__)
+
+__all__ = [
+    "FormField",
+    "SnippetEngine",
+    "expand_capture_groups",
+    "extract_form_fields",
+    "extract_regex_pattern",
+    "parse_cursor_placeholder",
+    "preview_regex_expansion",
+    "render_form_template",
+    "render_template",
+    "safe_regex_match",
+    "snippets_from_json",
+    "snippets_to_json",
+    "validate_regex_trigger",
+]
 
 
 @dataclass
@@ -28,34 +50,6 @@ class FormField:
     default: str = ""
     choices: list[str] = field(default_factory=list)
     field_type: str = "text"  # "text" | "choice" | "date"
-
-
-def safe_regex_match(
-    pattern: str, text: str, max_len: int = 100, timeout_sec: float = 0.005
-) -> re.Match[str] | None:
-    """Evaluate regex match with input length bound and timeout to prevent ReDoS."""
-    if len(text) > max_len:
-        return None
-    try:
-        regex = re.compile(pattern)
-        t0 = time.perf_counter()
-        m = regex.fullmatch(text)
-        if (time.perf_counter() - t0) > timeout_sec:
-            log.warning("Regex evaluation exceeded timeout (%s)", pattern)
-            return None
-        return m
-    except Exception as exc:  # noqa: BLE001
-        log.debug("Regex match failed for %r: %s", pattern, exc)
-        return None
-
-
-def expand_capture_groups(template: str, match: re.Match[str]) -> str:
-    """Expand $1, $2, etc., using capture groups from regex match."""
-    res = template
-    for i in range(1, len(match.groups()) + 1):
-        val = match.group(i) or ""
-        res = res.replace(f"${i}", val).replace(f"\\{i}", val)
-    return res
 
 
 def extract_form_fields(template: str) -> list[FormField]:
@@ -264,7 +258,10 @@ class SnippetEngine:
         return cls([s for s in cfg.snippets if getattr(s, "enabled", True)])
 
     def find_matching_snippet(
-        self, word: str, app_name: str | None = None
+        self,
+        word: str,
+        app_name: str | None = None,
+        include_regex: bool = True,
     ) -> tuple[Snippet, str] | None:
         """Find matching snippet accounting for per-app filters and regex triggers."""
         app_low = app_name.lower().strip() if app_name else ""
@@ -283,6 +280,8 @@ class SnippetEngine:
 
             is_reg = getattr(s, "is_regex", False) or s.trigger.startswith("re:")
             if is_reg:
+                if not include_regex:
+                    continue
                 pat = s.trigger[3:] if s.trigger.startswith("re:") else s.trigger
                 m = safe_regex_match(pat, word)
                 if m is not None:
@@ -293,11 +292,44 @@ class SnippetEngine:
 
         return None
 
-    def expand_with_cursor(
+    def find_matching_regex_snippet(
         self, word: str, app_name: str | None = None
+    ) -> tuple[Snippet, str] | None:
+        """Find matching regex snippet only (used when regex runs after auto-fix/translit)."""
+        app_low = app_name.lower().strip() if app_name else ""
+
+        for s in self._raw_snippets:
+            if not getattr(s, "enabled", True):
+                continue
+
+            is_reg = getattr(s, "is_regex", False) or s.trigger.startswith("re:")
+            if not is_reg:
+                continue
+
+            filt = getattr(s, "app_filter", "")
+            if filt and app_low:
+                allowed = [a.strip().lower() for a in filt.split(",") if a.strip()]
+                base = os.path.basename(app_low)
+                base_no_ext = os.path.splitext(base)[0]
+                if allowed and not any(a in (app_low, base, base_no_ext) for a in allowed):
+                    continue
+
+            pat = s.trigger[3:] if s.trigger.startswith("re:") else s.trigger
+            m = safe_regex_match(pat, word)
+            if m is not None:
+                expanded_repl = expand_capture_groups(s.replacement, m)
+                return s, expanded_repl
+
+        return None
+
+    def expand_with_cursor(
+        self,
+        word: str,
+        app_name: str | None = None,
+        include_regex: bool = True,
     ) -> tuple[str, int | None] | None:
         """Expand word into (replacement_text, cursor_offset_from_end) or None."""
-        match = self.find_matching_snippet(word, app_name)
+        match = self.find_matching_snippet(word, app_name, include_regex=include_regex)
         if match is not None:
             snippet, repl_text = match
             rendered = render_template(repl_text)
@@ -332,8 +364,13 @@ class SnippetEngine:
 
         return None
 
-    def expand(self, word: str, app_name: str | None = None) -> str | None:
-        res = self.expand_with_cursor(word, app_name=app_name)
+    def expand(
+        self,
+        word: str,
+        app_name: str | None = None,
+        include_regex: bool = True,
+    ) -> str | None:
+        res = self.expand_with_cursor(word, app_name=app_name, include_regex=include_regex)
         return res[0] if res is not None else None
 
     def all(self) -> list[tuple[str, str]]:
