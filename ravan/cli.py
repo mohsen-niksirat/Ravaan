@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     p_pack.add_argument("path", help="Path to .ravaanpack file")
     p_pack.add_argument("--title", default="Ravaan Snippets")
     p_pack.add_argument("--author", default="")
+    p_pack.add_argument("--replace", action="store_true", help="Replace existing snippets on trigger collision")
 
     args = parser.parse_args(argv)
     if args.version or args.check_updates:
@@ -365,31 +366,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "pack":
-        from ravan.core.config import load_config, save_config
-        from ravan.core.package import export_package, import_package
+        from ravan.core.package import cli_pack_handler
 
-        cfg = load_config()
-        if args.action == "export":
-            export_package(
-                cfg.snippets,
-                args.path,
-                title=getattr(args, "title", "Ravaan Snippets"),
-                author=getattr(args, "author", ""),
-            )
-            print(f"Exported {len(cfg.snippets)} snippets to {args.path}")
-            return 0
-        if args.action == "import":
-            imported = import_package(args.path)
-            existing = {s.trigger for s in cfg.snippets}
-            added = 0
-            for s in imported:
-                if s.trigger not in existing:
-                    cfg.snippets.append(s)
-                    existing.add(s.trigger)
-                    added += 1
-            save_config(cfg)
-            print(f"Imported {added} snippets (total {len(cfg.snippets)}) from {args.path}")
-            return 0
+        return cli_pack_handler(args)
 
     return 1
 

@@ -368,5 +368,34 @@
   },
   "snippets": {
     "image_not_found": "فایل تصویر برای قطعه‌متن یافت نشد: {path}"
+  },
+  "packages": {
+    "import_btn": "📦 وارد کردن پکیج…",
+    "export_btn": "📦 ایجاد پکیج…",
+    "import_title": "وارد کردن پکیج میانبرهای متنی",
+    "export_title": "ایجاد پکیج میانبرهای متنی",
+    "package_info": "اطلاعات پکیج",
+    "name_label": "نام:",
+    "author_label": "نویسنده:",
+    "desc_label": "توضیحات:",
+    "snippets_count": "تعداد میانبرها: {count}",
+    "groups_count": "تعداد گروه‌ها: {count}",
+    "preview_header": "میانبرهای موجود در پکیج:",
+    "integrity_verified": "✓ اصالت پکیج تأیید شد (SHA-256)",
+    "integrity_error": "خطا در بررسی اصالت پکیج!\nمحتوای پکیج دستکاری شده یا آسیب دیده است:\n{err}",
+    "collisions_warning": "⚠️ {count} مورد تداخل میانبر با میانبرهای فعلی شما یافت شد.",
+    "replace_checkbox": "جایگزینی میانبرهای مشابه در صورت تداخل",
+    "export_name": "نام پکیج:",
+    "export_author": "نویسنده:",
+    "export_desc_en": "توضیحات (انگلیسی):",
+    "export_desc_fa": "توضیحات (فارسی):",
+    "select_snippets": "انتخاب میانبرها برای خروجی:",
+    "select_groups": "انتخاب گروه‌های برنامه برای خروجی:",
+    "select_all": "انتخاب همه",
+    "deselect_all": "لغو انتخاب همه",
+    "btn_export_action": "ایجاد پکیج .ravaanpack",
+    "btn_import_action": "وارد کردن پکیج",
+    "export_success": "پکیج «{name}» با موفقیت ایجاد شد ({count} میانبر).",
+    "import_success": "تعداد {count} میانبر از پکیج «{name}» با موفقیت وارد شد."
   }
 }

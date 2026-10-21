@@ -178,8 +178,10 @@ class SnippetEditorWindow:
         bot_bar = ttk.Frame(main_frm)
         bot_bar.pack(fill="x", pady=(6, 0))
         for txt, cmd, side, px in [
-            (t("snippets_editor.btn_import", "Import JSON…"), self._import_json, "left", (0, 6)),
-            (t("snippets_editor.btn_export", "Export JSON…"), self._export_json, "left", 6),
+            (t("snippets_editor.btn_import", "Import JSON…"), self._import_json, "left", (0, 4)),
+            (t("snippets_editor.btn_export", "Export JSON…"), self._export_json, "left", 4),
+            (t("packages.import_btn", "📦 Import Package…"), self._import_pack, "left", 4),
+            (t("packages.export_btn", "📦 Export Package…"), self._export_pack, "left", 4),
             (t("snippets_editor.btn_save_close", "Save & Close"), self._save_all_and_close, "right", 6),
             (t("snippets_editor.btn_cancel", "Cancel"), self._close, "right", (6, 0)),
         ]:
@@ -340,6 +342,25 @@ class SnippetEditorWindow:
     def _export_json(self) -> None:
         self._save_current_to_list()
         export_snippets_dialog(self._root, self.snippets)
+
+    def _import_pack(self) -> None:
+        from ravan.ui.package_dialog import open_package_import_dialog
+
+        def on_imported(snips: list[Snippet], grps: list[SnippetGroup]) -> None:
+            self.snippets = snips
+            if grps:
+                self.groups = grps
+            self._refresh_list()
+            if self.snippets:
+                self._select_index(0)
+
+        open_package_import_dialog(self._root, self.snippets, self.groups, on_imported)
+
+    def _export_pack(self) -> None:
+        from ravan.ui.package_dialog import open_package_export_dialog
+
+        self._save_current_to_list()
+        open_package_export_dialog(self._root, self.snippets, self.groups)
 
     def _save_all_and_close(self) -> None:
         if self._trigger_var and self._trigger_var.get().strip():

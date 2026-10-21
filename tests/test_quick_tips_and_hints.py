@@ -6,6 +6,8 @@ import queue
 import tkinter as tk
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from ravan.core.config import Config, HotkeySpec, config_from_dict, config_to_dict
 from ravan.platform.hook import HookEvent
 from ravan.ui.hint_manager import HintManager

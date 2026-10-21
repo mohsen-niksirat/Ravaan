@@ -116,7 +116,8 @@ def test_package_export_and_import():
         assert imported[0].trigger == ";hi"
         assert imported[0].replacement == "Hello world!"
         assert imported[1].is_image is True
-        assert Path(imported[1].replacement).is_file()
+        img_p = imported[1].replacement.removeprefix("image:")
+        assert Path(img_p).is_file()
         assert imported[2].is_regex is True
 
 

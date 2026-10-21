@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Round 5 Phase 4: Snippets 3.0 .ravaanpack Packages (Offline Hub-lite)
+- **Portable Package Format (`.ravaanpack`)**:
+  - ZIP-based bundle format with `manifest.json` containing metadata, snippet definitions, application groups, and word lists.
+  - Full support for text, dynamic templates, forms, regex (`re:...`), and binary image snippets.
+- **SHA-256 Cryptographic Verification & Tamper Protection**:
+  - SHA-256 digests computed for every snippet replacement and image asset upon export.
+  - Packages with mismatched hashes, modified replacements, or tampered image binaries are strictly refused with `PackageIntegrityError`.
+  - Directory traversal and ZipSlip guard protecting local directories.
+- **Package Preview & Import Dialog (`ravan/ui/package_dialog.py`)**:
+  - Graphical preview displaying package name, author, version, description (bilingual FA/EN), and items.
+  - Automatic trigger collision detection with existing snippets (flagged and safely skipped by default).
+  - "Replace existing snippets on collision" toggle for explicit overwrites.
+- **Package Export Dialog (`ravan/ui/package_export_dialog.py`)**:
+  - Selectable checklist of snippets and app groups, author metadata, and description fields.
+- **CLI Pack Subcommand**:
+  - `python -m ravan.cli pack export <path> [--title <title>] [--author <author>]`
+  - `python -m ravan.cli pack import <path> [--replace]`
+- **Official Example Bundle & Documentation**:
+  - Added `examples/persian-dates.ravaanpack` featuring Jalali calendar and date shortcuts.
+  - Comprehensive specification and user guide in `docs/PACKAGES.md` (EN + فارسی).
+
 ### Added - Round 5 Phase 3: Snippets 3.0 Image Snippets & Per-App Groups
 - **Image Snippets (\image:C:\\path\\to\\image.png\ or \is_image=True\)**:
   - Automatically loads PNG, JPEG, BMP, GIF, or WebP images and places them on the Windows clipboard (\CF_DIB\).

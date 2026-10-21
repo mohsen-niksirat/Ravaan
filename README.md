@@ -19,7 +19,7 @@
 - ⚡ **Wrong Keyboard Layout Auto-Fix:** Automatically converts mistakenly typed text between Persian and English (e.g. `sghl` $\leftrightarrow$ `سلام`) as soon as you press space or punctuation.
 - ✍️ **Persian Typography & ZWNJ (نیم‌فاصله):** Automatic normalization of Arabic characters (`ي`/`ك` $\to$ `ی`/`ک`) and intelligent zero-width non-joiner placement for prefixes (`می‌`, `نمی‌`) and suffixes (`‌ها`, `‌تر`, `‌ترین`, `‌مند`).
 - 🔤 **Finglish Phonetic Typing:** Converts Latin transliteration into canonical Persian (`salam` $\to$ `سلام`, `khosh amadid` $\to$ `خوش آمدید`) using a 162k+ Persian lexicon trie.
-- 🚀 **Text Snippets & Expansions:** Type shortcuts like `;em` to instantly expand your email or `;date` / `;jdate` for Gregorian / Jalali dates.
+- 🚀 **Snippets 3.0 & .ravaanpack Hub-lite:** Text, dynamic placeholders (`{{shamsi}}`), interactive forms, regex triggers, clipboard images, per-app groups, and portable `.ravaanpack` bundles with SHA-256 tamper verification.
 - 🧮 **Inline Math Calculator:** Evaluate expressions directly in any text box by typing `125*8=` $\to$ `1000`.
 - 🛡️ **Zero Telemetry & Local-Only Privacy:** Ephemeral RAM buffers (max 32 characters), no keystroke logging to disk, and no background outbound network connections.
 - 📦 **Modern Windows Packaging:** Available via **Winget**, **Scoop**, **Chocolatey**, Inno Setup per-user installer, or standalone Portable ZIP.
@@ -96,7 +96,7 @@ python -m ravan
 Curious how Ravaan looks in action? Check out our [Interactive Demos & Walkthroughs](docs/DEMO.md) featuring:
 - **Scenario 1:** Wrong Keyboard Layout Auto-Fix (`sghl` $\to$ `سلام`)
 - **Scenario 2:** Persian Typography & ZWNJ Engine (`می روم` $\to$ `می‌روم`)
-- **Scenario 3:** Text & Image Snippets (`;em` $\to$ `user@example.com`, `re:;d(\d+)` $\to$ `Day $1 report`, interactive forms `{{name}}`, `image:logo.png`, and per-app groups)
+- **Scenario 3:** Text & Image Snippets (`;em` $\to$ `user@example.com`, `re:;d(\d+)` $\to$ `Day $1 report`, interactive forms `{{name}}`, `image:logo.png`, per-app groups, and portable `.ravaanpack` packages)
 - **Scenario 4:** Finglish Phonetic Typing (`khosh` $\to$ `خوش`)
 - **Scenario 5:** Inline Math Calculator (`125*8=` $\to$ `1000`)
 - **Scenario 6:** Privacy Guard & Local-Only Architecture

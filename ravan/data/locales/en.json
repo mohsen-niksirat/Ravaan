@@ -368,5 +368,34 @@
   },
   "snippets": {
     "image_not_found": "Image snippet file not found: {path}"
+  },
+  "packages": {
+    "import_btn": "📦 Import Package…",
+    "export_btn": "📦 Export Package…",
+    "import_title": "Import Ravaan Snippet Package",
+    "export_title": "Export Ravaan Snippet Package",
+    "package_info": "Package Information",
+    "name_label": "Name:",
+    "author_label": "Author:",
+    "desc_label": "Description:",
+    "snippets_count": "Snippets: {count}",
+    "groups_count": "App Groups: {count}",
+    "preview_header": "Snippets Included in Package:",
+    "integrity_verified": "✓ Integrity verified (SHA-256)",
+    "integrity_error": "Package integrity verification failed!\nThe package contents have been tampered with or corrupted:\n{err}",
+    "collisions_warning": "⚠️ {count} trigger collision(s) detected with your existing snippets.",
+    "replace_checkbox": "Replace existing snippets on collision",
+    "export_name": "Package Name:",
+    "export_author": "Author:",
+    "export_desc_en": "Description (English):",
+    "export_desc_fa": "Description (Persian):",
+    "select_snippets": "Select snippets to include:",
+    "select_groups": "Select app groups to include:",
+    "select_all": "Select All",
+    "deselect_all": "Deselect All",
+    "btn_export_action": "Export .ravaanpack",
+    "btn_import_action": "Import Package",
+    "export_success": "Package '{name}' exported successfully ({count} snippets).",
+    "import_success": "Successfully imported {count} snippets from package '{name}'."
   }
 }

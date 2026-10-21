@@ -14,3 +14,4 @@ venv/
 .DS_Store
 ravaan-agent-skill.md
 *prompt*.txt
+uv.lock

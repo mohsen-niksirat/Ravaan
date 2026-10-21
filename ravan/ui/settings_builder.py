@@ -487,6 +487,25 @@ def build_snippets_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     ttk.Button(snip_hdr, text=t("settings.snippets_editor_btn", "Open Snippet Editor…"), command=win._open_snippet_editor).pack(
         side=pack_side
     )
+
+    def _import_pkg() -> None:
+        from ravan.ui.package_dialog import open_package_import_dialog
+
+        def _on_pkg_imported(snips: list[Any], grps: list[Any]) -> None:
+            win._managed_snippets = snips
+            if grps:
+                win.cfg.snippet_groups = grps
+            win._update_snip_display()
+
+        open_package_import_dialog(frm, win._managed_snippets, win.cfg.snippet_groups, _on_pkg_imported)
+
+    ttk.Button(
+        snip_hdr,
+        text=t("packages.import_btn", "📦 Import Package…"),
+        command=_import_pkg,
+    ).pack(
+        side=pack_side
+    )
     row += 1
     win._snip_text = tk.Text(frm, width=40, height=6)
     win._update_snip_display()
