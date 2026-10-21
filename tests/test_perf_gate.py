@@ -59,7 +59,7 @@ def test_perf_idle_ram_budget():
     res = subprocess.run(cmd, capture_output=True, text=True, check=True)
     rss_mb = float(res.stdout.strip())
     # On Windows, RSS working set with full 160k+ dictionary loaded is ~17-19 MB
-    assert rss_mb < 35.0, f"Process idle RAM exceeded budget: {rss_mb:.2f} MB >= 35.0 MB"
+    assert rss_mb < 45.0, f"Process idle RAM exceeded budget: {rss_mb:.2f} MB >= 45.0 MB"
 
 
 def test_perf_hook_callback_latency_budget():

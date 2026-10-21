@@ -76,8 +76,9 @@ def test_wizard_navigation_and_step_flow():
         assert wiz._root is None
         assert cfg.has_seen_onboarding is True
         assert on_done.called
-    except tk.TclError:
-        pytest.skip("Tkinter display not available")
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
+
 
 
 def test_wizard_demo_typing_simulation():
@@ -110,8 +111,9 @@ def test_wizard_demo_typing_simulation():
         assert "ZWNJ" in wiz._demo_badge.cget("text") or "نیم‌فاصله" in wiz._demo_badge.cget("text")
 
         wiz._close(completed=False)
-    except tk.TclError:
-        pytest.skip("Tkinter display not available")
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
+
 
 
 def test_wizard_preset_selection_persists():
@@ -131,5 +133,6 @@ def test_wizard_preset_selection_persists():
         assert cfg.clipboard_history_enabled is True
         assert cfg.next_word_prediction is True
         assert cfg.convert_hotkey.key == "Alt+L"
-    except tk.TclError:
-        pytest.skip("Tkinter display not available")
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
+

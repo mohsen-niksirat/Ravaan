@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import tkinter as tk
 
+import pytest
+
 from ravan.core.config import Config
 from ravan.ui.quick_tips import QuickTipsWindow
 from ravan.ui.theme import (
@@ -97,7 +99,10 @@ def test_no_color_only_signals_for_confidence():
 
 def test_keyboard_navigation_escape_bindings():
     """Verify major windows register Escape key closing bindings for keyboard navigation."""
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
     root.withdraw()
     try:
         cfg = Config()

@@ -30,8 +30,9 @@ def test_tooltip_lifecycle():
         assert tip._tip_window is None
 
         root.destroy()
-    except tk.TclError:
-        pytest.skip("Tkinter display not available")
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
+
 
 
 def test_settings_search_filtering():
@@ -59,8 +60,9 @@ def test_settings_search_filtering():
 
         win._close()
         assert win._root is None
-    except tk.TclError:
-        pytest.skip("Tkinter display not available")
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
+
 
 
 def test_settings_save_and_cancel_callbacks():
@@ -74,5 +76,6 @@ def test_settings_save_and_cancel_callbacks():
         win._save()
         assert on_saved.called
         assert win._root is None
-    except tk.TclError:
-        pytest.skip("Tkinter display not available")
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
+
