@@ -25,6 +25,7 @@
   - Regex triggers (`re:...`) with capture group expansions (`$1`..`$9`), ReDoS & catastrophic backtracking guard (<1ms test battery), empty-string rejection, and live trigger test box in Settings.
   - Priority chain enforcement: regex triggers execute after auto-fix (`sghl` -> `سلام`) and transliteration (`ketab` -> `کتاب`).
   - Interactive placeholder forms (`QuickFormDialog`) with text, choice, and date macros.
+  - Multi-line textarea support (`{{field:multiline}}`), opt-in per-field memory cache (`{{field:remember}}`), nested macro defaults (`{{url={{clipboard}}}}`), and automatic foreground window focus restoration.
   - Native image snippets via Win32 `CF_DIB` clipboard injection.
   - Per-app inclusion/exclusion filters and CLI `pack export/import`.
 - **Phase 7: Quick Accent / Persian Letter Picker (Target G - PowerToys Parity)**

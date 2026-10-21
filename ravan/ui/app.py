@@ -243,12 +243,12 @@ class RavanApp(
             render_template,
         )
 
-        fields = extract_form_fields(repl_text)
+        fields = extract_form_fields(repl_text, snippet_trigger=snippet.trigger)
         if fields:
-            self._erase_word_and_delimiter(word, delimiter)
             from ravan.ui.form_dialog import QuickFormDialog
 
             def _on_form_submit(rendered_text: str) -> None:
+                self._erase_word_and_delimiter(word, delimiter)
                 cl, off = parse_cursor_placeholder(rendered_text)
                 self._suppress_until = time.monotonic() + 0.08
                 replace_last_n_with(0, cl, cursor_offset=off)
@@ -259,6 +259,7 @@ class RavanApp(
                 parent=getattr(self.overlay, "_root", None),
                 template=repl_text,
                 fields=fields,
+                snippet_trigger=snippet.trigger,
                 on_submit=_on_form_submit,
                 theme_mode=getattr(self.cfg, "theme_mode", "auto"),
             ).show()

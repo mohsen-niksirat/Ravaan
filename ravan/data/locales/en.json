@@ -335,5 +335,12 @@
   },
   "toast": {
     "translit_undo": "Reverted Finglish: {orig}"
+  },
+  "form_dialog": {
+    "title": "Ravaan — Fill Snippet Form",
+    "header": "Please fill in the snippet fields:",
+    "btn_confirm": "Confirm & Insert (Enter)",
+    "btn_cancel": "Cancel (Esc)",
+    "err_required": "Field '{label}' cannot be empty"
   }
 }

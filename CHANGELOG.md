@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Round 5 Phase 2: Snippets 3.0 Interactive Forms
+- **Snippet Forms Engine (`ravan/core/snippet_forms.py`)**:
+  - Full support for interactive snippet placeholders (`{{field}}`, `{{field=default}}`, `{{field:choice:A|B}}`, `{{field:date}}`).
+  - Multi-line textarea support with `{{field:multiline}}`.
+  - Opt-in per-field value memory (`{{field:remember}}`), caching the last entered value per snippet across sessions.
+  - Nested dynamic macro defaults (`{{url={{clipboard}}}}`, `{{date={{shamsi}}}}`).
+  - Balanced brace parser supporting nested template expressions.
+  - Headless `FormController` enabling 100% testable, decoupled form validation and rendering.
+- **Themed Popup UI (`ravan/ui/form_dialog.py`)**:
+  - RTL-correct Persian rendering and theme palette integration.
+  - Tab / Shift+Tab field navigation; Enter confirms single-line inputs; Ctrl+Enter confirms multi-line textareas; Esc cancels without text deletion or insertion.
+  - Automatic foreground window tracking and focus restoration (`SetForegroundWindow`), ensuring the active application never permanently loses focus.
+  - Required field validation with red outline visual highlighting.
+
 ### Added - Round 5 Phase 1: Snippets 3.0 Regex Triggers
 - **Regex Triggers (`re:`)**:
   - Full support for regular expression triggers with capture group expansions `$1`..`$9` (and `\1`..`\9`, `${1}`).

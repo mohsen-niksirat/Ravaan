@@ -335,5 +335,12 @@
   },
   "toast": {
     "translit_undo": "لغو فینگلیش: {orig}"
+  },
+  "form_dialog": {
+    "title": "روان — تکمیل فیلدهای فرم",
+    "header": "مقادیر فیلدهای اسنیپت را وارد کنید:",
+    "btn_confirm": "تأیید و درج (Enter)",
+    "btn_cancel": "انصراف (Esc)",
+    "err_required": "فیلد «{label}» نمی‌تواند خالی باشد"
   }
 }

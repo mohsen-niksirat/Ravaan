@@ -8,12 +8,20 @@ import os
 import re
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from datetime import date
 
 from .config import Config, Snippet
 from .jalali import JalaliDate, current_time_str
-from .snippet_macros import BUILTIN_PLACEHOLDERS, fetch_clipboard, get_macro_values
+from .snippet_forms import (
+    FormController,
+    FormFieldSpec,
+    clear_remembered_values,
+    get_remembered_value,
+    parse_form_fields,
+    render_form_template_with_specs,
+    save_remembered_value,
+)
+from .snippet_macros import fetch_clipboard, get_macro_values
 from .snippet_regex import (
     expand_capture_groups,
     extract_regex_pattern,
@@ -22,116 +30,48 @@ from .snippet_regex import (
     validate_regex_trigger,
 )
 
+# Backward-compatible alias
+FormField = FormFieldSpec
+
 _fetch_clipboard = fetch_clipboard
 
 log = logging.getLogger(__name__)
 
 __all__ = [
+    "FormController",
     "FormField",
+    "FormFieldSpec",
     "SnippetEngine",
+    "clear_remembered_values",
     "expand_capture_groups",
     "extract_form_fields",
     "extract_regex_pattern",
+    "get_remembered_value",
     "parse_cursor_placeholder",
+    "parse_form_fields",
     "preview_regex_expansion",
     "render_form_template",
+    "render_form_template_with_specs",
     "render_template",
     "safe_regex_match",
+    "save_remembered_value",
     "snippets_from_json",
     "snippets_to_json",
     "validate_regex_trigger",
 ]
 
 
-@dataclass
-class FormField:
-    name: str
-    label: str
-    default: str = ""
-    choices: list[str] = field(default_factory=list)
-    field_type: str = "text"  # "text" | "choice" | "date"
-
-
-def extract_form_fields(template: str) -> list[FormField]:
-    """Extract interactive user form fields from template."""
-    fields: list[FormField] = []
-    seen: set[str] = set()
-
-    for m in re.finditer(r"\{\{\s*([^}]+)\s*\}\}", template):
-        content = m.group(1).strip()
-        low = content.lower()
-        if (
-            low in BUILTIN_PLACEHOLDERS
-            or low.startswith("calc:")
-            or low.startswith("math:")
-            or low.startswith("eval:")
-        ):
-            continue
-
-        if content.lower().startswith("choice:"):
-            raw_choices = content[7:].strip()
-            opts = [o.strip() for o in raw_choices.split("|") if o.strip()]
-            name = f"choice_{len(fields) + 1}"
-            fields.append(
-                FormField(
-                    name=name,
-                    label="Select Option",
-                    default=opts[0] if opts else "",
-                    choices=opts,
-                    field_type="choice",
-                )
-            )
-        elif content.lower().startswith("date:"):
-            fmt = content[5:].strip()
-            name = f"date_{len(fields) + 1}"
-            fields.append(
-                FormField(
-                    name=name,
-                    label=f"Date ({fmt})",
-                    default=JalaliDate.today().isoformat_fa(),
-                    field_type="date",
-                )
-            )
-        else:
-            if ":" in content:
-                key, default = content.split(":", 1)
-                key, default = key.strip(), default.strip()
-            else:
-                key, default = content, ""
-            if key not in seen:
-                seen.add(key)
-                fields.append(
-                    FormField(
-                        name=key,
-                        label=key.replace("_", " ").title(),
-                        default=default,
-                        field_type="text",
-                    )
-                )
-    return fields
+def extract_form_fields(
+    template: str, snippet_trigger: str = ""
+) -> list[FormFieldSpec]:
+    """Extract interactive user form fields from template (Snippets 3.0)."""
+    return parse_form_fields(template, snippet_trigger=snippet_trigger)
 
 
 def render_form_template(template: str, values: dict[str, str]) -> str:
     """Substitute user form field inputs into template."""
-    choice_idx = 1
-    date_idx = 1
-
-    def _sub(m: re.Match[str]) -> str:
-        nonlocal choice_idx, date_idx
-        content = m.group(1).strip()
-        if content.lower().startswith("choice:"):
-            key = f"choice_{choice_idx}"
-            choice_idx += 1
-            return values.get(key, values.get(content, ""))
-        if content.lower().startswith("date:"):
-            key = f"date_{date_idx}"
-            date_idx += 1
-            return values.get(key, values.get(content, ""))
-        key = content.split(":", 1)[0].strip()
-        return values.get(key, m.group(0))
-
-    rendered = re.sub(r"\{\{\s*([^}]+)\s*\}\}", _sub, template)
-    return render_template(rendered)
+    fields = parse_form_fields(template)
+    return render_form_template_with_specs(template, values, fields)
 
 
 def render_template(template: str) -> str:

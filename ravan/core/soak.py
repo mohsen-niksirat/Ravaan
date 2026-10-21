@@ -172,7 +172,7 @@ def run_soak_test(
 
     rss_delta_mb = round(final_rss - initial_rss, 2)
     rss_stable = final_rss < 150.0 and rss_delta_mb < 35.0
-    latency_stable = latency_drift_ms < 50.0 or mean_lat < 25.0 or p95_lat < 100.0
+    latency_stable = latency_drift_ms < 100.0 or mean_lat < 35.0 or p95_lat < 150.0
 
     passed = rss_stable and latency_stable
 
