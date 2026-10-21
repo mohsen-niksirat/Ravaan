@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Summary
 The initial production release of **Ravaan (????)** ? the intelligent, privacy-first bilingual Persian/English typing assistant for Windows.
 
+### Bug Fixes
+- **Shift+Enter Soft Newline Pass-through**:
+  - Fixed an issue where pressing `Shift+Enter` while the prediction overlay was visible swallowed the keystroke and replaced the typed word with a candidate instead of passing the line break through to the active application (Word, Telegram, Slack, browsers).
+  - Added dedicated unit tests in `tests/test_suggestions_v2.py` verifying `Shift+Enter` passes through cleanly to the OS while dismissing the suggestion popup and appending a newline to the typing journal.
+
 ### Phase 10: Final Polish, Release Automation & Version Harmonization
 - Release Build Pipeline (`scripts/build_release.py`):
   - Automated workflow bundling `Ravaan.exe` via PyInstaller (`ravan.spec`), creating portable ZIP archives with multilingual documentation, and computing GNU `SHA256SUMS.txt`.

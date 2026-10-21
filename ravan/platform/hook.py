@@ -35,6 +35,24 @@ _NAV_VKS = {
 _DIGIT_VKS = {ord("1"), ord("2"), ord("3"), ord("4"), ord("5")}
 
 
+def _is_shift_pressed() -> bool:
+    if not w.user32:
+        return False
+    try:
+        if (w.user32.GetAsyncKeyState(w.VK_SHIFT) & 0x8000) or (
+            w.user32.GetKeyState(w.VK_SHIFT) & 0x8000
+        ):
+            return True
+        for vk in (w.VK_LSHIFT, w.VK_RSHIFT):
+            if (w.user32.GetAsyncKeyState(vk) & 0x8000) or (
+                w.user32.GetKeyState(vk) & 0x8000
+            ):
+                return True
+    except Exception:
+        pass
+    return False
+
+
 @dataclass(frozen=True)
 class HookEvent:
     vk_code: int
@@ -191,6 +209,14 @@ class KeyboardHook:
             if _popup_visible and is_down:
                 vk = event.vk_code
                 if vk in _NAV_VKS or (_swallow_digits and vk in _DIGIT_VKS):
+                    # Never swallow Shift+Enter: pass through so the target app receives the newline!
+                    if vk == w.VK_RETURN and _is_shift_pressed():
+                        self._emit(event)
+                        return int(
+                            w.user32.CallNextHookEx(
+                                self._hook or 0, n_code, w_param, l_param
+                            )
+                        )
                     self._emit(event)
                     return 1  # swallow — target app must not see these
                 if _swallow_arrow == "right" and vk == w.VK_RIGHT:

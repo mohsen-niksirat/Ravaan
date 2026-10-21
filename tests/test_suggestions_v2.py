@@ -114,7 +114,7 @@ def test_arrow_key_accept_left_in_rtl():
             app.stop()
 
 
-def test_shift_enter_accepts_sentence_continuation():
+def test_shift_enter_passes_through_newline_and_dismisses_prediction():
     cfg = Config()
     overlay = DummyOverlay()
     with patch("ravan.ui.app.KeyboardHook"):
@@ -135,11 +135,39 @@ def test_shift_enter_accepts_sentence_continuation():
                 app._accept_candidate = lambda cand: accepted.append(cand.text)
 
                 app._handle_key(event)
-                assert len(accepted) == 1
-                assert accepted[0] == "حال شما چطوره"
+                # Shift+Enter MUST NOT accept candidate or replace words!
+                assert len(accepted) == 0
                 assert not overlay.predicting
+                assert "\n" in app.journal.text()
         finally:
             app.stop()
+
+
+def test_hook_callback_shift_enter_not_swallowed():
+    import ctypes
+
+    from ravan.platform.hook import KeyboardHook, set_popup_visible
+    hook = KeyboardHook()
+    set_popup_visible(True)
+    try:
+        kb = w.KBDLLHOOKSTRUCT()
+        kb.vkCode = w.VK_RETURN
+        kb.scanCode = 28
+        kb.flags = 0
+        kb_ptr = ctypes.addressof(kb)
+
+        # 1. Plain Enter when popup is visible -> swallowed (returns 1)
+        with patch("ravan.platform.hook._is_shift_pressed", return_value=False):
+            res = hook._callback(0, w.WM_KEYDOWN, kb_ptr)
+            assert res == 1
+
+        # 2. Shift+Enter when popup is visible -> NOT swallowed (passes through)
+        with patch("ravan.platform.hook._is_shift_pressed", return_value=True), \
+             patch("ravan.platform.winapi.user32.CallNextHookEx", return_value=0):
+            res = hook._callback(0, w.WM_KEYDOWN, kb_ptr)
+            assert res == 0
+    finally:
+        set_popup_visible(False)
 
 
 def test_suppression_in_password_and_numeric_and_ime():

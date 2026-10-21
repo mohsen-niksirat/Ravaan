@@ -7,7 +7,7 @@ import time
 from typing import Any
 
 from ravan.platform import winapi as w
-from ravan.platform.hook import LLKHF_INJECTED, HookEvent, set_popup_visible
+from ravan.platform.hook import LLKHF_INJECTED, HookEvent, _is_shift_pressed, set_popup_visible
 from ravan.platform.inject import replace_last_n_with
 from ravan.platform.keys import is_modifier, matches_hotkey, vk_to_unicode
 from ravan.platform.lang import current_language
@@ -127,14 +127,17 @@ class KeyHandlerMixin:
                 self.overlay.move_selection(1)
                 return
             if vk in (w.VK_RETURN, w.VK_TAB):
-                if vk == w.VK_RETURN and (w.user32.GetKeyState(w.VK_SHIFT) & 0x8000):
-                    cand = (
-                        self.overlay.accept_sentence_continuation()
-                        if hasattr(self.overlay, "accept_sentence_continuation")
-                        else None
-                    ) or self.overlay.accept_selected()
-                else:
-                    cand = self.overlay.accept_selected()
+                if vk == w.VK_RETURN and _is_shift_pressed():
+                    # Shift+Enter: user wants a newline / line break in the active app.
+                    # Dismiss the prediction popup, push newline to journal, do NOT accept candidate.
+                    self.overlay.hide()
+                    set_popup_visible(False)
+                    self._last_autocorrect = None
+                    self.journal.push("\n")
+                    log.debug("Shift+Enter passed through as newline; prediction dismissed")
+                    return
+
+                cand = self.overlay.accept_selected()
                 if cand:
                     self._accept_candidate(cand)
                 set_popup_visible(False)
@@ -244,6 +247,14 @@ class KeyHandlerMixin:
             self._last_autocorrect = None
             self.journal.push("\b")
             self._schedule_predict()
+            return
+
+        if vk == w.VK_RETURN:
+            self._last_autocorrect = None
+            self.journal.push("\n")
+            if self.overlay.predicting or self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
             return
 
         # Suppress features inside password fields and excluded apps for security
