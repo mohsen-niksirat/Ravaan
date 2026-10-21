@@ -144,7 +144,19 @@
     "about_features": "Key Features:\n• Layout Conversion (Pause)\n• Word Prediction & Autocorrect\n• Smart Half-Space (ZWNJ)\n• Clipboard History (Alt+V)\n• Quick Text Stats (Ctrl+Alt+S)\n• Math & Jalali Macros\n• Snippets 2.0 & Cloud Sync",
     "enable_translit": "Phonetic Finglish typing (Experimental)",
     "enable_translit_example": "Example: Type 'salam' to convert to 'سلام' phonetically with candidate popup",
-    "hotkey_translit": "Phonetic Finglish (Experimental):"
+    "hotkey_translit": "Phonetic Finglish (Experimental):",
+    "groups_header": "Per-App Snippet Groups",
+    "btn_add_group": "+ Add Group",
+    "btn_edit_group": "✎ Edit Matchers",
+    "btn_toggle_group": "Toggle Active",
+    "btn_delete_group": "- Delete Group",
+    "group_col_name": "Group Name",
+    "group_col_matchers": "App / Class Matchers",
+    "group_col_status": "Status",
+    "group_status_active": "Active",
+    "group_status_disabled": "Disabled",
+    "group_prompt_name": "Enter group name (e.g. Browsers, Code):",
+    "group_prompt_matchers": "Enter application exe names or classes (comma-separated, e.g. chrome.exe, code.exe, class:Notepad):"
   },
   "stats": {
     "header": "📊 Text Statistics",
@@ -200,7 +212,18 @@
     "regex_test_matched": "Matched: {result}",
     "regex_test_no_match": "No match",
     "regex_error_title": "Regex Validation Error",
-    "regex_error_msg": "Invalid or unsafe regex pattern:\n{err}"
+    "regex_error_msg": "Invalid or unsafe regex pattern:\n{err}",
+    "body_type": "Type:",
+    "type_text": "Text / Template",
+    "type_image": "Image (Clipboard)",
+    "btn_browse": "Browse…",
+    "image_path_label": "Image file path:",
+    "invalid_image_err": "The selected image file is missing or invalid:\n{err}",
+    "pick_image_title": "Select Snippet Image",
+    "image_types": "Image Files",
+    "all_files": "All Files",
+    "groups_section": "App Groups (fires only in matching applications):",
+    "no_groups_hint": "(No groups configured. Configure in Settings > Snippets)"
   },
   "onboarding": {
     "title": "Welcome to Ravaan (روان)!",
@@ -342,5 +365,8 @@
     "btn_confirm": "Confirm & Insert (Enter)",
     "btn_cancel": "Cancel (Esc)",
     "err_required": "Field '{label}' cannot be empty"
+  },
+  "snippets": {
+    "image_not_found": "Image snippet file not found: {path}"
   }
 }

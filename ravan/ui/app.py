@@ -55,9 +55,7 @@ class RavanApp(
         from ravan.core.cliphistory import ClipboardHistory
         from ravan.core.config import config_dir
 
-        self.clip_history = ClipboardHistory(
-            maxlen=50, storage_path=config_dir() / "clipboard_history.json"
-        )
+        self.clip_history = ClipboardHistory(maxlen=50, storage_path=config_dir() / "clipboard_history.json")
         self.overlay = overlay if overlay is not None else OverlayWindow(self.cfg.theme)
         self.hook = KeyboardHook()
         self._ui_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
@@ -80,10 +78,7 @@ class RavanApp(
         self._pause_timer: threading.Timer | None = None
         from ravan.ui.hint_manager import HintManager
 
-        self.hint_manager = HintManager(
-            self.cfg,
-            on_show_toast=self._show_toast if hasattr(self, "_show_toast") else None,
-        )
+        self.hint_manager = HintManager(self.cfg, on_show_toast=getattr(self, "_show_toast", None))
         self._init_autofix()
         self._init_accent()
         self._init_ai()
@@ -94,9 +89,7 @@ class RavanApp(
         setup_logging()
         from ravan.ui.log_setup import install_crash_handler
 
-        install_crash_handler(
-            on_crash=lambda msg: self.tray.notify(msg, title="Ravaan Error")
-        )
+        install_crash_handler(on_crash=lambda msg: self.tray.notify(msg, title="Ravaan Error"))
         log.info("Starting Ravan")
         log.info(
             "Suggestions: type 2+ letters → ↑/↓ select → Enter/Tab accept "
@@ -115,7 +108,6 @@ class RavanApp(
         startup_ms = (time.perf_counter() - t0) * 1000
         log.info("RavanApp startup completed in %.1f ms", startup_ms)
         try:
-
             while self._running:
                 try:
                     self._drain_ui_actions()
@@ -128,13 +120,7 @@ class RavanApp(
                     self._maybe_predict()
                     self._maybe_timeout_popup()
                     self.overlay.tick()
-                    for win in (
-                        self._settings_window,
-                        self._diagnostics_window,
-                        self._snippet_window,
-                        self._wizard_window,
-                        self._quick_tips_window,
-                    ):
+                    for win in (self._settings_window, self._diagnostics_window, self._snippet_window, self._wizard_window, self._quick_tips_window):
                         if win is not None:
                             win.tick()
                 except Exception:  # noqa: BLE001
@@ -144,7 +130,6 @@ class RavanApp(
             pass
         finally:
             self.stop()
-
 
     def stop(self) -> None:
         if threading.current_thread() is not threading.main_thread():
@@ -227,14 +212,22 @@ class RavanApp(
         self, snip_match: tuple[Any, str], word: str, delimiter: str = ""
     ) -> bool:
         snippet, repl_text = snip_match
-        if getattr(snippet, "is_image", False):
-            self._erase_word_and_delimiter(word, delimiter)
+        from ravan.core.snippet import resolve_image_snippet
+
+        is_img, img_path = resolve_image_snippet(repl_text, getattr(snippet, "is_image", False))
+        if is_img:
             from ravan.platform.clipboard import set_clipboard_image
 
-            if set_clipboard_image(snippet.replacement):
+            if set_clipboard_image(img_path):
+                self._erase_word_and_delimiter(word, delimiter)
                 from ravan.platform.inject import send_ctrl_v
 
                 send_ctrl_v()
+            else:
+                from ravan.core.i18n import t
+
+                msg = t("snippets.image_not_found", "Image not found: {path}", path=img_path)
+                self.tray.notify(msg)
             return True
 
         from ravan.core.snippet import (
@@ -265,9 +258,7 @@ class RavanApp(
             ).show()
             return True
 
-        expansion, cursor_offset = parse_cursor_placeholder(
-            render_template(repl_text)
-        )
+        expansion, cursor_offset = parse_cursor_placeholder(render_template(repl_text))
         from ravan.core.macro import is_macro_snippet, parse_macro_snippet
 
         if is_macro_snippet(expansion):
@@ -278,14 +269,10 @@ class RavanApp(
 
                 MacroPlayer.play(
                     macro_data,
-                    on_suppress=lambda d: setattr(
-                        self, "_suppress_until", time.monotonic() + d
-                    ),
+                    on_suppress=lambda d: setattr(self, "_suppress_until", time.monotonic() + d),
                 )
                 return True
-        self._replace_word(
-            word, expansion, delimiter=delimiter, cursor_offset=cursor_offset
-        )
+        self._replace_word(word, expansion, delimiter=delimiter, cursor_offset=cursor_offset)
         return True
 
     def _on_word_completed(self, word: str, delimiter: str = "") -> bool:
@@ -293,17 +280,19 @@ class RavanApp(
             return False
 
         app_name = getattr(self, "_current_exe", "")
+        win_cls = getattr(self, "_current_window_class", None)
         # 1. Exact snippets (exclude regex triggers)
-        snip_match = self.snippets.find_matching_snippet(word, app_name, include_regex=False)
+        snip_match = self.snippets.find_matching_snippet(
+            word, app_name, include_regex=False, window_class=win_cls
+        )
         if snip_match is not None:
             return self._expand_snippet_match(snip_match, word, delimiter)
 
-        res = self.snippets.expand_with_cursor(word, app_name=app_name, include_regex=False)
+        res = self.snippets.expand_with_cursor(
+            word, app_name=app_name, include_regex=False, window_class=win_cls
+        )
         if res is not None:
-            expansion, cursor_offset = res
-            self._replace_word(
-                word, expansion, delimiter=delimiter, cursor_offset=cursor_offset
-            )
+            self._replace_word(word, res[0], delimiter=delimiter, cursor_offset=res[1])
             return True
 
         lang_tag = self._active_layout_tag
@@ -335,7 +324,9 @@ class RavanApp(
                 return True
 
         # 5. Regex snippets! (Runs AFTER auto-fix/translit in priority chain)
-        regex_match = self.snippets.find_matching_regex_snippet(word, app_name)
+        regex_match = self.snippets.find_matching_regex_snippet(
+            word, app_name, window_class=win_cls
+        )
         if regex_match is not None:
             return self._expand_snippet_match(regex_match, word, delimiter)
 

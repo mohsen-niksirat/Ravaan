@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import uuid
 from collections.abc import Callable
@@ -20,6 +19,13 @@ from .snippet_forms import (
     parse_form_fields,
     render_form_template_with_specs,
     save_remembered_value,
+)
+from .snippet_groups import (
+    SnippetGroup,
+    group_matches_app,
+    resolve_image_snippet,
+    snippet_matches_app,
+    validate_image_path,
 )
 from .snippet_macros import fetch_clipboard, get_macro_values
 from .snippet_regex import (
@@ -42,21 +48,26 @@ __all__ = [
     "FormField",
     "FormFieldSpec",
     "SnippetEngine",
+    "SnippetGroup",
     "clear_remembered_values",
     "expand_capture_groups",
     "extract_form_fields",
     "extract_regex_pattern",
     "get_remembered_value",
+    "group_matches_app",
     "parse_cursor_placeholder",
     "parse_form_fields",
     "preview_regex_expansion",
     "render_form_template",
     "render_form_template_with_specs",
     "render_template",
+    "resolve_image_snippet",
     "safe_regex_match",
     "save_remembered_value",
+    "snippet_matches_app",
     "snippets_from_json",
     "snippets_to_json",
+    "validate_image_path",
     "validate_regex_trigger",
 ]
 
@@ -132,6 +143,7 @@ def snippets_to_json(snippets: list[Snippet], indent: int = 2) -> str:
             "is_regex": getattr(s, "is_regex", False),
             "app_filter": getattr(s, "app_filter", ""),
             "is_image": getattr(s, "is_image", False),
+            "groups": getattr(s, "groups", []),
         }
         for s in snippets
     ]
@@ -157,6 +169,7 @@ def snippets_from_json(json_str: str) -> list[Snippet]:
                         is_regex=bool(item.get("is_regex", False)),
                         app_filter=str(item.get("app_filter", "")),
                         is_image=bool(item.get("is_image", False)),
+                        groups=[str(g).strip() for g in item.get("groups", []) if str(g).strip()],
                     )
                 )
     return snippets
@@ -167,6 +180,7 @@ class SnippetEngine:
         self,
         snippets: list[Snippet | tuple[str, str]],
         include_default_macros: bool = True,
+        groups: list[SnippetGroup] | None = None,
     ) -> None:
         self._raw_snippets: list[Snippet] = []
         for s in snippets:
@@ -174,6 +188,7 @@ class SnippetEngine:
                 self._raw_snippets.append(s)
             elif isinstance(s, (tuple, list)) and len(s) >= 2:
                 self._raw_snippets.append(Snippet(trigger=s[0], replacement=s[1]))
+        self._groups: list[SnippetGroup] = list(groups or [])
         self._macros: dict[str, Callable[[], str]] = {}
         if include_default_macros:
             self._init_default_macros()
@@ -195,28 +210,25 @@ class SnippetEngine:
 
     @classmethod
     def from_config(cls, cfg: Config) -> SnippetEngine:
-        return cls([s for s in cfg.snippets if getattr(s, "enabled", True)])
+        return cls(
+            [s for s in cfg.snippets if getattr(s, "enabled", True)],
+            groups=getattr(cfg, "snippet_groups", None),
+        )
 
     def find_matching_snippet(
         self,
         word: str,
         app_name: str | None = None,
         include_regex: bool = True,
+        window_class: str | None = None,
     ) -> tuple[Snippet, str] | None:
         """Find matching snippet accounting for per-app filters and regex triggers."""
-        app_low = app_name.lower().strip() if app_name else ""
-
         for s in self._raw_snippets:
             if not getattr(s, "enabled", True):
                 continue
 
-            filt = getattr(s, "app_filter", "")
-            if filt and app_low:
-                allowed = [a.strip().lower() for a in filt.split(",") if a.strip()]
-                base = os.path.basename(app_low)
-                base_no_ext = os.path.splitext(base)[0]
-                if allowed and not any(a in (app_low, base, base_no_ext) for a in allowed):
-                    continue
+            if not snippet_matches_app(s, app_name, window_class=window_class, groups=self._groups):
+                continue
 
             is_reg = getattr(s, "is_regex", False) or s.trigger.startswith("re:")
             if is_reg:
@@ -233,11 +245,12 @@ class SnippetEngine:
         return None
 
     def find_matching_regex_snippet(
-        self, word: str, app_name: str | None = None
+        self,
+        word: str,
+        app_name: str | None = None,
+        window_class: str | None = None,
     ) -> tuple[Snippet, str] | None:
         """Find matching regex snippet only (used when regex runs after auto-fix/translit)."""
-        app_low = app_name.lower().strip() if app_name else ""
-
         for s in self._raw_snippets:
             if not getattr(s, "enabled", True):
                 continue
@@ -246,13 +259,8 @@ class SnippetEngine:
             if not is_reg:
                 continue
 
-            filt = getattr(s, "app_filter", "")
-            if filt and app_low:
-                allowed = [a.strip().lower() for a in filt.split(",") if a.strip()]
-                base = os.path.basename(app_low)
-                base_no_ext = os.path.splitext(base)[0]
-                if allowed and not any(a in (app_low, base, base_no_ext) for a in allowed):
-                    continue
+            if not snippet_matches_app(s, app_name, window_class=window_class, groups=self._groups):
+                continue
 
             pat = s.trigger[3:] if s.trigger.startswith("re:") else s.trigger
             m = safe_regex_match(pat, word)
@@ -267,9 +275,12 @@ class SnippetEngine:
         word: str,
         app_name: str | None = None,
         include_regex: bool = True,
+        window_class: str | None = None,
     ) -> tuple[str, int | None] | None:
         """Expand word into (replacement_text, cursor_offset_from_end) or None."""
-        match = self.find_matching_snippet(word, app_name, include_regex=include_regex)
+        match = self.find_matching_snippet(
+            word, app_name, include_regex=include_regex, window_class=window_class
+        )
         if match is not None:
             snippet, repl_text = match
             rendered = render_template(repl_text)
@@ -309,8 +320,11 @@ class SnippetEngine:
         word: str,
         app_name: str | None = None,
         include_regex: bool = True,
+        window_class: str | None = None,
     ) -> str | None:
-        res = self.expand_with_cursor(word, app_name=app_name, include_regex=include_regex)
+        res = self.expand_with_cursor(
+            word, app_name=app_name, include_regex=include_regex, window_class=window_class
+        )
         return res[0] if res is not None else None
 
     def all(self) -> list[tuple[str, str]]:

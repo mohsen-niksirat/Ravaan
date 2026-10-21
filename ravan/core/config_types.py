@@ -17,6 +17,14 @@ class HotkeySpec:
 
 
 @dataclass
+class SnippetGroup:
+    id: str = ""
+    name: str = ""
+    matchers: list[str] = field(default_factory=list)
+    enabled: bool = True
+
+
+@dataclass
 class Snippet:
     trigger: str
     replacement: str
@@ -25,6 +33,7 @@ class Snippet:
     is_regex: bool = False
     app_filter: str = ""
     is_image: bool = False
+    groups: list[str] = field(default_factory=list)
 
 
 @dataclass

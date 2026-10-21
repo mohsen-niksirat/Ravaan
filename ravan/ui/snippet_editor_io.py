@@ -1,13 +1,108 @@
-"""JSON import and export file dialog handlers for the Snippet Editor."""
+"""JSON import, export, toolbar helpers, and validation handlers for Snippet Editor."""
 
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from collections.abc import Callable
+from tkinter import filedialog, messagebox, ttk
 
 from ravan.core.config import Snippet
 from ravan.core.i18n import t
 from ravan.core.snippet import snippets_from_json, snippets_to_json
+
+_PLACEHOLDERS = [
+    ("+ $0", "$0"), ("+ {{shamsi}}", "{{shamsi}}"), ("+ {{tarikh}}", "{{tarikh}}"),
+    ("+ {{time}}", "{{time}}"), ("+ {{weekday}}", "{{weekday}}"), ("+ {{uuid}}", "{{uuid}}"),
+    ("+ {{calc:...}}", "{{calc: 100 * 1.09}}"),
+]
+
+
+def build_placeholder_toolbar(
+    parent: ttk.Frame,
+    text_editor_getter: Callable[[], tk.Text | None],
+    on_modified: Callable[[], None],
+) -> ttk.LabelFrame:
+    """Create the insert-placeholders quick button toolbar."""
+    h_box = ttk.LabelFrame(
+        parent,
+        text=t("snippets_editor.insert_placeholders", "Insert Placeholders"),
+        padding=2,
+    )
+    h_btns = ttk.Frame(h_box)
+    h_btns.pack(fill="x")
+
+    def add_ph(text: str) -> None:
+        ed = text_editor_getter()
+        if ed is not None:
+            ed.insert(tk.INSERT, text)
+            ed.focus_set()
+            on_modified()
+
+    for label, val in _PLACEHOLDERS:
+        ttk.Button(h_btns, text=label, command=lambda v=val: add_ph(v)).pack(side="left", padx=1)
+    return h_box
+
+
+def eval_live_test(trig: str, repl: str, sample: str) -> tuple[bool, str, str]:
+    """Evaluate live trigger test returning (matched, display_text, hex_color)."""
+    if not trig or not sample:
+        return False, "", "gray"
+    if trig.startswith("re:"):
+        from ravan.core.snippet import preview_regex_expansion
+
+        ok, res = preview_regex_expansion(trig, repl, sample)
+        color = "#2b8a3e" if ok else ("gray" if res == "No match" else "#c92a2a")
+        txt = (
+            t("snippets_editor.regex_test_matched", "Matched: {result}", result=res)
+            if ok
+            else (t("snippets_editor.regex_test_no_match", "No match") if res == "No match" else res)
+        )
+        return ok, txt, color
+
+    matched = sample == trig
+    from ravan.core.snippet import render_template
+
+    res = render_template(repl) if matched else ""
+    txt = (
+        t("snippets_editor.regex_test_matched", "Matched: {result}", result=res)
+        if matched
+        else t("snippets_editor.regex_test_no_match", "No match")
+    )
+    return matched, txt, "#2b8a3e" if matched else "gray"
+
+
+def validate_snippet_entry(
+    trig: str,
+    repl: str,
+    is_image: bool = False,
+    parent: tk.Widget | None = None,
+) -> bool:
+    """Validate trigger and replacement syntax/path before applying or saving."""
+    if not trig:
+        messagebox.showwarning(
+            t("app_name", "Ravaan"),
+            t("snippets_editor.empty_trigger_warn", "Trigger cannot be empty"),
+            parent=parent,
+        )
+        return False
+    if trig.startswith("re:"):
+        from ravan.core.snippet_regex import validate_regex_trigger
+
+        is_valid, err = validate_regex_trigger(trig)
+        if not is_valid:
+            messagebox.showerror(
+                t("snippets_editor.regex_error_title", "Regex Error"),
+                t("snippets_editor.regex_error_msg", "Invalid regex:\n{err}", err=err),
+                parent=parent,
+            )
+            return False
+    if is_image or repl.startswith("image:"):
+        from ravan.ui.snippet_groups_ui import validate_and_alert_image
+
+        img_path = repl[6:].strip() if repl.startswith("image:") else repl.strip()
+        if not validate_and_alert_image(img_path, parent=parent):
+            return False
+    return True
 
 
 def import_snippets_dialog(

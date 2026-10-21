@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Round 5 Phase 3: Snippets 3.0 Image Snippets & Per-App Groups
+- **Image Snippets (\image:C:\\path\\to\\image.png\ or \is_image=True\)**:
+  - Automatically loads PNG, JPEG, BMP, GIF, or WebP images and places them on the Windows clipboard (\CF_DIB\).
+  - Automatically triggers target application paste (\Ctrl+V\).
+  - Save-time file existence and Pillow image format verification (\alidate_image_path\).
+  - Expand-time missing image guard: shows friendly tray notification without text corruption or silent crashes.
+- **Per-App Snippet Groups (avan/core/snippet_groups.py\)**:
+  - Group model with name, enabled toggle, and list of executable/window-class matchers (\is_app_excluded\ matcher reuse).
+  - Snippets can be assigned to 0..N groups; snippets with groups only expand when active application matches an enabled group.
+  - Global snippets (0 assigned groups) remain active across all allowed applications.
+  - Supports executable names (\chrome.exe\), extension-less names (\chrome\), and window classes (\class:ConsoleWindowClass\, \class:Notepad\).
+- **Snippet Groups Manager (avan/ui/snippet_groups_ui.py\)**:
+  - Embedded list editor in Settings -> Snippets tab with Add, Edit Matchers, Toggle Active, and Delete Group capabilities.
+- **Snippet Editor Upgrades**:
+  - Snippet Type selector: Text vs Image.
+  - Image file picker dialog (\pick_image_file\) with auto-completion.
+  - Per-app group assignment checkboxes with dynamic status hints.
+  - Visual badges in snippet list (\[Img]\, \[Regex]\, and assigned group tags).
+
+
 ### Added - Round 5 Phase 2: Snippets 3.0 Interactive Forms
 - **Snippet Forms Engine (`ravan/core/snippet_forms.py`)**:
   - Full support for interactive snippet placeholders (`{{field}}`, `{{field=default}}`, `{{field:choice:A|B}}`, `{{field:date}}`).

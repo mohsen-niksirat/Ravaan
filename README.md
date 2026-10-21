@@ -96,7 +96,7 @@ python -m ravan
 Curious how Ravaan looks in action? Check out our [Interactive Demos & Walkthroughs](docs/DEMO.md) featuring:
 - **Scenario 1:** Wrong Keyboard Layout Auto-Fix (`sghl` $\to$ `سلام`)
 - **Scenario 2:** Persian Typography & ZWNJ Engine (`می روم` $\to$ `می‌روم`)
-- **Scenario 3:** Text Snippet Expansion (`;em` $\to$ `user@example.com`, regex triggers `re:;d(\d+)` $\to$ `Day $1 report`, and interactive forms `{{name}}` / `{{notes:multiline}}`)
+- **Scenario 3:** Text & Image Snippets (`;em` $\to$ `user@example.com`, `re:;d(\d+)` $\to$ `Day $1 report`, interactive forms `{{name}}`, `image:logo.png`, and per-app groups)
 - **Scenario 4:** Finglish Phonetic Typing (`khosh` $\to$ `خوش`)
 - **Scenario 5:** Inline Math Calculator (`125*8=` $\to$ `1000`)
 - **Scenario 6:** Privacy Guard & Local-Only Architecture

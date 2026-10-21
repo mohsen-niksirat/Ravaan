@@ -493,6 +493,18 @@ def build_snippets_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     win._snip_text.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
     row += 1
 
+    from ravan.ui.snippet_groups_ui import build_groups_manager_frame
+
+    def _on_groups_changed(groups: list[Any]) -> None:
+        from ravan.core.config import save_config
+
+        win.cfg.snippet_groups = groups
+        save_config(win.cfg)
+
+    grp_frm = build_groups_manager_frame(frm, win.cfg, _on_groups_changed)
+    grp_frm.grid(row=row, column=0, columnspan=3, sticky="we", pady=(6, 6))
+    row += 1
+
     ttk.Separator(frm, orient="horizontal").grid(
         row=row, column=0, columnspan=3, sticky="we", pady=6
     )

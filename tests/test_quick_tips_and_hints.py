@@ -107,7 +107,10 @@ def test_tips_data_categories():
 
 
 def test_quick_tips_window_lifecycle_and_search():
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
     root.withdraw()
     try:
         cfg = Config(theme_mode="light")

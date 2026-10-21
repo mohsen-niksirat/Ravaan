@@ -27,7 +27,9 @@ class AppDialogsMixin:
         from ravan.ui.snippet_editor import SnippetEditorWindow
 
         self._snippet_window = SnippetEditorWindow(
-            self.cfg.snippets, on_saved=self._on_snippets_saved
+            self.cfg.snippets,
+            on_saved=self._on_snippets_saved,
+            groups=getattr(self.cfg, "snippet_groups", None),
         )
         self._snippet_window.show()
 

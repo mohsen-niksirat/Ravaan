@@ -309,7 +309,9 @@ class SettingsWindow:
             self._update_snip_display()
 
         self._snippet_editor = SnippetEditorWindow(
-            self._managed_snippets, on_saved=on_editor_saved
+            self._managed_snippets,
+            on_saved=on_editor_saved,
+            groups=getattr(self.cfg, "snippet_groups", None),
         )
         self._snippet_editor.show()
 

@@ -16,6 +16,7 @@ from ravan.core.config_types import (
     DEFAULT_EXCLUDED_APPS,
     HotkeySpec,
     Snippet,
+    SnippetGroup,
     Theme,
 )
 
@@ -37,6 +38,7 @@ class Config:
     next_word_prediction: bool = True
     excluded_apps: list[str] = field(default_factory=lambda: list(DEFAULT_EXCLUDED_APPS))
     snippets: list[Snippet] = field(default_factory=list)
+    snippet_groups: list[SnippetGroup] = field(default_factory=list)
     launch_at_startup: bool = False
     theme: Theme = field(default_factory=Theme)
     english_dict_enabled: bool = True
@@ -290,10 +292,14 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
             is_regex=bool(s.get("is_regex", False)),
             app_filter=str(s.get("app_filter", "")),
             is_image=bool(s.get("is_image", False)),
+            groups=[str(g).strip() for g in s.get("groups", []) if str(g).strip()],
         )
         for s in data.get("snippets", [])
         if isinstance(s, dict) and s.get("trigger") and "replacement" in s
     ]
+    from ravan.core.snippet_groups import groups_from_dict
+
+    snippet_groups = groups_from_dict(data.get("snippet_groups", []))
     excluded = data.get("excluded_apps", DEFAULT_EXCLUDED_APPS)
     if not isinstance(excluded, list):
         excluded = DEFAULT_EXCLUDED_APPS
@@ -370,6 +376,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         next_word_prediction=bool(data.get("next_word_prediction", True)),
         excluded_apps=[str(x).strip().lower() for x in excluded if str(x).strip()],
         snippets=snippets,
+        snippet_groups=snippet_groups,
         launch_at_startup=bool(data.get("launch_at_startup", False)),
         theme=_theme_from_dict(data.get("theme")),
         english_dict_enabled=bool(data.get("english_dict_enabled", True)),

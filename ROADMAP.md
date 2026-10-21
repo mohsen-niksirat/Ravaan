@@ -26,7 +26,9 @@
   - Priority chain enforcement: regex triggers execute after auto-fix (`sghl` -> `سلام`) and transliteration (`ketab` -> `کتاب`).
   - Interactive placeholder forms (`QuickFormDialog`) with text, choice, and date macros.
   - Multi-line textarea support (`{{field:multiline}}`), opt-in per-field memory cache (`{{field:remember}}`), nested macro defaults (`{{url={{clipboard}}}}`), and automatic foreground window focus restoration.
-  - Native image snippets via Win32 `CF_DIB` clipboard injection.
+  - Native image snippets via Win32 `CF_DIB` clipboard injection (`image:path.png`), save-time format verification, and missing file fallback toast.
+  - Per-app snippet groups with inclusion matchers (`code.exe`, `class:Notepad`), enabled toggles, and simple group editor in Settings.
+  - Snippet Editor upgraded with Type selector (Text / Image), file browser, per-app group checkboxes, and live preview.
   - Per-app inclusion/exclusion filters and CLI `pack export/import`.
 - **Phase 7: Quick Accent / Persian Letter Picker (Target G - PowerToys Parity)**
   - 300ms key-hold and `Ctrl+Space` horizontal accent bar near caret.
