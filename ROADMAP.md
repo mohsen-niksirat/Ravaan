@@ -174,12 +174,17 @@
 
 ---
 
-## Post-1.0 Ideas (Future Exploration)
+## Post-2.0 Ideas & Future Horizons
 
-> [!NOTE]
-> The items below represent exploratory conceptual ideas for post-1.0 consideration. They are not active release commitments or roadmapped promises.
-
-1. **Wayland / Linux Port Exploration**: Investigate abstraction of low-level hooks (`WH_KEYBOARD_LL` → `libinput` / `uinput`) for cross-platform typing assistance.
-2. **Grammar & Preposition Assistance**: Context-aware suggestions for Persian prepositions (به/با/از/در) and formal business letter phrasing.
-3. **Local Vector Search for Large Snippet Catalogs**: Fast, on-device vector search for large snippet catalogs without cloud dependencies.
-4. **Enhanced Voice Dictation Companion**: Local Whisper-based speech-to-text integration piping into Ravaan's Persian normalizer and auto-ZWNJ pipeline.
+Where competitors currently have specific architectural advantages, Ravaan plans future iterations post-2.0:
+1. **Cross-Platform Support (macOS & Linux)**:
+   - Current status: Ravaan is intentionally Windows-first (Windows 10/11 x64/ARM64) to achieve zero-latency Win32 hooks and UI Automation caret detection.
+   - Post-2.0 goal: Explore macOS Accessibility API and Linux Wayland/X11 portal input layers for cross-platform typing assistance (parity with Espanso).
+2. **Hosted Online Package Hub (`hub.ravaan.ir`)**:
+   - Current status: Fully featured offline package manager (`.ravaanpack` with SHA-256 integrity, GUI, and CLI).
+   - Post-2.0 goal: A community-curated online package repository with search, ratings, and one-click in-app install (parity with Espanso Hub).
+3. **Advanced Multi-Caret Expansions**:
+   - Current status: Single caret restoration and back-tabbing navigation.
+   - Post-2.0 goal: Synchronized multi-cursor replacements in editors supporting multi-caret protocols.
+4. **Persian Grammar & Preposition Assistant**:
+   - Context-aware suggestions for Persian prepositions (به/با/از/در) and formal business letter phrasing.
