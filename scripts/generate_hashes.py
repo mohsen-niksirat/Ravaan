@@ -63,7 +63,10 @@ def render_release_notes(version: str, table_md: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate artifact checksums and release notes.")
-    parser.add_argument("--version", default="1.0.0", help="Release version string")
+    import ravan
+
+    default_ver = getattr(ravan, "__version__", "2.0.0")
+    parser.add_argument("--version", default=default_ver, help="Release version string")
     parser.add_argument("--write-notes", default=None, help="Path to write rendered release notes")
     parser.add_argument("--write-sums", default=None, help="Path to write standard SHA256SUMS.txt")
     parser.add_argument("--dist", default=None, help="Custom dist directory")

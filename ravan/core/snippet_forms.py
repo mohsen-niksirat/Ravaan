@@ -197,17 +197,24 @@ def parse_form_fields(
             if cached is not None:
                 default_val = cached
 
-        if raw_name in seen:
-            existing = seen[raw_name]
+        field_name = raw_name
+        if raw_name.lower() in ("choice", "date") and raw_name in seen:
+            idx = 2
+            while f"{raw_name}_{idx}" in seen:
+                idx += 1
+            field_name = f"{raw_name}_{idx}"
+
+        if field_name in seen:
+            existing = seen[field_name]
             if is_remember:
                 existing.remember = True
             if is_multiline:
                 existing.field_type = "multiline"
             continue
 
-        label = raw_name.replace("_", " ").title()
+        label = field_name.replace("_", " ").title()
         spec = FormFieldSpec(
-            name=raw_name,
+            name=field_name,
             label=label,
             default=default_val,
             choices=choices,
@@ -215,7 +222,7 @@ def parse_form_fields(
             remember=is_remember,
             required=True,
         )
-        seen[raw_name] = spec
+        seen[field_name] = spec
         fields.append(spec)
 
     return fields
@@ -228,11 +235,8 @@ def render_form_template_with_specs(
     from ravan.core.snippet import render_template
 
     placeholders = find_balanced_placeholders(template)
-    # Replace from back to front so character indices remain valid
-    res = template
-    date_count = 1
-    choice_count = 1
-    for content, start, end in reversed(placeholders):
+    valid_placeholders = []
+    for content, start, end in placeholders:
         content_stripped = content.strip()
         low = content_stripped.lower()
         if (
@@ -243,20 +247,38 @@ def render_form_template_with_specs(
             or low.startswith("eval:")
         ):
             continue
+        valid_placeholders.append((content_stripped, start, end))
 
+    replacements: list[tuple[int, int, str]] = []
+    date_count = 1
+    choice_count = 1
+    for content_stripped, start, end in valid_placeholders:
         base = content_stripped.split("=", 1)[0].split(":", 1)[0].strip()
         val = None
-        if base in values:
-            val = values[base]
-        elif base == "choice" and f"choice_{choice_count}" in values:
-            val = values[f"choice_{choice_count}"]
+        if base == "choice":
+            c_key = f"choice_{choice_count}"
+            if c_key in values:
+                val = values[c_key]
+            elif choice_count == 1 and "choice" in values:
+                val = values["choice"]
             choice_count += 1
-        elif base == "date" and f"date_{date_count}" in values:
-            val = values[f"date_{date_count}"]
+        elif base == "date":
+            d_key = f"date_{date_count}"
+            if d_key in values:
+                val = values[d_key]
+            elif date_count == 1 and "date" in values:
+                val = values["date"]
             date_count += 1
+        elif base in values:
+            val = values[base]
 
         if val is not None:
-            res = res[:start] + val + res[end:]
+            replacements.append((start, end, val))
+
+    # Replace from back to front so character indices remain valid
+    res = template
+    for start, end, val in reversed(replacements):
+        res = res[:start] + val + res[end:]
 
     return render_template(res)
 

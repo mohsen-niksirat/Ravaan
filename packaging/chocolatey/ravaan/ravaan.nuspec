@@ -29,7 +29,7 @@ Features:
 - Snippet expansion and inline calculator
 - Zero telemetry, zero keystroke logging, open source
 ]]></description>
-    <releaseNotes>https://github.com/mohsen-niksirat/Ravaan/releases/tag/v1.0.0</releaseNotes>
+    <releaseNotes>https://github.com/mohsen-niksirat/Ravaan/releases/tag/v2.0.0</releaseNotes>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />

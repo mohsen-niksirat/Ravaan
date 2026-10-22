@@ -94,7 +94,10 @@ def compile_inno_setup(version: str) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build and package Ravaan release artifacts.")
-    parser.add_argument("--version", default="1.0.0", help="Release version (default: 1.0.0)")
+    import ravan
+
+    default_ver = getattr(ravan, "__version__", "2.0.0")
+    parser.add_argument("--version", default=default_ver, help=f"Release version (default: {default_ver})")
     parser.add_argument("--skip-pyinstaller", action="store_true", help="Skip PyInstaller build step")
     parser.add_argument("--skip-installer", action="store_true", help="Skip Inno Setup compilation")
     parser.add_argument("--dist-dir", default=None, help="Custom dist directory")

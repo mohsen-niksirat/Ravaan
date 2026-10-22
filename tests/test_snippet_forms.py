@@ -178,3 +178,25 @@ def test_form_dialog_focus_restoration_and_cancel():
         dialog._cancel()
         assert len(submitted) == 0
         mock_set_fg.assert_called_with(0x12345)
+
+
+def test_multiple_choices_and_dates_preserved_in_order() -> None:
+    template = "Mode: {{choice:A|B}} vs {{choice:C|D}}, from {{date:YYYY/MM/DD}} to {{date:YYYY/MM/DD}}"
+    fields = parse_form_fields(template)
+
+    assert len(fields) == 4
+    assert fields[0].name == "choice"
+    assert fields[0].choices == ["A", "B"]
+    assert fields[1].name == "choice_2"
+    assert fields[1].choices == ["C", "D"]
+    assert fields[2].name == "date"
+    assert fields[3].name == "date_2"
+
+    values = {
+        "choice": "B",
+        "choice_2": "C",
+        "date": "1405/01/01",
+        "date_2": "1405/12/29",
+    }
+    rendered = render_form_template_with_specs(template, values, fields)
+    assert rendered == "Mode: B vs C, from 1405/01/01 to 1405/12/29"

@@ -102,10 +102,10 @@ def expand_capture_groups(template: str, match: re.Match[str]) -> str:
     res = res.replace("$$", dollar_guard)
 
     groups = match.groups()
-    for i in range(1, len(groups) + 1):
+    for i in range(len(groups), 0, -1):
         val = match.group(i) or ""
-        res = res.replace(f"${i}", val)
         res = res.replace(f"${{{i}}}", val)
+        res = res.replace(f"${i}", val)
         res = res.replace(f"\\{i}", val)
 
     # Restore literal dollars

@@ -277,3 +277,15 @@ def test_regex_trigger_does_not_interfere_with_zwnj() -> None:
         assert handled is True
         assert replaced == [(";sh55", "شماره 55")]
         assert ZWNJ not in replaced[0][1]
+
+
+def test_regex_multi_group_capture_order() -> None:
+    # Verify that $10 is not partially replaced by $1
+    pattern = r"re:" + "".join(";(\\w)" for _ in range(10))
+    replacement = "Group 10 is $10 and Group 1 is $1"
+    snip = Snippet(trigger=pattern, replacement=replacement)
+    engine = SnippetEngine([snip])
+
+    input_text = ";a;b;c;d;e;f;g;h;i;j"
+    expanded = engine.expand(input_text)
+    assert expanded == "Group 10 is j and Group 1 is a"

@@ -49,7 +49,7 @@ choco install ravaan
 
 ---
 
-### 2. Windows Installer (`Ravaan-Setup-1.0.0.exe`)
+### 2. Windows Installer (`Ravaan-Setup-2.0.0.exe`)
 Download the latest installer from [GitHub Releases](https://github.com/mohsen-niksirat/Ravaan/releases/latest).
 - **Per-User Non-Admin Installation:** Installs into `{autopf}\Ravaan` without requiring UAC administrator prompts.
 - **Data Preservation:** Keeps `%APPDATA%\Ravaan` intact across upgrades.
@@ -58,7 +58,7 @@ Download the latest installer from [GitHub Releases](https://github.com/mohsen-n
 
 ---
 
-### 3. Portable Archive (`Ravaan-Portable-1.0.0.zip`)
+### 3. Portable Archive (`Ravaan-Portable-2.0.0.zip`)
 - Zero-installation standalone package containing `Ravaan.exe` and documentation.
 - Extract anywhere and run immediately (great for USB drives and restricted environments).
 
