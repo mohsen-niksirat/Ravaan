@@ -72,6 +72,9 @@ def main(argv: list[str] | None = None) -> int:
     p_pack.add_argument("--title", default="Ravaan Snippets")
     p_pack.add_argument("--author", default="")
     p_pack.add_argument("--replace", action="store_true", help="Replace existing snippets on trigger collision")
+    p_grammar = sub.add_parser("grammar", help="Check and fix Persian grammar, prepositions, and tanween")
+    p_grammar.add_argument("text", help="Text to inspect or correct")
+    p_grammar.add_argument("--fix", action="store_true", help="Output corrected text directly")
 
     args = parser.parse_args(argv)
     if args.version or args.check_updates:
@@ -369,6 +372,23 @@ def main(argv: list[str] | None = None) -> int:
         from ravan.core.package import cli_pack_handler
 
         return cli_pack_handler(args)
+
+    if args.cmd == "grammar":
+        from ravan.core.grammar import correct_persian_grammar, inspect_grammar
+
+        if args.fix:
+            print(correct_persian_grammar(args.text))
+            return 0
+        issues = inspect_grammar(args.text)
+        if not issues:
+            print("No grammar or preposition issues found.")
+            return 0
+        print(f"Found {len(issues)} issue(s):")
+        for i, issue in enumerate(issues, 1):
+            print(f"  {i}. [{issue.category}] {issue.description}")
+        print("\nCorrected:")
+        print(correct_persian_grammar(args.text))
+        return 0
 
     return 1
 

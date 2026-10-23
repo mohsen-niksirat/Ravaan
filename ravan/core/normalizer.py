@@ -248,12 +248,17 @@ def normalize_persian(
     fix_zwnj: bool = True,
     fix_spacing: bool = True,
     fix_punctuation: bool = True,
+    fix_grammar: bool = False,
 ) -> str:
     """Comprehensive Persian text normalizer."""
     if not text:
         return ""
 
     result = normalize_arabic_chars(text)
+    if fix_grammar:
+        from ravan.core.grammar import correct_persian_grammar
+
+        result = correct_persian_grammar(result)
     if fix_zwnj:
         result = normalize_zwnj(result)
     if fix_punctuation:
@@ -273,6 +278,7 @@ def normalize_persian(
 def clean_pasted_text(
     text: str,
     digit_mode: Literal["auto", "fa", "en", "keep"] = "auto",
+    fix_grammar: bool = False,
 ) -> str:
     """Safely clean pasted text: normalize typography while preserving code blocks."""
     if not text:
@@ -301,6 +307,7 @@ def clean_pasted_text(
                 fix_zwnj=True,
                 fix_spacing=True,
                 fix_punctuation=True,
+                fix_grammar=fix_grammar,
             )
             cleaned_parts.append(f"{leading}{clean_chunk}{trailing}")
 

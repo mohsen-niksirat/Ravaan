@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Persian Grammar, Preposition Detachment & Tanween Assistant (`ravan/core/grammar.py`)**:
+  - Detaches fused prepositions according to Academy rules (e.g. «به نام» not «بنام», «به سوی», «به عنوان»).
+  - Safeguard preserving colloquial verbs such as «بیاد» (third-person subjunctive of آمدن).
+  - Adverbial Tanween Fatha restoration («حتماً», «واقعاً», «مثلاً») while preserving non-adverbial plurals like «عرفا».
+  - Compound word cohesion and ZWNJ standardization («گفت‌وگو»، «روبه‌رو»، «راه‌حل‌ها»، «دست‌دوم»).
+  - Silent Heh ezafe correction («خانه ی من» -> «خانه‌ی من») with lookahead supporting digits and Latin words.
+  - Integration with `normalize_persian(..., fix_grammar=True)` and `clean_pasted_text(..., fix_grammar=True)`.
+  - CLI subcommand: `ravan-cli grammar <text> [--fix]` for terminal diagnostics and direct correction.
+  - Comprehensive unit test suite in `tests/test_grammar.py`.
+
 ## [2.0.0] - 2026-10-21 - Major Milestone (Snippets 3.0, .ravaanpack Hub-lite & Feature Parity)
 
 ### Overview / خلاصه‌ی تغییرات
