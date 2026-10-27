@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+import sys
 import tkinter as tk
 from collections.abc import Callable
+from typing import Any
 
 from ravan.core.config import Theme
 from ravan.core.events import Candidate
@@ -14,13 +17,23 @@ from ravan.ui.theme import (
     get_ui_font,
 )
 
+log = logging.getLogger(__name__)
+
 _HINT_TEXT = "↑↓ انتخاب  ·  Enter تأیید  ·  1-5 سریع  ·  Esc بستن"
 
 
 class OverlayWindow:
     """Always-on-top overlay that never steals focus (best-effort)."""
 
-    def __init__(self, theme: Theme | None = None, theme_mode: str = "auto") -> None:
+    def __init__(
+        self,
+        theme: Theme | None = None,
+        theme_mode: str = "auto",
+        cfg: Any = None,
+        on_position_changed: Callable[[int, int], None] | None = None,
+    ) -> None:
+        self.cfg = cfg
+        self.on_position_changed = on_position_changed
         self.theme_mode = theme_mode
         self.palette = get_active_palette(theme_mode)
         if theme is None:
@@ -30,6 +43,25 @@ class OverlayWindow:
                 else (Theme.dark() if self.palette.name == "dark" else Theme.light())
             )
         self.theme = theme
+
+        # Dragging & focus safety state
+        self._is_dragging = False
+        self._drag_start_screen_x = 0
+        self._drag_start_screen_y = 0
+        self._win_start_x = 0
+        self._win_start_y = 0
+        self._last_active_hwnd: int | None = None
+
+        # Persistent custom position
+        self.has_custom_pos = bool(
+            cfg
+            and getattr(cfg, "overlay_custom_pos", False)
+            and getattr(cfg, "overlay_pos_x", -1) >= 0
+            and getattr(cfg, "overlay_pos_y", -1) >= 0
+        )
+        self.custom_x = getattr(cfg, "overlay_pos_x", -1) if cfg else -1
+        self.custom_y = getattr(cfg, "overlay_pos_y", -1) if cfg else -1
+
         self._root = tk.Tk()
         self._root.withdraw()
         self._root.title("Ravan")
@@ -58,7 +90,7 @@ class OverlayWindow:
         self._fade_after: str | None = None
 
         self._root.update_idletasks()
-        self._apply_noactivate()
+        self._apply_noactivate(show=False)
 
     def _apply_theme(self) -> None:
         mode = getattr(self, "theme_mode", "auto")
@@ -66,22 +98,65 @@ class OverlayWindow:
         bg = self.palette.bg
         fg = self.palette.fg
         border = self.palette.border
+
+        ui_style = getattr(self.cfg, "prediction_ui_style", "modern") if self.cfg else "modern"
+        opacity = (
+            float(getattr(self.cfg, "prediction_opacity", self.palette.alpha))
+            if self.cfg
+            else self.palette.alpha
+        )
+        f_sz = (
+            int(getattr(self.cfg, "prediction_font_size", int(self.theme.font_size)))
+            if self.cfg
+            else int(self.theme.font_size)
+        )
+
+        if ui_style == "glass":
+            opacity = min(opacity, 0.86)
+        elif ui_style == "classic":
+            opacity = 1.0
+
         try:
-            self._root.attributes("-alpha", self.palette.alpha)
-        except Exception:
+            self._root.attributes("-alpha", opacity)
+        except Exception:  # noqa: BLE001
             pass
 
+        bd = 2 if ui_style == "classic" else 1
+        relief = "solid" if ui_style == "classic" else "flat"
+
         if hasattr(self, "_frame"):
-            self._frame.config(bg=bg, highlightbackground=border)
+            self._frame.config(bg=bg, highlightbackground=border, bd=bd, relief=relief)
+            if hasattr(self, "_grip"):
+                self._grip.config(bg=bg, fg=self.palette.subtext)
             self._hint.config(bg=bg, fg=self.palette.subtext)
             self._lang_label.config(bg=bg, fg=fg)
         else:
             self._frame = tk.Frame(
-                self._root, bg=bg, bd=1, highlightthickness=1, highlightbackground=border
+                self._root,
+                bg=bg,
+                bd=bd,
+                relief=relief,
+                highlightthickness=1,
+                highlightbackground=border,
             )
             self._frame.pack(fill="both", expand=True)
 
-            f_hint = get_ui_font(size=max(9, int(self.theme.font_size) - 3))
+            f_grip = get_ui_font(size=max(8, f_sz - 4))
+            self._grip = tk.Label(
+                self._frame,
+                text="⋮⋮ روان",
+                bg=bg,
+                fg=self.palette.subtext,
+                font=f_grip,
+                cursor="fleur",
+                padx=8,
+                pady=2,
+                anchor="w",
+            )
+            self._bind_drag(self._grip)
+            self._bind_drag(self._frame)
+
+            f_hint = get_ui_font(size=max(8, f_sz - 3))
             self._hint = tk.Label(
                 self._frame,
                 text=_HINT_TEXT,
@@ -90,9 +165,11 @@ class OverlayWindow:
                 font=f_hint,
                 justify="left",
                 padx=10,
-                pady=6,
+                pady=4 if ui_style == "compact" else 6,
             )
-            f_lang = get_ui_font(size=int(self.theme.font_size) + 2, bold=True, rtl=True)
+            self._bind_drag(self._hint)
+
+            f_lang = get_ui_font(size=f_sz + 2, bold=True, rtl=True)
             self._lang_label = tk.Label(
                 self._frame,
                 text="",
@@ -102,6 +179,85 @@ class OverlayWindow:
                 padx=12,
                 pady=8,
             )
+
+    def apply_config(self, cfg: Any) -> None:
+        self.cfg = cfg
+        if (
+            getattr(cfg, "overlay_custom_pos", False)
+            and getattr(cfg, "overlay_pos_x", -1) >= 0
+            and getattr(cfg, "overlay_pos_y", -1) >= 0
+        ):
+            self.has_custom_pos = True
+            self.custom_x = cfg.overlay_pos_x
+            self.custom_y = cfg.overlay_pos_y
+        else:
+            self.has_custom_pos = False
+            self.custom_x = -1
+            self.custom_y = -1
+        self._apply_theme()
+
+    def reset_position_to_caret(self) -> None:
+        self.has_custom_pos = False
+        self.custom_x = -1
+        self.custom_y = -1
+
+    def _bind_drag(self, widget: tk.Widget, row_index: int = -1) -> None:
+        widget.bind("<Button-1>", lambda e, r=row_index: self._on_mouse_down(e, r))
+        widget.bind("<B1-Motion>", self._on_mouse_drag)
+        widget.bind("<ButtonRelease-1>", lambda e, r=row_index: self._on_mouse_up(e, r))
+
+    def _on_mouse_down(self, event: tk.Event, row_index: int = -1) -> None:
+        self._drag_start_screen_x = event.x_root
+        self._drag_start_screen_y = event.y_root
+        self._win_start_x = self._root.winfo_x()
+        self._win_start_y = self._root.winfo_y()
+        self._is_dragging = False
+        self._clicked_row = row_index
+        if sys.platform == "win32":
+            try:
+                from ravan.platform import winapi as wapi
+
+                self._last_active_hwnd = int(wapi.user32.GetForegroundWindow() or 0)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _on_mouse_drag(self, event: tk.Event) -> None:
+        dx = event.x_root - self._drag_start_screen_x
+        dy = event.y_root - self._drag_start_screen_y
+        if abs(dx) > 3 or abs(dy) > 3:
+            self._is_dragging = True
+            nx = self._win_start_x + dx
+            ny = self._win_start_y + dy
+            self._place(nx, ny)
+
+    def _on_mouse_up(self, event: tk.Event, row_index: int = -1) -> None:
+        if self._is_dragging:
+            self._is_dragging = False
+            self.has_custom_pos = True
+            self.custom_x = self._root.winfo_x()
+            self.custom_y = self._root.winfo_y()
+            if self.on_position_changed:
+                try:
+                    self.on_position_changed(self.custom_x, self.custom_y)
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("Position change callback error: %s", exc)
+        else:
+            if row_index >= 0 and self.predicting and 0 <= row_index < len(self._candidates):
+                cand = self.accept_index(row_index)
+                if cand and self._on_accept:
+                    self._on_accept(cand)
+
+        # Guard target app focus
+        if sys.platform == "win32" and self._last_active_hwnd:
+            try:
+                from ravan.platform import winapi as wapi
+
+                cur = int(wapi.user32.GetForegroundWindow() or 0)
+                root_hwnd = self._get_root_hwnd()
+                if root_hwnd and cur == int(root_hwnd):
+                    wapi.user32.SetForegroundWindow(self._last_active_hwnd)
+            except Exception:  # noqa: BLE001
+                pass
 
     def set_theme_mode(self, mode: str) -> None:
         self.theme_mode = mode
@@ -119,11 +275,38 @@ class OverlayWindow:
             hwnd = self._root.winfo_id()
             GA_ROOT = 2
             return int(wapi.user32.GetAncestor(hwnd, GA_ROOT) or hwnd)
-        except Exception:
+        except Exception:  # noqa: BLE001
             return None
 
-    def _apply_noactivate(self) -> None:
-        apply_popup_window_attributes(self._root, getattr(self, "palette", get_active_palette()))
+    def _apply_noactivate(self, show: bool = False) -> None:
+        apply_popup_window_attributes(
+            self._root, getattr(self, "palette", get_active_palette()), show=show
+        )
+
+    def _show_no_activate(self) -> None:
+        if sys.platform == "win32":
+            try:
+                from ravan.platform import winapi as wapi
+
+                root_hwnd = self._get_root_hwnd()
+                if root_hwnd:
+                    fg_target = int(wapi.user32.GetForegroundWindow() or 0)
+                    style = wapi.user32.GetWindowLongW(root_hwnd, -20)
+                    if not (style & 0x08000000):
+                        wapi.user32.SetWindowLongW(root_hwnd, -20, style | 0x08000088)
+                        wapi.user32.SetWindowPos(root_hwnd, 0, 0, 0, 0, 0, 0x0027)
+
+                    wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
+                    if str(self._root.state()) == "withdrawn":
+                        self._root.deiconify()
+                    current_fg = int(wapi.user32.GetForegroundWindow() or 0)
+                    if fg_target and current_fg != fg_target:
+                        wapi.user32.SetForegroundWindow(fg_target)
+            except Exception:  # noqa: BLE001
+                self._root.deiconify()
+        else:
+            self._root.deiconify()
+        self._apply_noactivate(show=False)
 
     def tick(self) -> None:
         try:
@@ -146,6 +329,17 @@ class OverlayWindow:
         self._clear_rows()
         self._lang_label.pack_forget()
         self._hint.pack_forget()
+        if hasattr(self, "_grip"):
+            self._grip.pack_forget()
+        if sys.platform == "win32":
+            try:
+                from ravan.platform import winapi as wapi
+
+                root_hwnd = self._get_root_hwnd()
+                if root_hwnd:
+                    wapi.user32.ShowWindow(root_hwnd, 0)
+            except Exception:  # noqa: BLE001
+                pass
         self._root.withdraw()
         if self._fade_after is not None:
             try:
@@ -170,8 +364,7 @@ class OverlayWindow:
         self._lang_label.config(text=label)
         self._lang_label.pack()
         self._place(x, y + height + 4)
-        self._root.deiconify()
-        self._apply_noactivate()
+        self._show_no_activate()
         self._fade_after = self._root.after(1200, self.hide)
 
     def show_predictions(
@@ -219,13 +412,18 @@ class OverlayWindow:
         from ravan.platform import winapi as wapi
 
         m_left, m_top, m_right, m_bottom = wapi.get_monitor_work_area(x, y)
-        py = y + eff_h + 8 if y + eff_h + popup_h + 8 < m_bottom else max(m_top + 8, y - popup_h - 8)
-        px = x - popup_w + 35 if is_rtl else x
+
+        if self.has_custom_pos and self.custom_x >= 0 and self.custom_y >= 0:
+            px = self.custom_x
+            py = self.custom_y
+        else:
+            py = y + eff_h + 8 if y + eff_h + popup_h + 8 < m_bottom else max(m_top + 8, y - popup_h - 8)
+            px = x - popup_w + 35 if is_rtl else x
+
         px = max(m_left + 8, min(px, m_right - popup_w - 8))
         py = max(m_top + 8, min(py, m_bottom - popup_h - 8))
         self._place(px, py)
-        self._root.deiconify()
-        self._apply_noactivate()
+        self._show_no_activate()
 
     def _row_text(
         self,
@@ -247,11 +445,35 @@ class OverlayWindow:
 
     def _render_candidates(self) -> None:
         p = getattr(self, "palette", get_active_palette())
-        f_sz = int(self.theme.font_size)
+        ui_style = getattr(self.cfg, "prediction_ui_style", "modern") if self.cfg else "modern"
+        f_sz = (
+            int(getattr(self.cfg, "prediction_font_size", int(self.theme.font_size)))
+            if self.cfg
+            else int(self.theme.font_size)
+        )
+
+        pad_y = 2 if ui_style == "compact" else 4
+        pad_x = 8 if ui_style == "compact" else 10
+
+        if ui_style != "compact" and hasattr(self, "_grip"):
+            self._grip.pack(fill="x")
+        elif hasattr(self, "_grip"):
+            self._grip.pack_forget()
 
         while len(self._rows) < len(self._candidates):
+            idx = len(self._rows)
             fnt = get_ui_font(size=f_sz)
-            row = tk.Label(self._frame, text="", bg=p.bg, fg=p.fg, font=fnt, anchor="w", padx=10, pady=4)
+            row = tk.Label(
+                self._frame,
+                text="",
+                bg=p.bg,
+                fg=p.fg,
+                font=fnt,
+                anchor="w",
+                padx=pad_x,
+                pady=pad_y,
+            )
+            self._bind_drag(row, row_index=idx)
             self._rows.append(row)
 
         for i, c in enumerate(self._candidates):
@@ -264,7 +486,14 @@ class OverlayWindow:
                 bg, fg = p.bg, p.subtext
             else:
                 bg, fg = p.bg, p.fg
-            self._rows[i].config(text=self._row_text(i, c, selected), bg=bg, fg=fg, font=fnt)
+            self._rows[i].config(
+                text=self._row_text(i, c, selected),
+                bg=bg,
+                fg=fg,
+                font=fnt,
+                padx=pad_x,
+                pady=pad_y,
+            )
             self._rows[i].pack(fill="x")
 
         for j in range(len(self._candidates), len(self._rows)):

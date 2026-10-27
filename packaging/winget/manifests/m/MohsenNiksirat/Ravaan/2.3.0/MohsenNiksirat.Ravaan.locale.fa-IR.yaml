@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.locale.1.6.0.schema.json
+
+PackageIdentifier: MohsenNiksirat.Ravaan
+PackageVersion: 2.3.0
+PackageLocale: fa-IR
+Publisher: Mohsen Niksirat
+PublisherUrl: https://github.com/mohsen-niksirat
+PublisherSupportUrl: https://github.com/mohsen-niksirat/Ravaan/issues
+Author: محسن نیک‌سیرت
+PackageName: روان (Ravaan)
+PackageUrl: https://github.com/mohsen-niksirat/Ravaan
+License: مجوز MIT
+LicenseUrl: https://github.com/mohsen-niksirat/Ravaan/blob/main/LICENSE
+Copyright: تمامی حقوق محفوظ است (c) ۲۰۲۶ محسن نیک‌سیرت
+CopyrightUrl: https://github.com/mohsen-niksirat/Ravaan/blob/main/LICENSE
+ShortDescription: دستیار هوشمند و امن تایپ دوزبانه فارسی و انگلیسی برای ویندوز بدون ارسال داده.
+Description: |-
+  روان (Ravaan) دستیار هوشمند تایپ فارسی و انگلیسی در ویندوز است که به صورت کاملاً آفلاین
+  و بدون کوچک‌ترین ارسال داده (Zero Telemetry) کار می‌کند.
+  امکانات نسخه ۲.۰ شامل: پیشنهاد و تکمیل خودکار هوشمند واژگان، تصحیح خودکار اشتباهات تایپی،
+  اصلاح خودکار چیدمان اشتباه کیبورد، تایپ روان نیم‌فاصله و ویرایش نگارشی،
+  تبدیل فینگلیش به فارسی، اسنیپت‌های فرم و تصویر (Snippets 3.0)، پکیج‌های اشتراک‌گذاری،
+  انتخابگر تنوع حروف (Quick Accent)، دستیار متنی هوش مصنوعی و تایپ صوتی آفلاین.
+Moniker: ravaan
+Tags:
+  - فارسی
+  - کیبورد
+  - تایپ
+  - نیم‌فاصله
+  - فینگلیش
+  - نگارش
+  - دستیار
+  - حریم‌خصوصی
+ReleaseNotesUrl: https://github.com/mohsen-niksirat/Ravaan/releases/tag/v2.3.0
+ManifestType: locale
+ManifestVersion: 1.6.0

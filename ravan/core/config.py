@@ -36,6 +36,13 @@ class Config:
     popup_timeout_ms: int = 4000
     min_prefix_len: int = 1
     next_word_prediction: bool = True
+    prediction_auto_space: bool = True
+    overlay_custom_pos: bool = False
+    overlay_pos_x: int = -1
+    overlay_pos_y: int = -1
+    prediction_ui_style: str = "modern"  # "modern" | "compact" | "glass" | "classic"
+    prediction_font_size: int = 12
+    prediction_opacity: float = 0.95
     excluded_apps: list[str] = field(default_factory=lambda: list(DEFAULT_EXCLUDED_APPS))
     snippets: list[Snippet] = field(default_factory=list)
     snippet_groups: list[SnippetGroup] = field(default_factory=list)
@@ -406,6 +413,13 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         popup_timeout_ms=_bounded_int(data, "popup_timeout_ms", 4000, 0, 120000),
         min_prefix_len=_bounded_int(data, "min_prefix_len", 1, 1, 64),
         next_word_prediction=bool(data.get("next_word_prediction", True)),
+        prediction_auto_space=bool(data.get("prediction_auto_space", True)),
+        overlay_custom_pos=bool(data.get("overlay_custom_pos", False)),
+        overlay_pos_x=_bounded_int(data, "overlay_pos_x", -1, -1, 30000),
+        overlay_pos_y=_bounded_int(data, "overlay_pos_y", -1, -1, 30000),
+        prediction_ui_style=str(data.get("prediction_ui_style", "modern")),
+        prediction_font_size=_bounded_int(data, "prediction_font_size", 12, 9, 24),
+        prediction_opacity=float(max(0.5, min(1.0, float(data.get("prediction_opacity", 0.95))))),
         excluded_apps=[str(x).strip().lower() for x in excluded if str(x).strip()],
         snippets=snippets,
         snippet_groups=snippet_groups,

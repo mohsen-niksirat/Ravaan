@@ -92,13 +92,18 @@ class AppPollingMixin:
         return False
 
     def _is_foreground_self(self: Any) -> bool:
-        """True if the focused window belongs to this process (overlay/settings)."""
+        """True if the focused window belongs to an interactive Ravan window (settings/dialog), NOT the overlay."""
         import ctypes
 
         try:
             hwnd = w.user32.GetForegroundWindow()
             if not hwnd:
                 return False
+            # Never treat non-activating suggestion overlay as an interactive dialog
+            if hasattr(self, "overlay") and hasattr(self.overlay, "_get_root_hwnd"):
+                ov_hwnd = self.overlay._get_root_hwnd()
+                if ov_hwnd and int(hwnd) == int(ov_hwnd):
+                    return False
             pid = wintypes.DWORD(0)
             w.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
             return pid.value == self._own_pid
@@ -204,7 +209,7 @@ class AppPollingMixin:
                 if cands:
                     caret = get_caret_rect()
                     self.overlay.show_predictions(
-                        cands, caret.x, caret.y, caret.height
+                        cands, caret.x, caret.y, caret.height, on_accept=self._accept_candidate
                     )
                     set_popup_visible(
                         True, swallow_digits=self.cfg.quickpick_digits
@@ -230,7 +235,9 @@ class AppPollingMixin:
                 set_popup_visible(False)
             return
         caret = get_caret_rect()
-        self.overlay.show_predictions(cands, caret.x, caret.y, caret.height)
+        self.overlay.show_predictions(
+            cands, caret.x, caret.y, caret.height, on_accept=self._accept_candidate
+        )
         set_popup_visible(True, swallow_digits=self.cfg.quickpick_digits)
         self._popup_shown_at = time.monotonic()
         log.info("Showing %d suggestions for %r", len(cands), prefix)

@@ -111,7 +111,7 @@ def confidence_bar(score: float) -> str:
     return _CONFIDENCE_LEVELS[idx]
 
 
-def apply_popup_window_attributes(win: tk.Tk | tk.Toplevel, palette: Palette) -> None:
+def apply_popup_window_attributes(win: tk.Tk | tk.Toplevel, palette: Palette, show: bool = False) -> None:
     """Apply unified frameless, topmost, opacity, and DWM rounded corners to a popup window."""
     win.attributes("-topmost", True)
     win.overrideredirect(True)
@@ -135,7 +135,10 @@ def apply_popup_window_attributes(win: tk.Tk | tk.Toplevel, palette: Palette) ->
         # WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST
         style = wapi.user32.GetWindowLongW(root_hwnd, -20)
         wapi.user32.SetWindowLongW(root_hwnd, -20, style | 0x08000088)
-        wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
+        # Apply style changes without activating
+        wapi.user32.SetWindowPos(root_hwnd, 0, 0, 0, 0, 0, 0x0027)
+        if show:
+            wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
 
         # DWM rounded corners (DWMWA_WINDOW_CORNER_PREFERENCE = 33)
         corner_pref = ctypes.c_int(2)  # DWMWCP_ROUND

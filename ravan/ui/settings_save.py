@@ -91,6 +91,16 @@ def save_settings_window(win: Any) -> None:
         cfg.autofix_blacklist = list(win._managed_blacklist)
 
     cfg.prediction_enabled = win._prediction_var.get()
+    if hasattr(win, "_prediction_auto_space_var"):
+        cfg.prediction_auto_space = win._prediction_auto_space_var.get()
+    if hasattr(win, "_overlay_custom_pos_var"):
+        cfg.overlay_custom_pos = win._overlay_custom_pos_var.get()
+    if hasattr(win, "_prediction_ui_style_var"):
+        cfg.prediction_ui_style = win._prediction_ui_style_var.get()
+    if hasattr(win, "_prediction_font_size_var"):
+        cfg.prediction_font_size = _safe_int(win._prediction_font_size_var, 12, 9, 24)
+    if hasattr(win, "_prediction_opacity_var"):
+        cfg.prediction_opacity = _safe_int(win._prediction_opacity_var, 95, 50, 100) / 100.0
     if hasattr(win, "_learning_enabled_var"):
         cfg.learning_enabled = win._learning_enabled_var.get()
     cfg.autocorrect_enabled = win._autocorrect_var.get()

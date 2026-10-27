@@ -56,7 +56,16 @@ class RavanApp(
         from ravan.core.config import config_dir
 
         self.clip_history = ClipboardHistory(maxlen=50, storage_path=config_dir() / "clipboard_history.json")
-        self.overlay = overlay if overlay is not None else OverlayWindow(self.cfg.theme)
+        self.overlay = (
+            overlay
+            if overlay is not None
+            else OverlayWindow(
+                self.cfg.theme,
+                theme_mode=getattr(self.cfg, "theme_mode", "auto"),
+                cfg=self.cfg,
+                on_position_changed=self._on_overlay_moved,
+            )
+        )
         self.hook = KeyboardHook()
         self._ui_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
         from ravan.ui.app_tray import create_app_tray
@@ -164,7 +173,9 @@ class RavanApp(
         self.cfg = cfg
         self.predictor = DictPredictor.from_config(cfg)
         self.snippets = SnippetEngine.from_config(cfg)
-        if hasattr(self.overlay, "set_theme_mode"):
+        if hasattr(self.overlay, "apply_config"):
+            self.overlay.apply_config(cfg)
+        elif hasattr(self.overlay, "set_theme_mode"):
             self.overlay.set_theme_mode(cfg.theme_mode)
         if hasattr(self, "autofix") and self.autofix is not None:
             self.autofix.mode = getattr(cfg, "autofix_mode", "safe")
@@ -337,6 +348,18 @@ class RavanApp(
             self.predictor.record_selection(word, context=prev_context)
         return False
 
+    def _on_overlay_moved(self, x: int, y: int) -> None:
+        self.cfg.overlay_pos_x = x
+        self.cfg.overlay_pos_y = y
+        self.cfg.overlay_custom_pos = True
+        try:
+            from ravan.core.config import save_config
+
+            save_config(self.cfg)
+            log.info("Saved custom overlay position: (%d, %d)", x, y)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Could not persist overlay position: %s", exc)
+
     def _accept_candidate(self, cand: Candidate) -> None:
         from ravan.core.events import CandidateKind
 
@@ -351,6 +374,7 @@ class RavanApp(
         app_name = getattr(self, "_current_exe", None)
         self.predictor.record_selection(cand.text, context=prev_context, app_name=app_name)
 
+        auto_space = " " if getattr(self.cfg, "prediction_auto_space", True) else ""
         if cand.kind in (CandidateKind.SENTENCE, CandidateKind.NEXT_WORD) or not word:
             del_len = (
                 (cand.replace_len if cand.replace_len is not None else len(word))
@@ -358,7 +382,7 @@ class RavanApp(
                 else 0
             )
             self._suppress_until = time.monotonic() + 0.08
-            replace_text = cand.text + " "
+            replace_text = cand.text + auto_space
             replace_last_n_with(del_len, replace_text)
             for _ in range(del_len):
                 if self.journal._chars:
@@ -368,7 +392,7 @@ class RavanApp(
             self.overlay.hide()
             set_popup_visible(False)
         else:
-            self._replace_word(word, cand.text)
+            self._replace_word(word, cand.text + auto_space)
 
     def _replace_word(
         self,

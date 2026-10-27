@@ -306,6 +306,90 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     )
     row += 1
 
+    win._prediction_auto_space_var = tk.BooleanVar(
+        value=getattr(win.cfg, "prediction_auto_space", True)
+    )
+    ttk.Checkbutton(
+        frm,
+        text=t("settings.prediction_auto_space", "Auto-insert space after accepting suggestion"),
+        variable=win._prediction_auto_space_var,
+    ).grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    row += 1
+
+    # Suggestion box UI customization
+    ttk.Label(
+        frm,
+        text=t("settings.prediction_ui_style", "Suggestion box design style:"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+    win._prediction_ui_style_var = tk.StringVar(
+        value=getattr(win.cfg, "prediction_ui_style", "modern")
+    )
+    ui_box = ttk.Combobox(
+        frm,
+        textvariable=win._prediction_ui_style_var,
+        values=["modern", "compact", "glass", "classic"],
+        state="readonly",
+        width=12,
+    )
+    ui_box.grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+
+    ttk.Label(
+        frm,
+        text=t("settings.prediction_font_size", "Suggestion font size:"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+    win._prediction_font_size_var = tk.IntVar(
+        value=int(getattr(win.cfg, "prediction_font_size", 12))
+    )
+    ttk.Spinbox(
+        frm, from_=9, to=18, increment=1, textvariable=win._prediction_font_size_var, width=8
+    ).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+
+    ttk.Label(
+        frm,
+        text=t("settings.prediction_opacity", "Suggestion box opacity (%):"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+    win._prediction_opacity_var = tk.IntVar(
+        value=int(float(getattr(win.cfg, "prediction_opacity", 0.95)) * 100)
+    )
+    ttk.Spinbox(
+        frm, from_=60, to=100, increment=5, textvariable=win._prediction_opacity_var, width=8
+    ).grid(row=row, column=1, sticky="w", **pad)
+    row += 1
+
+    # Suggestion box dragging & position persistence
+    win._overlay_custom_pos_var = tk.BooleanVar(
+        value=getattr(win.cfg, "overlay_custom_pos", False)
+    )
+    ttk.Checkbutton(
+        frm,
+        text=t("settings.overlay_custom_pos", "Remember last dragged position of suggestion box"),
+        variable=win._overlay_custom_pos_var,
+    ).grid(row=row, column=0, columnspan=2, sticky=align, **pad)
+
+    def _do_reset_overlay_pos() -> None:
+        from tkinter import messagebox
+
+        win.cfg.overlay_custom_pos = False
+        win.cfg.overlay_pos_x = -1
+        win.cfg.overlay_pos_y = -1
+        win._overlay_custom_pos_var.set(False)
+        if hasattr(win, "overlay") and win.overlay:
+            win.overlay.reset_position_to_caret()
+        messagebox.showinfo(
+            "Ravaan",
+            t("settings.overlay_reset_done", "Suggestion box position reset to typing cursor!"),
+            parent=win._root,
+        )
+
+    ttk.Button(
+        frm,
+        text=t("settings.overlay_reset_pos", "↺ Reset position to typing cursor"),
+        command=_do_reset_overlay_pos,
+    ).grid(row=row, column=2, sticky="e" if not rtl else "w", padx=pad.get("padx", 10))
+    row += 1
+
     win._en_dict_var = tk.BooleanVar(value=win.cfg.english_dict_enabled)
     ttk.Checkbutton(frm, text=t("settings.en_dict", "English dictionary"), variable=win._en_dict_var).grid(
         row=row, column=0, columnspan=3, sticky=align, **pad

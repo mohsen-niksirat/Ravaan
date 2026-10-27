@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-27 - Non-Interfering Overlay, Auto-Space, Draggable Position & UI Customization
+
+### Added
+- **Focus-Safe Non-Interfering Overlay**:
+  - Completely prevented typing focus loss and cursor/caret deactivation by using native Windows SW_SHOWNOACTIVATE and extended window styles WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST.
+  - Excluded the floating prediction overlay from _is_foreground_self() so typing events are never discarded when suggestions appear.
+  - Ensured the active text field and blinking caret in third-party applications (Notepad, Word, browser, etc.) remain continuously focused and active without mouse interruption.
+- **Configurable Auto-Space After Candidate Insertion**:
+  - Automatically appends a trailing space after accepting a suggested candidate via number keys (1–5), Enter, or mouse click.
+  - Added setting prediction_auto_space: bool = True (persisted in config and toggled in Settings dialog) allowing users to enable or disable automatic space insertion.
+- **Draggable Suggestion Box with Persistent Position**:
+  - The suggestion popup is now smoothly draggable with the mouse across any monitor and retains the last user-chosen custom position.
+  - Added drag grip header (⋮⋮ روان) with move cursor (fleur) and drag support on all overlay components.
+  - Added setting overlay_custom_pos: bool and coordinates (overlay_pos_x, overlay_pos_y), along with a one-click reset position button in Settings.
+- **Prediction Box UI Customization**:
+  - Added selectable visual styles: modern (rounded card), compact (minimal padding/font), glass (semi-transparent translucent HUD), and classic (traditional tooltip border).
+  - Added custom controls in Settings for suggestion font size (9–18 pt), opacity/transparency (60–100%), and style mode.
+  - Full bilingual i18n support in English and Persian locales for all new settings.
+
 ## [2.2.0] - 2026-10-27 - Platform Test Markers & Repo Hygiene
 
 ### Changed
