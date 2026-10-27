@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from ravan.platform.selftest import (
     check_audio_device,
     check_caret_uia,
@@ -13,6 +15,8 @@ from ravan.platform.selftest import (
     format_selftest_report,
     run_selftest,
 )
+
+pytestmark = pytest.mark.windows
 
 
 def test_individual_selftest_checks():

@@ -1,5 +1,7 @@
 __pycache__/
+*.pyc
 *.py[cod]
+*.spec.bak
 *.egg-info/
 .eggs/
 dist/

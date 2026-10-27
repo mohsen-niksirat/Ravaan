@@ -9,7 +9,6 @@ import zipfile
 from pathlib import Path
 
 import pytest
-import yaml
 
 import ravan
 from scripts.build_release import (
@@ -20,14 +19,16 @@ from scripts.build_release import (
     main as release_main,
 )
 
+yaml = pytest.importorskip("yaml")
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class TestVersionConsistency:
     """Verifies that all version metadata across the repository are in 100% agreement."""
 
-    def test_all_versions_equal_2_1_0(self):
-        expected_version = "2.1.0"
+    def test_all_versions_equal_2_2_0(self):
+        expected_version = "2.2.0"
 
         # 1. ravan module
         assert ravan.__version__ == expected_version, (

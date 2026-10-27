@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from ravan.core.config import DEFAULT_EXCLUDED_APPS, Config
 from ravan.platform.caret import (
     CaretRect,
@@ -19,6 +21,8 @@ from ravan.platform.caret import (
 )
 from ravan.platform.focus import set_mock_window_elevated
 from ravan.platform.hook import set_popup_visible
+
+pytestmark = pytest.mark.windows
 
 
 def test_default_excluded_apps():

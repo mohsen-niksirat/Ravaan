@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from ravan.core.backup_zip import export_user_data, import_user_data
 from ravan.core.calc import (
     calculate,
@@ -126,6 +128,7 @@ def test_macro_recorder_and_serialization():
     assert len(parsed["events"]) == 2
 
 
+@pytest.mark.windows
 def test_macro_player_dry_run(monkeypatch):
     injected: list[str] = []
     monkeypatch.setattr("ravan.core.macro.inject_text", lambda text: injected.append(text))

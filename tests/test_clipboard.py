@@ -1,4 +1,8 @@
+import pytest
+
 from ravan.platform.clipboard import get_clipboard_text, set_clipboard_text
+
+pytestmark = pytest.mark.windows
 
 
 def test_clipboard_read_write_unicode():

@@ -7,6 +7,8 @@ import sys
 import time
 from unittest.mock import patch
 
+import pytest
+
 
 def test_import_all_core_modules():
     core_modules = [
@@ -36,6 +38,7 @@ def test_import_all_core_modules():
         assert m is not None
 
 
+@pytest.mark.windows
 def test_import_platform_and_ui_modules():
     if sys.platform != "win32":
         return
@@ -129,6 +132,7 @@ def test_instantiate_core_classes_no_gui():
 
 
 
+@pytest.mark.windows
 def test_hook_callback_non_blocking_latency():
     """Verify that hook callback executes in under 1 ms."""
     if sys.platform != "win32":

@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from ravan.core.events import LanguageInfo
 from ravan.platform import clipboard, focus, inject, lang, singleinstance, startup
 from ravan.platform import winapi as w
+
+pytestmark = pytest.mark.windows
 
 # --- Focus Tests ---
 

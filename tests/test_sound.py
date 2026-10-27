@@ -1,7 +1,11 @@
 import sys
 from unittest.mock import MagicMock
 
+import pytest
+
 from ravan.platform.sound import play_beep_async, play_layout_switch_sound
+
+pytestmark = pytest.mark.windows
 
 
 def test_play_layout_switch_sound_runs_without_error(monkeypatch):

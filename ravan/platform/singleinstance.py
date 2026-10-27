@@ -8,13 +8,16 @@ from ctypes import wintypes
 ERROR_ALREADY_EXISTS = 183
 ERROR_ACCESS_DENIED = 5
 
-kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
-kernel32.CreateMutexW.restype = wintypes.HANDLE
-kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-kernel32.CloseHandle.restype = wintypes.BOOL
-kernel32.ReleaseMutex.argtypes = [wintypes.HANDLE]
-kernel32.ReleaseMutex.restype = wintypes.BOOL
+if hasattr(ctypes, "WinDLL"):
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+    kernel32.CreateMutexW.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    kernel32.ReleaseMutex.argtypes = [wintypes.HANDLE]
+    kernel32.ReleaseMutex.restype = wintypes.BOOL
+else:
+    kernel32 = None  # type: ignore[assignment]
 
 
 class SingleInstance:
@@ -30,6 +33,8 @@ class SingleInstance:
     def __init__(self, name: str = "Ravaan") -> None:
         self._handle = None
         self.acquired = False
+        if kernel32 is None:
+            return
         # Try Local\ first, falling back to Global\.
         # Also check legacy "Ravan" mutex to avoid dual-running with older instances.
         candidate_names = [name]
@@ -69,11 +74,11 @@ class SingleInstance:
         self.release()
 
     def release(self) -> None:
-        if self._handle:
+        if self._handle and kernel32 is not None:
             try:
                 kernel32.ReleaseMutex(self._handle)
                 kernel32.CloseHandle(self._handle)
             except Exception:
                 pass
-            self._handle = None
-            self.acquired = False
+        self._handle = None
+        self.acquired = False

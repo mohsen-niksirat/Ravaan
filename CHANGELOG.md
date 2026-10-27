@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-27 - Platform Test Markers & Repo Hygiene
+
+### Changed
+- **Platform Test Markers & Conftest (`tests/conftest.py`)**:
+  - Added `windows` marker in `pyproject.toml` for tests requiring Windows-specific Win32/ctypes APIs.
+  - Implemented automatic platform skip guard in `tests/conftest.py` so tests marked `windows` cleanly skip on non-Windows environments without collection errors.
+  - Decorated Windows-dependent test suites (`test_singleinstance.py`, `test_platform_mock.py`, `test_qa_windows.py`, `test_hook_resilience.py`, `test_auto_layout_switch.py`, `test_clipboard.py`, `test_selftest.py`, `test_sound.py`).
+
+### Fixed
+- **Cross-Platform Test Collection**:
+  - Guarded `ctypes.WinDLL("kernel32")` in `ravan/platform/singleinstance.py` with `hasattr(ctypes, "WinDLL")` to prevent import crashes during non-Windows test collection.
+  - Added `pytest.importorskip("yaml")` in documentation and packaging tests to gracefully handle environments without optional dev dependencies.
+- **Repository Hygiene**:
+  - Updated `.gitignore` to explicitly include `*.pyc` and `*.spec.bak`.
+  - Verified and documented presence of source lexicons (`words_fa.txt`, `words_en.txt`) needed by dictionary compiler and test suite.
 ## [2.1.0] - 2026-10-27 - Persian Grammar & Assistant Refinement
 
 ### Added

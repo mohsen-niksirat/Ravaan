@@ -5,8 +5,12 @@ from __future__ import annotations
 import queue
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from ravan.platform.hook import HookEvent, KeyboardHook
 from ravan.ui.app_polling import AppPollingMixin
+
+pytestmark = pytest.mark.windows
 
 
 def test_hook_is_alive_and_check_health():

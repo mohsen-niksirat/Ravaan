@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from ravan.core.config import Config
 from ravan.core.events import LanguageInfo
 from ravan.platform.lang import (
@@ -14,6 +16,8 @@ from ravan.platform.lang import (
     switch_to_language,
 )
 from ravan.ui.app import RavanApp
+
+pytestmark = pytest.mark.windows
 
 
 def test_get_installed_layouts_mocked() -> None:

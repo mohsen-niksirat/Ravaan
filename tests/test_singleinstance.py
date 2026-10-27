@@ -1,4 +1,8 @@
+import pytest
+
 from ravan.platform.singleinstance import SingleInstance
+
+pytestmark = pytest.mark.windows
 
 
 def test_single_instance_acquisition_and_release():
