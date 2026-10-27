@@ -9,7 +9,7 @@ import tempfile
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from ravan.core.config_migration import migrate_config_dict
 from ravan.core.config_types import (
@@ -55,7 +55,7 @@ class Config:
     undo_autocorrect_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Z", ["Ctrl", "Shift"]))
     fix_punctuation_spacing: bool = True
     smart_punctuation_enabled: bool = True
-    digit_mode: str = "auto"  # "auto" | "fa" | "en" | "keep"
+    digit_mode: Literal["auto", "fa", "en", "keep"] = "auto"
     autocorrect_mode: str = "safe"  # "off" | "safe" | "normal"
     ignored_words: list[str] = field(default_factory=list)
     theme_mode: str = "auto"  # "auto" | "dark" | "light"
@@ -111,6 +111,38 @@ class Config:
     @auto_zwnj.setter
     def auto_zwnj(self, val: bool) -> None:
         self.auto_zwnj_enabled = bool(val)
+
+    @property
+    def word_prediction_enabled(self) -> bool:
+        return self.prediction_enabled
+
+    @word_prediction_enabled.setter
+    def word_prediction_enabled(self, val: bool) -> None:
+        self.prediction_enabled = bool(val)
+
+    @property
+    def autofix_wrong_layout(self) -> bool:
+        return self.autofix_mode != "off"
+
+    @autofix_wrong_layout.setter
+    def autofix_wrong_layout(self, val: bool) -> None:
+        self.autofix_mode = "safe" if val else "off"
+
+    @property
+    def fix_punctuation(self) -> bool:
+        return self.fix_punctuation_spacing
+
+    @fix_punctuation.setter
+    def fix_punctuation(self, val: bool) -> None:
+        self.fix_punctuation_spacing = bool(val)
+
+    @property
+    def language(self) -> str:
+        return self.ui_language
+
+    @language.setter
+    def language(self, val: str) -> None:
+        self.ui_language = str(val)
 
     def is_excluded(
         self,
@@ -393,7 +425,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         undo_autocorrect_hotkey=_hotkey_from_dict(data.get("undo_autocorrect_hotkey"), HotkeySpec("Z", ["Ctrl", "Shift"])),
         fix_punctuation_spacing=bool(data.get("fix_punctuation_spacing", True)),
         smart_punctuation_enabled=bool(data.get("smart_punctuation_enabled", True)),
-        digit_mode=str(data.get("digit_mode", "auto")),
+        digit_mode=data.get("digit_mode", "auto") if data.get("digit_mode") in ("auto", "fa", "en", "keep") else "auto",  # type: ignore[arg-type]
         autocorrect_mode=str(data.get("autocorrect_mode", "safe")).lower(),
         ignored_words=[str(w).strip() for w in data.get("ignored_words", []) if str(w).strip()],
         theme_mode=str(data.get("theme_mode", "auto")),

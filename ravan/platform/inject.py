@@ -132,3 +132,9 @@ def send_shortcut(modifiers: list[int], key_vk: int) -> None:
         inputs.append(_vk_input(mod, True))
     arr = (w.INPUT * len(inputs))(*inputs)
     w.user32.SendInput(len(inputs), arr, ctypes.sizeof(w.INPUT))
+
+
+def send_ctrl_v() -> None:
+    """Send Ctrl+V shortcut to paste clipboard content."""
+    send_shortcut([w.VK_CONTROL], ord("V"))
+

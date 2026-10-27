@@ -34,9 +34,13 @@ class SettingsWindow:
         self._open = False
         self._built = False
         self._root: tk.Toplevel | None = None
-        self._snippet_editor = None
+        self._snippet_editor: Any = None
         self._managed_snippets = list(self.cfg.snippets)
         self._last_snip_text = ""
+        self._excl_text: tk.Text | None = None
+        self._snip_text: tk.Text | None = None
+        self._detected_app_var: tk.StringVar | None = None
+        self._add_detected_btn: ttk.Button | None = None
 
     @property
     def open(self) -> bool:
@@ -243,6 +247,8 @@ class SettingsWindow:
     # ── Actions ──────────────────────────────────────────────────────
 
     def _get_current_exclusions_from_text(self) -> list[str]:
+        if self._excl_text is None:
+            return list(self.cfg.excluded_apps)
         raw = self._excl_text.get("1.0", "end").strip()
         return [line.strip().lower() for line in raw.splitlines() if line.strip()]
 
@@ -253,19 +259,23 @@ class SettingsWindow:
         info = active_window_info()
         exe = info.get("exe")
         if not exe:
-            self._detected_app_var.set("Active app: could not detect")
-            self._add_detected_btn.config(state="disabled")
+            if self._detected_app_var is not None:
+                self._detected_app_var.set("Active app: could not detect")
+            if self._add_detected_btn is not None:
+                self._add_detected_btn.config(state="disabled")
             return
 
         current_excls = self._get_current_exclusions_from_text()
         status = "EXCLUDED" if is_app_excluded(exe, current_excls) else "ACTIVE"
         self._last_detected_exe = exe
-        self._detected_app_var.set(f"{exe}  [{status}]")
-        self._add_detected_btn.config(state="normal")
+        if self._detected_app_var is not None:
+            self._detected_app_var.set(f"{exe}  [{status}]")
+        if self._add_detected_btn is not None:
+            self._add_detected_btn.config(state="normal")
 
     def _add_exclusion_item(self, item: str) -> None:
         item = item.strip().lower()
-        if not item:
+        if not item or self._excl_text is None:
             return
         current = self._get_current_exclusions_from_text()
         if item not in current:
@@ -286,6 +296,8 @@ class SettingsWindow:
     def _open_window_picker(self) -> None:
         from ravan.ui.window_picker import WindowPickerWindow
 
+        if self._root is None:
+            return
         picker = WindowPickerWindow(self._root, on_pick=self._add_exclusion_item)
         picker.show()
 
@@ -313,7 +325,8 @@ class SettingsWindow:
             on_saved=on_editor_saved,
             groups=getattr(self.cfg, "snippet_groups", None),
         )
-        self._snippet_editor.show()
+        if self._snippet_editor is not None:
+            self._snippet_editor.show()
 
     def _close(self) -> None:
         self._open = False

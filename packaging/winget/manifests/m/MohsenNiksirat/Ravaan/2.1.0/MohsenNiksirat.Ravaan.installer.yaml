@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+
+PackageIdentifier: MohsenNiksirat.Ravaan
+PackageVersion: 2.1.0
+InstallerLocale: en-US
+Platform:
+  - Windows.Desktop
+InstallerType: inno
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+  - verySilent
+InstallerSwitches:
+  Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+  SilentWithProgress: /SILENT /SUPPRESSMSGBOXES /NORESTART
+UpgradeBehavior: install
+Commands:
+  - ravaan
+Protocols:
+  - ravan
+ProductCode: '{C4E9C0A7-62F1-4F2B-933B-8C477614AA51}_is1'
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/mohsen-niksirat/Ravaan/releases/download/v2.1.0/Ravaan-Setup-2.1.0.exe
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+ManifestType: installer
+ManifestVersion: 1.6.0

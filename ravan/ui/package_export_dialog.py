@@ -64,11 +64,11 @@ class PackageExportDialog:
             ("packages.export_desc_en", "Description (English):", self.desc_en_var),
             ("packages.export_desc_fa", "Description (Persian):", self.desc_fa_var),
         ]
-        for idx, (k, def_txt, var) in enumerate(fields):
+        for idx, (k, def_txt, f_var) in enumerate(fields):
             ttk.Label(grid_frm, text=t(k, def_txt)).grid(
                 row=idx, column=0, sticky=align, pady=2, padx=4
             )
-            ttk.Entry(grid_frm, textvariable=var, width=32).grid(
+            ttk.Entry(grid_frm, textvariable=f_var, width=32).grid(
                 row=idx, column=1, sticky="we", pady=2
             )
         grid_frm.columnconfigure(1, weight=1)
@@ -96,10 +96,10 @@ class PackageExportDialog:
         canvas.pack(side="left", fill="both", expand=True)
         snip_scroll.pack(side="right", fill="y")
 
-        for s, var in self.snippet_vars:
+        for s, s_var in self.snippet_vars:
             trig = s.trigger
             tag = " [Img]" if s.is_image else (" [Re]" if s.is_regex else "")
-            cb = ttk.Checkbutton(scroll_frm, text=f"{trig}{tag}", variable=var)
+            cb = ttk.Checkbutton(scroll_frm, text=f"{trig}{tag}", variable=s_var)
             cb.pack(anchor=align, padx=2, pady=1)
 
         # Select all / none bar

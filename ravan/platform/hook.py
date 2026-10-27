@@ -8,6 +8,7 @@ import queue
 import threading
 from ctypes import wintypes
 from dataclasses import dataclass
+from typing import Any
 
 from . import winapi as w
 
@@ -79,8 +80,8 @@ class KeyboardHook:
         self._queue: queue.Queue[HookEvent] = queue.Queue(maxsize=1024)
         self._thread: threading.Thread | None = None
         self._thread_id: int | None = None
-        self._hook = None
-        self._proc = None
+        self._hook: Any = None
+        self._proc: Any = None
         self._running = False
         self._lock = threading.Lock()
 

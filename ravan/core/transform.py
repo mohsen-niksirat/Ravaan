@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from ravan.core.normalizer import normalize_persian, toggle_digits
 
@@ -54,9 +55,13 @@ def to_kebab_case(text: str) -> str:
     return to_snake_case(text).replace("_", "-")
 
 
-def normalize_text(text: str, digits: str = "keep") -> str:
+def normalize_text(
+    text: str,
+    digits: Literal["auto", "fa", "en", "keep"] = "keep",
+    fix_grammar: bool = False,
+) -> str:
     """Normalize Persian text in-place (Arabic chars, ZWNJ, punctuation spacing)."""
-    return normalize_persian(text, digits=digits)
+    return normalize_persian(text, digits=digits, fix_grammar=fix_grammar)
 
 
 def toggle_text_digits(text: str) -> str:

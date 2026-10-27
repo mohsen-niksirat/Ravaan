@@ -204,9 +204,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "calc":
         from ravan.core.calc import calculate
 
-        res = calculate(args.expr)
-        if res is not None:
-            print(res)
+        calc_res = calculate(args.expr)
+        if calc_res is not None:
+            print(calc_res)
             return 0
         else:
             print("Error: Invalid mathematical expression", file=sys.stderr)
@@ -296,8 +296,8 @@ def main(argv: list[str] | None = None) -> int:
         from ravan.core.benchmark import run_prediction_benchmark
 
         print("Running prediction benchmark across held-out test fixtures...")
-        res = run_prediction_benchmark()
-        print(res.format_summary())
+        bench_res = run_prediction_benchmark()
+        print(bench_res.format_summary())
         return 0
 
     if args.cmd == "learn":
@@ -335,11 +335,11 @@ def main(argv: list[str] | None = None) -> int:
         from ravan.core.backup_zip import import_user_data
 
         try:
-            res = import_user_data(args.path, merge=args.merge)
-            print(f"Import successful! Restored {len(res['restored_files'])} items:")
-            for f in res["restored_files"]:
+            import_res = import_user_data(args.path, merge=args.merge)
+            print(f"Import successful! Restored {len(import_res['restored_files'])} items:")
+            for f in import_res["restored_files"]:
                 print(f"  • {f}")
-            print(f"Safety backup saved at: {res['backup_created']}")
+            print(f"Safety backup saved at: {import_res['backup_created']}")
             return 0
         except Exception as exc:
             print(f"Import failed: {exc}", file=sys.stderr)
@@ -348,9 +348,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "selftest":
         from ravan.platform.selftest import format_selftest_report, run_selftest
 
-        res = run_selftest()
-        print(format_selftest_report(res))
-        return 0 if res["all_passed"] else 1
+        test_res = run_selftest()
+        print(format_selftest_report(test_res))
+        return 0 if test_res["all_passed"] else 1
 
     if args.cmd == "soak":
         from ravan.core.soak import format_soak_report, run_soak_test
@@ -363,9 +363,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "translit":
         from ravan.core.translit import TranslitEngine
 
-        engine = TranslitEngine()
+        t_engine = TranslitEngine()
         full_text = " ".join(args.text)
-        print(engine.transliterate_text(full_text))
+        print(t_engine.transliterate_text(full_text))
         return 0
 
     if args.cmd == "pack":

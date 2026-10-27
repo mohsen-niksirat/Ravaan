@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-27 - Persian Grammar & Assistant Refinement
+
 ### Added
 - **Persian Grammar, Preposition Detachment & Tanween Assistant (`ravan/core/grammar.py`)**:
   - Detaches fused prepositions according to Academy rules (e.g. «به نام» not «بنام», «به سوی», «به عنوان»).
@@ -17,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integration with `normalize_persian(..., fix_grammar=True)` and `clean_pasted_text(..., fix_grammar=True)`.
   - CLI subcommand: `ravan-cli grammar <text> [--fix]` for terminal diagnostics and direct correction.
   - Comprehensive unit test suite in `tests/test_grammar.py`.
+
+### Fixed
+- **Snippets 3.0 Image Snippets**: Implemented missing `send_ctrl_v()` injection helper in `ravan/platform/inject.py` to prevent runtime error on image snippet expansion.
+- **Onboarding Wizard Presets**: Added bidirectional compatibility properties (`word_prediction_enabled`, `autofix_wrong_layout`, `fix_punctuation`, `language`) on `Config` ensuring wizard presets actively persist to runtime configuration.
+- **Autofix Engine Type Safety**: Corrected invalid `UserDictionary` import in `ravan/core/autofix.py` to `Dictionary | None`.
+- **CLI & Settings Dialogs**: Resolved CLI subcommand variable reuse and hardened SettingsWindow against uninitialized widget access during early/headless calls.
 
 ## [2.0.0] - 2026-10-21 - Major Milestone (Snippets 3.0, .ravaanpack Hub-lite & Feature Parity)
 
@@ -50,7 +58,8 @@ Ravaan v2.0.0 is a milestone release delivering complete parity with internation
 - **Image Snippets (\image:C:\\path\\to\\image.png\ or \is_image=True\)**:
   - Automatically loads PNG, JPEG, BMP, GIF, or WebP images and places them on the Windows clipboard (\CF_DIB\).
   - Automatically triggers target application paste (\Ctrl+V\).
-  - Save-time file existence and Pillow image format verification (\alidate_image_path\).
+  - Save-time file existence and Pillow image format verification (\
+alidate_image_path\).
   - Expand-time missing image guard: shows friendly tray notification without text corruption or silent crashes.
 - **Per-App Snippet Groups (avan/core/snippet_groups.py\)**:
   - Group model with name, enabled toggle, and list of executable/window-class matchers (\is_app_excluded\ matcher reuse).

@@ -428,8 +428,12 @@ def get_current_process_rss_mb() -> float:
     try:
         import resource
 
-        return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 2)
+        getrusage = getattr(resource, "getrusage", None)
+        rusage_self = getattr(resource, "RUSAGE_SELF", 0)
+        if getrusage is not None:
+            return round(getrusage(rusage_self).ru_maxrss / 1024, 2)
     except Exception:
         return 0.0
+    return 0.0
 
 

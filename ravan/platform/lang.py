@@ -41,7 +41,10 @@ def _as_hkl(value: object) -> int:
         return value
     # c_void_p / c_size_t etc.
     raw = getattr(value, "value", value)
-    return int(raw or 0)
+    try:
+        return int(raw or 0)  # type: ignore[call-overload]
+    except (ValueError, TypeError):
+        return 0
 
 
 def current_language() -> LanguageInfo | None:

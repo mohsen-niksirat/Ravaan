@@ -62,20 +62,23 @@ class RavanApp(
         from ravan.ui.app_tray import create_app_tray
 
         self.tray = create_app_tray(self)
-        self._settings_window = self._diagnostics_window = None
-        self._snippet_window = self._wizard_window = self._quick_tips_window = None
+        self._settings_window: Any = None
+        self._diagnostics_window: Any = None
+        self._snippet_window: Any = None
+        self._wizard_window: Any = None
+        self._quick_tips_window: Any = None
         self.recent_events: deque[dict[str, Any]] = deque(maxlen=50)
 
-        self._last_lang_hkl: int | None = None
-        self._active_layout_tag: str | None = None
+        self._last_lang_hkl: Any = None
+        self._active_layout_tag: Any = None
         self._last_key_time = self._suppress_until = self._last_convert_at = 0.0
         self._popup_shown_at = self._last_focus_poll = self._last_lang_poll = self._last_clip_poll = 0.0
         self._pending_predict = self._running = False
-        self._current_exe: str | None = None
-        self._last_autocorrect: tuple[str, str, float, str] | None = None
+        self._current_exe: Any = None
+        self._last_autocorrect: Any = None
         self._own_pid = os.getpid()
         self.is_paused = False
-        self._pause_timer: threading.Timer | None = None
+        self._pause_timer: Any = None
         from ravan.ui.hint_manager import HintManager
 
         self.hint_manager = HintManager(self.cfg, on_show_toast=getattr(self, "_show_toast", None))

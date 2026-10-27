@@ -173,7 +173,8 @@ class AppActionsMixin:
             self._show_toast("کلیپ‌بورد خالی است")
             return False
 
-        digit_mode = getattr(self.cfg, "digit_mode", "auto")
+        raw_digit_mode = getattr(self.cfg, "digit_mode", "auto")
+        digit_mode = raw_digit_mode if raw_digit_mode in ("auto", "fa", "en", "keep") else "auto"
         cleaned = clean_pasted_text(raw, digit_mode=digit_mode)
         if cleaned == raw:
             self._show_toast("متن کلیپ‌بورد از قبل استاندارد است")

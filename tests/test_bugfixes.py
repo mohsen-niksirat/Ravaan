@@ -197,3 +197,46 @@ def test_cliphistory_oversized_item_rejected(tmp_path):
     assert added is False
     assert len(hist.items()) == 0
 
+
+def test_send_ctrl_v_invokes_shortcut():
+    """Ensure send_ctrl_v exists in ravan.platform.inject and dispatches Ctrl+V."""
+    from ravan.platform import winapi as w
+    from ravan.platform.inject import send_ctrl_v
+
+    with patch("ravan.platform.inject.send_shortcut") as mock_shortcut:
+        send_ctrl_v()
+        mock_shortcut.assert_called_once_with([w.VK_CONTROL], ord("V"))
+
+
+def test_config_backward_compatibility_properties():
+    """Ensure properties aliasing legacy wizard fields properly read and mutate config state."""
+    cfg = Config()
+
+    # Word prediction property
+    cfg.word_prediction_enabled = False
+    assert cfg.prediction_enabled is False
+    cfg.word_prediction_enabled = True
+    assert cfg.prediction_enabled is True
+    assert cfg.word_prediction_enabled is True
+
+    # Autofix wrong layout property
+    cfg.autofix_wrong_layout = False
+    assert cfg.autofix_mode == "off"
+    assert cfg.autofix_wrong_layout is False
+    cfg.autofix_wrong_layout = True
+    assert cfg.autofix_mode == "safe"
+    assert cfg.autofix_wrong_layout is True
+
+    # Fix punctuation property
+    cfg.fix_punctuation = False
+    assert cfg.fix_punctuation_spacing is False
+    cfg.fix_punctuation = True
+    assert cfg.fix_punctuation_spacing is True
+    assert cfg.fix_punctuation is True
+
+    # Language property
+    cfg.language = "fa"
+    assert cfg.ui_language == "fa"
+    assert cfg.language == "fa"
+
+

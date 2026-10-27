@@ -13,7 +13,6 @@ from ravan.core.predictor import is_safe_autocorrect_token
 
 if TYPE_CHECKING:
     from ravan.core.dict import Dictionary
-    from ravan.core.user_dict import UserDictionary
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +78,7 @@ class AutoFixEngine:
         mapper: LayoutMapper | None = None,
         en_dict: Dictionary | None = None,
         fa_dict: Dictionary | None = None,
-        user_dict: UserDictionary | None = None,
+        user_dict: Dictionary | None = None,
         mode: str = "safe",
     ) -> None:
         self.mapper = mapper or LayoutMapper()
