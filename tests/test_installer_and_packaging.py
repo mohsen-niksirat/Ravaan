@@ -179,12 +179,12 @@ class TestScoopManifest:
         scoop_path = REPO_ROOT / "packaging" / "scoop" / "ravaan.json"
         assert scoop_path.is_file()
         data = json.loads(scoop_path.read_text(encoding="utf-8"))
-        assert data["version"] == "2.4.0"
+        assert data["version"] == "2.5.0"
         assert data["bin"] == "Ravaan.exe"
         assert data["persist"] == "data"
         assert data["checkver"] == "github"
         assert "64bit" in data["architecture"]
-        assert "Ravaan-Portable-2.4.0.zip" in data["architecture"]["64bit"]["url"]
+        assert "Ravaan-Portable-2.5.0.zip" in data["architecture"]["64bit"]["url"]
 
 
 class TestChocolateyPackage:
@@ -215,7 +215,7 @@ class TestChocolateyPackage:
             return el.text or ""
 
         assert get_val("id") == "ravaan"
-        assert get_val("version") == "2.4.0"
+        assert get_val("version") == "2.5.0"
         assert "Mohsen Niksirat" in get_val("authors")
         assert "LICENSE" in get_val("licenseUrl")
 

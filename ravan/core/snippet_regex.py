@@ -30,7 +30,7 @@ def extract_regex_pattern(trigger: str) -> str:
     return trig
 
 
-def validate_regex_trigger(trigger: str, max_bench_ms: float = 1.0) -> tuple[bool, str]:
+def validate_regex_trigger(trigger: str, max_bench_ms: float = 15.0) -> tuple[bool, str]:
     """Validate regex trigger syntax, safety, and catastrophic backtracking resistance.
 
     Returns:

@@ -1,11 +1,11 @@
 {
-    "version": "2.4.0",
+    "version": "2.5.0",
     "description": "Intelligent Persian and bilingual typing assistant for Windows with zero telemetry.",
     "homepage": "https://github.com/mohsen-niksirat/Ravaan",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/mohsen-niksirat/Ravaan/releases/download/v2.4.0/Ravaan-Portable-2.4.0.zip",
+            "url": "https://github.com/mohsen-niksirat/Ravaan/releases/download/v2.5.0/Ravaan-Portable-2.5.0.zip",
             "hash": "0000000000000000000000000000000000000000000000000000000000000000"
         }
     },

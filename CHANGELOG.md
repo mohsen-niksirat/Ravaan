@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-10-29 - Smart Persian Numbers, Currency, Date/Time Expansion, Typography & UI Polish
+
+### Added
+- **Smart Persian Numbers to Words & Currency Triggers (
+avan/core/num2words.py, 
+avan/core/snippet.py)**:
+  - Expanded inline number triggers: typing any number followed by # directly expands to full Persian words (e.g. 1500000# -> «یک میلیون و پانصد هزار»).
+  - Currency triggers: 1500000ت# and 1500000/ت expand to Toman words («یکصد و پنجاه هزار تومان»).
+  - Rial triggers: 1500000ر#, 1500000/ر, and 1500000/ریال expand to Rial words («یک میلیون و پانصد هزار ریال»).
+  - Thousands separator macro: 2500000/s expands to «۲,۵۰۰,۰۰۰».
+- **Expanded Jalali (Shamsi) & Gregorian Date/Time Triggers (
+avan/core/snippet.py)**:
+  - Natural suffix triggers for Persian typing: امروز/, امروز#, 	oday/, 	oday# expand to current Jalali ISO date (e.g. «۱۴۰۵/۰۸/۰۸»).
+  - Textual Persian date triggers: تاریخ/, تاریخ#, 	arikh/ expand to full formatted date («۸ آبان ۱۴۰۵»).
+  - Weekday triggers: روز/, /روز, weekday/ expand to Persian weekday name («چهارشنبه»).
+  - Time triggers: ساعت/, ساعت#, 	ime/, 	ime# expand to current time in Persian/English digits.
+- **Digit Toggle Hotkey (Ctrl+Alt+N) (
+avan/ui/app_actions.py, 
+avan/core/config.py)**:
+  - Added dedicated global hotkey (Ctrl+Alt+N) to toggle digits between Persian (۱۲۳) and English (123) for selected text or the last typed word.
+- **Real-Time Smart Persian Punctuation & Typography (
+avan/ui/key_handler.py)**:
+  - Auto-converts ASCII question mark (?), comma (,), and semicolon (;) to Persian typographic marks («؟»، «،»، «؛») when typing in Persian context.
+  - Automatically inserts spacing before opening brackets and guillemets ((, [, «) when typed directly after a word.
+  - Automatically trims erroneous spaces preceding closing punctuation marks (., !, ?, ؛, ،, ؟, ), ], »).
+- **Smooth Fluent Fade-In Overlay Animation (
+avan/ui/overlay.py)**:
+  - Integrated 60 FPS smooth alpha transition (fade-in) when the suggestions popup appears, providing a native, fluid Windows 11 feel.
+
+
 ## [2.4.0] - 2026-10-28 - Caret Focus Fix, Frequency Ranking, Fast Typing Pipeline, Tray Status & Modern Icon
 
 ### Added

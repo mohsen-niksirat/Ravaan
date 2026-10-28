@@ -146,3 +146,11 @@ def to_toman_words(rial_num: int | str) -> str:
         remainder_fa = en_to_fa_digits(str(remainder))
         return f"{words} تومان و {remainder_fa} ریال"
     return f"{words} تومان"
+
+
+def to_rial_words(num: int | str) -> str:
+    """Convert number to Persian words with 'ریال' suffix."""
+    words = num_to_persian_words(num)
+    if words:
+        return f"{words} ریال"
+    return ""

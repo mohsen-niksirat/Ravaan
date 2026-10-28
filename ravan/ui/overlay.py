@@ -119,6 +119,7 @@ class OverlayWindow:
         elif ui_style == "classic":
             opacity = 1.0
 
+        self._target_alpha = opacity
         try:
             self._root.attributes("-alpha", opacity)
         except Exception:  # noqa: BLE001
@@ -286,7 +287,33 @@ class OverlayWindow:
             self._root, getattr(self, "palette", get_active_palette()), show=show
         )
 
+    def _fade_in(self) -> None:
+        target = getattr(self, "_target_alpha", getattr(self.palette, "alpha", 0.95))
+        if hasattr(self, "_fade_job") and self._fade_job:
+            try:
+                self._root.after_cancel(self._fade_job)
+            except Exception:
+                pass
+            self._fade_job = None
+
+        steps = [max(0.3, target * 0.4), max(0.6, target * 0.75), target]
+
+        def _step(idx: int) -> None:
+            if not self.visible:
+                return
+            try:
+                self._root.attributes("-alpha", steps[idx])
+            except Exception:
+                return
+            if idx + 1 < len(steps):
+                self._fade_job = self._root.after(16, lambda: _step(idx + 1))
+            else:
+                self._fade_job = None
+
+        _step(0)
+
     def _show_no_activate(self) -> None:
+        was_visible = self.visible
         if sys.platform == "win32":
             try:
                 from ravan.platform import winapi as wapi
@@ -308,6 +335,8 @@ class OverlayWindow:
         else:
             self._root.deiconify()
         self._apply_noactivate(show=False)
+        if not was_visible:
+            self._fade_in()
 
     def tick(self) -> None:
         try:
@@ -323,6 +352,12 @@ class OverlayWindow:
             pass
 
     def hide(self) -> None:
+        if hasattr(self, "_fade_job") and self._fade_job:
+            try:
+                self._root.after_cancel(self._fade_job)
+            except Exception:
+                pass
+            self._fade_job = None
         self._mode = "idle"
         self._candidates = []
         self._clip_items = []

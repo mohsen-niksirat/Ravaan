@@ -101,6 +101,34 @@ class AppActionsMixin:
         for ch in normalized + trailing_str:
             self.journal.push(ch)
 
+    def _toggle_digits_selection_or_last_word(self: Any) -> None:
+        """Toggle digits between English and Persian in selection or the last typed word."""
+        from ravan.core.normalizer import toggle_digits
+        from ravan.platform.clipboard import try_convert_selection
+
+        self._suppress_until = time.monotonic() + 0.12
+        if try_convert_selection(toggle_digits):
+            log.info("Toggled digits of selected text")
+            return
+        self._toggle_digits_last_word()
+
+    def _toggle_digits_last_word(self: Any) -> None:
+        from ravan.core.normalizer import toggle_digits
+
+        word, trailing = self.journal.last_word_info(allow_trailing_spaces=True)
+        if not word:
+            return
+        converted = toggle_digits(word)
+        if not converted or converted == word:
+            return
+        log.info("Toggle digits %r → %r (trailing: %d)", word, converted, trailing)
+        self._suppress_until = time.monotonic() + 0.05
+        trailing_str = " " * trailing
+        replace_last_n_with(len(word) + trailing, converted + trailing_str)
+        self.journal.pop_last_word_info(allow_trailing_spaces=True)
+        for ch in converted + trailing_str:
+            self.journal.push(ch)
+
     def _cycle_case_selection_or_last_word(self: Any) -> None:
         """Cycle case (UPPER -> lower -> Title) of selection or last typed word."""
         from ravan.core.transform import cycle_case

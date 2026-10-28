@@ -194,18 +194,71 @@ class SnippetEngine:
             self._init_default_macros()
 
     def _init_default_macros(self) -> None:
+        def _today_iso():
+            return JalaliDate.today().isoformat_fa()
+
+        def _today_persian():
+            return JalaliDate.today().format_persian(include_weekday=False)
+
+        def _today_full():
+            return JalaliDate.today().format_persian(include_weekday=True)
+
+        def _weekday():
+            return JalaliDate.today().weekday_name()
+
+        def _greg_date():
+            return date.today().isoformat()
+
+        def _time_fa():
+            return current_time_str(persian_digits=True)
+
+        def _time_en():
+            return current_time_str(persian_digits=False)
+
         self._macros = {
-            "/today": lambda: JalaliDate.today().isoformat_fa(),
-            "/shamsi": lambda: JalaliDate.today().isoformat_fa(),
-            "/امروز": lambda: JalaliDate.today().isoformat_fa(),
-            "/tarikh": lambda: JalaliDate.today().format_persian(include_weekday=False),
-            "/تاریخ": lambda: JalaliDate.today().format_persian(include_weekday=False),
-            "/date": lambda: date.today().isoformat(),
-            "/time": lambda: current_time_str(persian_digits=False),
-            "/saat": lambda: current_time_str(persian_digits=False),
-            "/ساعت": lambda: current_time_str(persian_digits=True),
+            # Jalali ISO dates (e.g. ۱۴۰۵/۰۸/۰۸)
+            "/today": _today_iso,
+            "today/": _today_iso,
+            "today#": _today_iso,
+            "/shamsi": _today_iso,
+            "shamsi/": _today_iso,
+            "/امروز": _today_iso,
+            "امروز/": _today_iso,
+            "امروز#": _today_iso,
+            # Jalali Text dates (e.g. ۸ آبان ۱۴۰۵)
+            "/tarikh": _today_persian,
+            "tarikh/": _today_persian,
+            "tarikh#": _today_persian,
+            "/تاریخ": _today_persian,
+            "تاریخ/": _today_persian,
+            "تاریخ#": _today_persian,
+            # Full weekday + date
+            "/today_full": _today_full,
+            "today_full/": _today_full,
+            "/امروز_کامل": _today_full,
+            "امروز_کامل/": _today_full,
+            # Weekday
+            "/روز": _weekday,
+            "روز/": _weekday,
+            "/weekday": _weekday,
+            "weekday/": _weekday,
+            # Gregorian Date
+            "/date": _greg_date,
+            "date/": _greg_date,
+            # Time
+            "/time": _time_en,
+            "time/": _time_en,
+            "time#": _time_en,
+            "/saat": _time_en,
+            "saat/": _time_en,
+            "/ساعت": _time_fa,
+            "ساعت/": _time_fa,
+            "ساعت#": _time_fa,
+            # UUID
             "/uuid": lambda: str(uuid.uuid4()),
+            "uuid/": lambda: str(uuid.uuid4()),
             "/guid": lambda: str(uuid.uuid4()),
+            "guid/": lambda: str(uuid.uuid4()),
         }
 
     @classmethod
@@ -293,16 +346,25 @@ class SnippetEngine:
             return clean_text, cursor_offset
 
         from .normalizer import fa_to_en_digits
-        from .num2words import format_thousands, num_to_persian_words, to_toman_words
+        from .num2words import format_thousands, num_to_persian_words, to_rial_words, to_toman_words
 
         suffixes = (
+            ("ت#", to_toman_words),
+            ("/ت", to_toman_words),
+            ("/t", to_toman_words),
+            ("/تومان", to_toman_words),
+            ("ر#", to_rial_words),
+            ("/ر", to_rial_words),
+            ("/r", to_rial_words),
+            ("/ریال", to_rial_words),
+            ("/rial", to_rial_words),
+            ("#", num_to_persian_words),
             ("/w", num_to_persian_words),
             ("/words", num_to_persian_words),
             ("/حروف", num_to_persian_words),
             ("/s", lambda n: format_thousands(n, persian_digits=True)),
             ("/sep", lambda n: format_thousands(n, persian_digits=True)),
-            ("/t", to_toman_words),
-            ("/تومان", to_toman_words),
+            ("/sepen", lambda n: format_thousands(n, persian_digits=False)),
         )
         for sfx, fn in suffixes:
             if word.endswith(sfx):

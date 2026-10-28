@@ -57,6 +57,7 @@ class Config:
     normalize_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", ["Ctrl"]))
     case_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", ["Shift"]))
     clean_clipboard_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("F12", ["Ctrl", "Shift"]))
+    digits_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("N", ["Ctrl", "Alt"]))
     inline_calc_enabled: bool = True
     sound_feedback_enabled: bool = False
     undo_autocorrect_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Z", ["Ctrl", "Shift"]))
@@ -434,6 +435,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         normalize_hotkey=_hotkey_from_dict(data.get("normalize_hotkey"), HotkeySpec("F12", ["Ctrl"])),
         case_hotkey=_hotkey_from_dict(data.get("case_hotkey"), HotkeySpec("F12", ["Shift"])),
         clean_clipboard_hotkey=_hotkey_from_dict(data.get("clean_clipboard_hotkey"), HotkeySpec("F12", ["Ctrl", "Shift"])),
+        digits_hotkey=_hotkey_from_dict(data.get("digits_hotkey"), HotkeySpec("N", ["Ctrl", "Alt"])),
         inline_calc_enabled=bool(data.get("inline_calc_enabled", True)),
         sound_feedback_enabled=bool(data.get("sound_feedback_enabled", False)),
         undo_autocorrect_hotkey=_hotkey_from_dict(data.get("undo_autocorrect_hotkey"), HotkeySpec("Z", ["Ctrl", "Shift"])),

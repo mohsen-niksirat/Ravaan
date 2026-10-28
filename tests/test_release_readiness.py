@@ -27,8 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 class TestVersionConsistency:
     """Verifies that all version metadata across the repository are in 100% agreement."""
 
-    def test_all_versions_equal_2_4_0(self):
-        expected_version = "2.4.0"
+    def test_all_versions_equal_2_5_0(self):
+        expected_version = "2.5.0"
 
         # 1. ravan module
         assert ravan.__version__ == expected_version, (

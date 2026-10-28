@@ -203,6 +203,7 @@ class KeyHandlerMixin:
             (self.cfg.case_hotkey, self._cycle_case_selection_or_last_word),
             (self.cfg.convert_hotkey, self._convert_selection_or_last_word),
             (getattr(self.cfg, "clean_clipboard_hotkey", None), self._clean_clipboard_text),
+            (getattr(self.cfg, "digits_hotkey", None), self._toggle_digits_selection_or_last_word),
         ):
             if hk is not None and matches_hotkey(vk, hk):
                 if now - self._last_convert_at > 0.3:
@@ -379,7 +380,7 @@ class KeyHandlerMixin:
                             return
 
         # Clean trailing space error before punctuation in Persian typing (e.g. "کتاب ." -> "کتاب.")
-        if self.cfg.fix_punctuation_spacing and ch in ".,!?:؛،؟)":
+        if self.cfg.fix_punctuation_spacing and ch in ".,!?:؛،؟)»]":
             lang = current_language()
             if lang and lang.tag == "fa":
                 text_buf = self.journal.text()
@@ -389,6 +390,38 @@ class KeyHandlerMixin:
                     if self.journal._chars:
                         self.journal._chars.pop()
                     self._record_event(f"Fixed spacing before punctuation '{ch}'")
+
+        # Auto-insert space before opening brackets/quotes if typed immediately after a word (e.g. "کتاب(" -> "کتاب (")
+        if self.cfg.fix_punctuation_spacing and ch in "(«[":
+            lang = current_language()
+            if lang and lang.tag == "fa":
+                text_buf = self.journal.text()
+                if text_buf and text_buf[-1] not in (" ", "\n", "(", "«", "[", "\t"):
+                    self._suppress_until = time.monotonic() + 0.05
+                    replace_last_n_with(0, " ")
+                    self.journal.push(" ")
+
+        # Smart contextual Persian punctuation (e.g. ? -> ؟, , -> ،, ; -> ؛)
+        if self.cfg.smart_punctuation_enabled and ch in "?,;":
+            lang = current_language()
+            if lang and lang.tag == "fa":
+                text_buf = self.journal.text()
+                last_ch = text_buf[-1] if text_buf else ""
+                from ravan.core.predictor import is_arabic_persian
+
+                if is_arabic_persian(last_ch) or (
+                    last_ch == " " and len(text_buf) >= 2 and is_arabic_persian(text_buf[-2])
+                ):
+                    mapping = {"?": "؟", ",": "،", ";": "؛"}
+                    target_p = mapping.get(ch)
+                    if target_p:
+                        self._suppress_until = time.monotonic() + 0.05
+                        replace_last_n_with(0, target_p)
+                        self.journal.push(target_p)
+                        self._record_event(f"Smart Persian punctuation conversion: '{target_p}'")
+                        self.overlay.hide()
+                        set_popup_visible(False)
+                        return
 
         if self._last_autocorrect is not None:
             if time.monotonic() - self._last_autocorrect[2] > 4.0 or ch.isalnum():
