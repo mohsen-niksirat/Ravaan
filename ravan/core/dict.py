@@ -351,6 +351,7 @@ class Dictionary:
         self._count: int = 0
         self._file_handle: Any = None
         self._top_cached_by_len: dict[int, list[tuple[DictEntry, str]]] | None = None
+        self._single_char_top: dict[str, list[DictEntry]] | None = None
         self._completions_cache: dict[tuple[str, int], list[DictEntry]] = {}
 
         if _mmap_info is not None:
@@ -550,6 +551,24 @@ class Dictionary:
             self._completions_cache[cache_key] = res
         return res
 
+    def _ensure_single_char_top(self) -> dict[str, list[DictEntry]]:
+        if self._single_char_top is None:
+            self._single_char_top = {}
+            if self._mmap is not None:
+                mm = self._mmap
+                count = self._count
+                table2_pos = 16 + count * 4
+                limit_scan = min(20000, count)
+                for i in range(limit_scan):
+                    off = struct.unpack_from("<I", mm, table2_pos + i * 4)[0]
+                    rank, freq, wlen = struct.unpack_from("<IIB", mm, off)
+                    w = mm[off + 9 : off + 9 + wlen].decode("utf-8")
+                    first = w.lower()[:1]
+                    lst = self._single_char_top.setdefault(first, [])
+                    if len(lst) < 15:
+                        lst.append(DictEntry(word=w, rank=rank, frequency=freq))
+        return self._single_char_top
+
     def _completions_mmap(self, prefix_lower: str, limit: int) -> list[DictEntry]:
         mm = self._mmap
         assert mm is not None
@@ -566,6 +585,22 @@ class Dictionary:
             out.sort(key=lambda e: e.rank)
             return out[:limit]
 
+        # For single-character prefix (e.g. 'س' or 't'), return top-frequency words
+        # so the user gets instant, highly-relevant common words (e.g. سلام, سال, ساعت).
+        if len(prefix_lower) == 1:
+            matches: list[DictEntry] = []
+            for ov_key, ov_entry in self._overlay.items():
+                if ov_key.startswith(prefix_lower):
+                    matches.append(ov_entry)
+            single_map = self._ensure_single_char_top()
+            cached_top = single_map.get(prefix_lower, [])
+            for e in cached_top:
+                if e not in matches:
+                    matches.append(e)
+            if len(matches) >= limit:
+                matches.sort(key=lambda e: e.rank)
+                return matches[:limit]
+
         low = 0
         high = count - 1
         first_idx = count
@@ -580,8 +615,11 @@ class Dictionary:
             else:
                 low = mid + 1
 
-        matches: list[DictEntry] = []
+        matches = []
         idx = first_idx
+        # For prefixes of length >= 2, scan matching words in Table 1 up to 3500
+        # so words aren't truncated alphabetically before sorting by rank.
+        max_scan = 3500
         while idx < count:
             off = struct.unpack_from("<I", mm, 16 + idx * 4)[0]
             wlen = mm[off + 8]
@@ -591,7 +629,7 @@ class Dictionary:
             rank, freq = struct.unpack_from("<II", mm, off)
             matches.append(DictEntry(word=w, rank=rank, frequency=freq))
             idx += 1
-            if len(matches) >= limit * 15:
+            if len(matches) >= max_scan:
                 break
 
         for ov_key, ov_entry in self._overlay.items():

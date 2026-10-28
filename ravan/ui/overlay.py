@@ -61,9 +61,12 @@ class OverlayWindow:
         )
         self.custom_x = getattr(cfg, "overlay_pos_x", -1) if cfg else -1
         self.custom_y = getattr(cfg, "overlay_pos_y", -1) if cfg else -1
+        self.current_x = -1
+        self.current_y = -1
 
         self._root = tk.Tk()
-        self._root.withdraw()
+        if sys.platform != "win32":
+            self._root.withdraw()
         self._root.title("Ravan")
         self._root.attributes("-topmost", True)
         self._root.overrideredirect(True)
@@ -297,8 +300,6 @@ class OverlayWindow:
                         wapi.user32.SetWindowPos(root_hwnd, 0, 0, 0, 0, 0, 0x0027)
 
                     wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
-                    if str(self._root.state()) == "withdrawn":
-                        self._root.deiconify()
                     current_fg = int(wapi.user32.GetForegroundWindow() or 0)
                     if fg_target and current_fg != fg_target:
                         wapi.user32.SetForegroundWindow(fg_target)
@@ -331,6 +332,7 @@ class OverlayWindow:
         self._hint.pack_forget()
         if hasattr(self, "_grip"):
             self._grip.pack_forget()
+        hidden_via_win32 = False
         if sys.platform == "win32":
             try:
                 from ravan.platform import winapi as wapi
@@ -338,9 +340,11 @@ class OverlayWindow:
                 root_hwnd = self._get_root_hwnd()
                 if root_hwnd:
                     wapi.user32.ShowWindow(root_hwnd, 0)
+                    hidden_via_win32 = True
             except Exception:  # noqa: BLE001
                 pass
-        self._root.withdraw()
+        if not hidden_via_win32:
+            self._root.withdraw()
         if self._fade_after is not None:
             try:
                 self._root.after_cancel(self._fade_after)
@@ -530,6 +534,8 @@ class OverlayWindow:
             px = max(0, min(int(x), sw - w - 8))
             py = max(0, int(y))
         self._root.geometry(f"+{px}+{py}")
+        self.current_x = int(px)
+        self.current_y = int(py)
 
     @property
     def visible(self) -> bool:

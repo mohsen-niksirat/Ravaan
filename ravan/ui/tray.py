@@ -134,10 +134,15 @@ class TrayIcon:
         from ravan.core.i18n import t
         from ravan.ui.log_setup import open_logs_folder
 
+        def status_text(_item: Any) -> str:
+            if self._is_paused and self._is_paused():
+                return t("tray.status_paused", "⏸️ Ravaan: Paused (توقف موقت)")
+            return t("tray.status_active", "🟢 Ravaan: Active (فعال و آماده)")
+
         def pause_text(_item: Any) -> str:
             if self._is_paused and self._is_paused():
-                return t("tray.resume", "▶ Resume Ravaan")
-            return t("tray.pause_10m", "⏸ Pause for 10 min")
+                return t("tray.resume", "▶ Resume Ravaan (شروع مجدد)")
+            return t("tray.pause_10m", "⏸ Pause for 10 min (توقف ۱۰ دقیقه‌ای)")
 
         quick_toggles_menu = pystray.Menu(
             Item(
@@ -168,7 +173,9 @@ class TrayIcon:
         )
 
         menu = pystray.Menu(
+            Item(status_text, self._toggle_pause_action),
             Item(pause_text, self._toggle_pause_action),
+            pystray.Menu.SEPARATOR,
             Item(t("tray.quick_toggles", "Quick Toggles"), quick_toggles_menu),
             pystray.Menu.SEPARATOR,
             Item(t("tray.show_language", "Show language (Alt+L)"), self._show_lang),
@@ -207,6 +214,7 @@ class TrayIcon:
                 self._icon.title = (
                     f"Ravaan (Paused ~{remaining_min}m)" if paused else "Ravan"
                 )
+                self._icon.update_menu()
             except Exception:
                 pass
 
@@ -239,6 +247,11 @@ class TrayIcon:
     def _toggle_pause_action(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_toggle_pause:
             self._on_toggle_pause()
+        if self._icon is not None:
+            try:
+                self._icon.update_menu()
+            except Exception:
+                pass
 
     def _clean_clipboard(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_clean_clipboard:

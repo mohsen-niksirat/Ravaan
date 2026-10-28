@@ -44,8 +44,7 @@ jobs:
           $files = @("dist/Ravaan.exe", "README.md", "LICENSE")
           if (Test-Path "README.fa.md") { $files += "README.fa.md" }
           if (Test-Path "docs/SECURITY_FAQ.md") { $files += "docs/SECURITY_FAQ.md" }
-          Compress-Archive -Path $files -DestinationPath "dist/Ravaan-$ver-portable.zip" -Force
-          Copy-Item "dist/Ravaan-$ver-portable.zip" "dist/Ravaan-Portable-$ver.zip" -Force
+          Compress-Archive -Path $files -DestinationPath "dist/Ravaan-Portable-$ver.zip" -Force
 
       - name: Install Inno Setup
         run: |
@@ -105,7 +104,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $zip = Get-ChildItem artifacts/Ravaan-*-portable.zip | Select-Object -First 1
+          $zip = Get-ChildItem artifacts/Ravaan-Portable-*.zip | Select-Object -First 1
           if (-not $zip) {
               Write-Error "Portable zip artifact not found in artifacts/"
               exit 1

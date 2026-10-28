@@ -78,7 +78,7 @@ def get_caret_rect_with_source() -> tuple[CaretRect, str]:
         return _mock_caret[0], _mock_caret[1]
 
     now = time.monotonic()
-    if _cached_caret is not None and (now - _cached_caret[2]) < 0.030:
+    if _cached_caret is not None and (now - _cached_caret[2]) < 0.250:
         return _cached_caret[0], _cached_caret[1]
 
     active_pid = _get_active_pid()

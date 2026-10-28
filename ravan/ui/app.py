@@ -257,7 +257,7 @@ class RavanApp(
             def _on_form_submit(rendered_text: str) -> None:
                 self._erase_word_and_delimiter(word, delimiter)
                 cl, off = parse_cursor_placeholder(rendered_text)
-                self._suppress_until = time.monotonic() + 0.08
+                self._suppress_until = time.monotonic() + 0.03
                 replace_last_n_with(0, cl, cursor_offset=off)
                 for c in cl:
                     self.journal.push(c)
@@ -381,7 +381,7 @@ class RavanApp(
                 if cand.kind == CandidateKind.SENTENCE
                 else 0
             )
-            self._suppress_until = time.monotonic() + 0.08
+            self._suppress_until = time.monotonic() + 0.03
             replace_text = cand.text + auto_space
             replace_last_n_with(del_len, replace_text)
             for _ in range(del_len):
@@ -402,7 +402,7 @@ class RavanApp(
         cursor_offset: int | None = None,
     ) -> None:
         # Brief mute so echoed / overlapping keys don't corrupt the journal
-        self._suppress_until = time.monotonic() + 0.08
+        self._suppress_until = time.monotonic() + 0.03
         delete_len = len(old) + len(delimiter)
         replace_text = new + delimiter
         total_cursor_offset = None

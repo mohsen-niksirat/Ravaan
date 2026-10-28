@@ -207,9 +207,15 @@ class AppPollingMixin:
                     "", context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
                 )
                 if cands:
-                    caret = get_caret_rect()
+                    if getattr(self.overlay, "has_custom_pos", False) and self.overlay.custom_x >= 0:
+                        cx, cy, ch = self.overlay.custom_x, self.overlay.custom_y, 16
+                    elif self.overlay.predicting and self.overlay.visible and getattr(self.overlay, "current_x", -1) >= 0:
+                        cx, cy, ch = self.overlay.current_x, self.overlay.current_y, 16
+                    else:
+                        caret = get_caret_rect()
+                        cx, cy, ch = caret.x, caret.y, caret.height
                     self.overlay.show_predictions(
-                        cands, caret.x, caret.y, caret.height, on_accept=self._accept_candidate
+                        cands, cx, cy, ch, on_accept=self._accept_candidate
                     )
                     set_popup_visible(
                         True, swallow_digits=self.cfg.quickpick_digits
@@ -234,9 +240,15 @@ class AppPollingMixin:
                 self.overlay.hide()
                 set_popup_visible(False)
             return
-        caret = get_caret_rect()
+        if getattr(self.overlay, "has_custom_pos", False) and self.overlay.custom_x >= 0:
+            cx, cy, ch = self.overlay.custom_x, self.overlay.custom_y, 16
+        elif self.overlay.predicting and self.overlay.visible and getattr(self.overlay, "current_x", -1) >= 0:
+            cx, cy, ch = self.overlay.current_x, self.overlay.current_y, 16
+        else:
+            caret = get_caret_rect()
+            cx, cy, ch = caret.x, caret.y, caret.height
         self.overlay.show_predictions(
-            cands, caret.x, caret.y, caret.height, on_accept=self._accept_candidate
+            cands, cx, cy, ch, on_accept=self._accept_candidate
         )
         set_popup_visible(True, swallow_digits=self.cfg.quickpick_digits)
         self._popup_shown_at = time.monotonic()

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-28 - Caret Focus Fix, Frequency Ranking, Fast Typing Pipeline, Tray Status & Modern Icon
+
+### Added
+- **Modern Fluent Design Multi-Resolution Icon (
+avan/data/icon.ico)**:
+  - Replaced legacy icon with a professional, high-resolution application icon featuring a Windows 11 Fluent squircle container, vibrant blue-to-cyan mesh gradient, subtle glass acrylic edge, and stylized Persian calligraphy «ر» with a glowing typing caret accent.
+  - Exported in all standard Windows ICO resolutions: 256x256, 128x128, 64x64, 48x48, 32x32, and 16x16.
+  - Added dedicated generator script scripts/generate_icon.py.
+- **System Tray Live Status Indicator & Pause Refresh (
+avan/ui/tray.py)**:
+  - Added dedicated status header at top of tray menu showing real-time operational status (🟢 Ravaan: Active / ⏸️ Ravaan: Paused).
+  - Added explicit bilingual pause/resume action item (⏸ Pause for 10 min / ▶ Resume Ravaan).
+  - Added automatic Win32 menu refresh on state transitions via update_menu() so tray status and labels update instantaneously.
+
+### Fixed
+- **Prefix Relevance & Frequency Ranking for Short Prefixes (
+avan/core/dict.py)**:
+  - Resolved suggestion degradation where 1-2 character prefixes (e.g. typing «س») returned low-frequency alphabetical entries («سؤال», «سئوال») instead of common daily words.
+  - Implemented Table 2 (frequency order) scanning and single-character top-frequency caching so typing «س» immediately suggests top words («سال», «سلام», «ساعت», «سیب‌زمینی»).
+  - Expanded search scan limits for longer prefixes so alphabetical slicing does not prematurely truncate high-frequency completions.
+- **Caret Focus Theft & Input Deactivation (
+avan/ui/overlay.py)**:
+  - Eliminated focus deactivation and caret blink loss in chat applications (e.g., Telegram Desktop) by transitioning overlay window management to pure native non-activating Win32 calls (ShowWindow with SW_SHOWNOACTIVATE and SW_HIDE) and eliminating Tkinter withdraw() / deiconify() focus cycling.
+- **Fast-Typing Keystroke Dropping & Input Queue Lag (
+avan/platform/caret.py, 
+avan/ui/app_polling.py, 
+avan/ui/app.py)**:
+  - Eliminated input thread synchronization blocking by skipping redundant get_caret_rect() / AttachThreadInput calls when the overlay is already active or in a custom position.
+  - Increased caret position cache from 30ms to 250ms during active typing bursts.
+  - Reduced suppression window after text replacement to 30ms to prevent eating subsequent fast-typed keystrokes.
+- **Release Workflow Duplicate Portable Zip (.github/workflows/release.yml)**:
+  - Cleaned up duplicate portable zip generation (Ravaan--portable.zip and Ravaan-Portable-.zip) so only the single standardized Ravaan-Portable-.zip is built, verified, and uploaded.
+
+
 ## [2.3.0] - 2026-10-27 - Non-Interfering Overlay, Auto-Space, Draggable Position & UI Customization
 
 ### Added
