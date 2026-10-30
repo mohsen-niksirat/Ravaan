@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from ravan.core.config import Config
+from ravan.core.config import Config, hotkey_to_text
 from ravan.ui.wizard import FirstRunWizard, apply_preset
 
 
@@ -45,6 +45,8 @@ def test_apply_preset_configurations():
 def test_wizard_navigation_and_step_flow():
     """Verify 3-step navigation flow: step 1 -> step 2 -> step 3 -> completion."""
     try:
+        from unittest.mock import patch
+
         cfg = Config()
         on_done = MagicMock()
         wiz = FirstRunWizard(cfg=cfg, on_complete=on_done)
@@ -71,7 +73,8 @@ def test_wizard_navigation_and_step_flow():
 
         # Forward to step 3 and finish
         wiz._next_step()
-        wiz._close(completed=True)
+        with patch("ravan.ui.wizard.save_config"):
+            wiz._close(completed=True)
 
         assert wiz._root is None
         assert cfg.has_seen_onboarding is True
@@ -119,6 +122,8 @@ def test_wizard_demo_typing_simulation():
 def test_wizard_preset_selection_persists():
     """Verify selecting Power user preset in wizard saves to config upon finish."""
     try:
+        from unittest.mock import patch
+
         cfg = Config()
         wiz = FirstRunWizard(cfg=cfg)
         wiz._build()
@@ -127,12 +132,13 @@ def test_wizard_preset_selection_persists():
         wiz._preset_var.set("power")
         wiz._convert_hk_var.set("Alt+L")
 
-        wiz._close(completed=True)
+        with patch("ravan.ui.wizard.save_config"):
+            wiz._close(completed=True)
 
         assert cfg.has_seen_onboarding is True
         assert cfg.clipboard_history_enabled is True
         assert cfg.next_word_prediction is True
-        assert cfg.convert_hotkey.key == "Alt+L"
+        assert hotkey_to_text(cfg.convert_hotkey) == "Alt+L"
     except (tk.TclError, Exception) as exc:
         pytest.skip(f"Tkinter display not available: {exc}")
 

@@ -285,11 +285,17 @@ def text_to_hotkey(text: str) -> HotkeySpec | None:
 
 def _hotkey_from_dict(data: Any, default: HotkeySpec) -> HotkeySpec:
     if isinstance(data, dict):
+        key = str(data.get("key", default.key)).strip() or default.key
         modifiers = data.get("modifiers", default.modifiers)
         if not isinstance(modifiers, list):
             modifiers = default.modifiers
+        # Normalize keys that were stored as combo strings like "Alt+L"
+        if "+" in key:
+            parsed = text_to_hotkey(key)
+            if parsed is not None:
+                return parsed
         return HotkeySpec(
-            key=str(data.get("key", default.key)).strip() or default.key,
+            key=key,
             modifiers=[str(m) for m in modifiers],
         )
     return HotkeySpec(key=default.key, modifiers=list(default.modifiers))
@@ -402,7 +408,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
     if g_mig or w_mig or a_mig:
         log.info("Migrated credentials to Windows Credential Manager.")
 
-    return Config(
+    cfg = Config(
         convert_hotkey=_hotkey_from_dict(data.get("convert_hotkey"), HotkeySpec("Pause")),
         lang_indicator_hotkey=_hotkey_from_dict(data.get("lang_indicator_hotkey"), HotkeySpec("L", ["Alt"])),
         autocorrect_enabled=bool(data.get("autocorrect_enabled", True)),
@@ -490,6 +496,19 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         enable_feature_hints=bool(data.get("enable_feature_hints", True)),
         shown_hints=[str(h) for h in data.get("shown_hints", []) if str(h).strip()],
     )
+
+    # Sanitize hotkey conflicts that might exist in old or misconfigured configs
+    if hotkey_to_text(cfg.convert_hotkey) == hotkey_to_text(cfg.lang_indicator_hotkey):
+        log.warning(
+            "Detected duplicate hotkey between convert_hotkey and lang_indicator_hotkey (%s); resolving conflict.",
+            hotkey_to_text(cfg.convert_hotkey),
+        )
+        if hotkey_to_text(cfg.convert_hotkey) in ("Alt+L", "ALT+L"):
+            cfg.lang_indicator_hotkey = HotkeySpec("L", ["Ctrl", "Alt"])
+        else:
+            cfg.convert_hotkey = HotkeySpec("Pause", [])
+
+    return cfg
 
 
 def config_to_dict(cfg: Config) -> dict[str, Any]:

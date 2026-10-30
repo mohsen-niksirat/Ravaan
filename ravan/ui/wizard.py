@@ -14,7 +14,7 @@ from collections.abc import Callable
 from tkinter import ttk
 from typing import Any
 
-from ravan.core.config import Config, save_config
+from ravan.core.config import Config, HotkeySpec, hotkey_to_text, save_config, text_to_hotkey
 from ravan.core.i18n import get_locale, is_rtl, set_locale, t
 from ravan.ui.theme import (
     apply_theme_to_ttk,
@@ -137,8 +137,12 @@ class FirstRunWizard:
             preset = self._preset_var.get() if self._preset_var is not None else "standard"
             apply_preset(self.cfg, preset)
             # Save chosen conversion hotkey
-            if self._convert_hk_var is not None and hasattr(self.cfg.convert_hotkey, "key"):
-                self.cfg.convert_hotkey.key = self._convert_hk_var.get()
+            if self._convert_hk_var is not None:
+                parsed_hk = text_to_hotkey(self._convert_hk_var.get())
+                if parsed_hk is not None:
+                    self.cfg.convert_hotkey = parsed_hk
+                    if hotkey_to_text(self.cfg.convert_hotkey) == hotkey_to_text(self.cfg.lang_indicator_hotkey):
+                        self.cfg.lang_indicator_hotkey = HotkeySpec("L", ["Ctrl", "Alt"])
 
         save_config(self.cfg)
         self._open = False

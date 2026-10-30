@@ -379,7 +379,7 @@ def apply_theme_to_ttk(
         background=card,
         foreground=subtext,
         bordercolor=border,
-        padding=[14, 7],
+        padding=[8, 6],
         font=font_regular,
     )
     style.map(

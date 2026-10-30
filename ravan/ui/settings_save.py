@@ -7,6 +7,7 @@ from tkinter import messagebox
 from typing import Any
 
 from ravan.core.config import Snippet, hotkey_to_text, save_config, text_to_hotkey
+from ravan.core.i18n import t
 from ravan.platform.startup import is_startup_enabled, set_startup
 
 
@@ -36,22 +37,54 @@ def save_settings_window(win: Any) -> None:
         val = text_to_hotkey(raw)
         if raw.strip() and val is None:
             messagebox.showwarning("Ravan", f"Invalid {name} hotkey", parent=win._root)
+            if hasattr(win, "_nb"):
+                try:
+                    win._nb.select(3)
+                except Exception:
+                    pass
             return
         parsed.append(val)
     convert, lang, clip, norm, case, undo, stats, pause, translit_hk = parsed
 
     # Validate no duplicate hotkeys
-    active_hotkeys = [
-        hotkey_to_text(h)
-        for h in [convert, lang, clip, norm, case, undo, stats, pause, translit_hk]
-        if h
-    ]
-    if len(active_hotkeys) != len(set(active_hotkeys)):
+    seen: dict[str, str] = {}
+    conflict_detail = None
+    for (_raw, name), val in zip(hk_items, parsed, strict=True):
+        if not val:
+            continue
+        txt = hotkey_to_text(val)
+        if txt in seen:
+            conflict_detail = (txt, seen[txt], name)
+            break
+        seen[txt] = name
+
+    if conflict_detail:
+        dup_key, first_name, second_name = conflict_detail
+        name_labels = {
+            "convert": t("settings.hotkey_convert", "Convert last word"),
+            "language": t("settings.hotkey_lang", "Show language chip"),
+            "clipboard": t("settings.hotkey_clip", "Clipboard history"),
+            "normalize": t("settings.hotkey_norm", "Normalize text"),
+            "case": t("settings.hotkey_case", "Cycle text case"),
+            "undo": t("settings.hotkey_undo", "Undo last autocorrect"),
+            "stats": t("settings.hotkey_stats", "Quick text stats"),
+            "pause": t("settings.hotkey_pause", "Pause / Resume"),
+            "translit": t("settings.hotkey_translit", "Phonetic Finglish"),
+        }
+        lbl1 = name_labels.get(first_name, first_name).rstrip(":")
+        lbl2 = name_labels.get(second_name, second_name).rstrip(":")
         messagebox.showwarning(
             "Ravan",
-            "Duplicate hotkeys detected! Each hotkey shortcut must be unique.",
+            f"Duplicate hotkeys detected: '{dup_key}'!\n\n"
+            f"It is assigned to both:\n• {lbl1}\n• {lbl2}\n\n"
+            f"Each hotkey shortcut must be unique.",
             parent=win._root,
         )
+        if hasattr(win, "_nb"):
+            try:
+                win._nb.select(3)
+            except Exception:
+                pass
         return
 
     cfg = win.cfg

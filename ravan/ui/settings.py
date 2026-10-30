@@ -155,7 +155,7 @@ class SettingsWindow:
         self._root.withdraw()
         self._root.attributes("-topmost", True)
         self._root.resizable(True, True)
-        self._root.minsize(580, 420)
+        self._root.minsize(620, 440)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
         palette = get_active_palette(getattr(self.cfg, "theme_mode", "auto"))
         apply_window_decorations(self._root, palette)
@@ -209,6 +209,7 @@ class SettingsWindow:
         # ── Notebook in middle: Expands and fills remaining space ──
         nb = ttk.Notebook(frm)
         nb.pack(side="top", fill="both", expand=True)
+        self._nb = nb
 
         tab_general = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
         tab_autofix = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
@@ -223,7 +224,7 @@ class SettingsWindow:
         nb.add(tab_autofix.outer, text=f"⚡ {t('settings.tab_autofix', 'Auto-Fix')}")
         nb.add(tab_prediction.outer, text=f"🔮 {t('settings.tab_prediction', 'Prediction')}")
         nb.add(tab_hotkeys.outer, text=f"⌨️ {t('settings.tab_hotkeys', 'Hotkeys')}")
-        nb.add(tab_exclusions.outer, text=f"🚫 {t('settings.tab_exclusions', 'Excluded Apps')}")
+        nb.add(tab_exclusions.outer, text=f"🚫 {t('settings.tab_exclusions', 'Exclusions')}")
         nb.add(tab_snippets.outer, text=f"📝 {t('settings.tab_snippets', 'Snippets')}")
         nb.add(tab_sync.outer, text=f"☁️ {t('settings.tab_sync', 'Cloud Sync')}")
         nb.add(tab_about.outer, text=f"ℹ️ {t('settings.tab_about', 'About')}")
@@ -327,8 +328,8 @@ class SettingsWindow:
         self._root.update_idletasks()
         sw = self._root.winfo_screenwidth()
         sh = self._root.winfo_screenheight()
-        target_w = min(740, max(580, int(sw * 0.85)))
-        target_h = min(620, max(440, int(sh * 0.82)))
+        target_w = min(800, max(680, int(sw * 0.85)))
+        target_h = min(660, max(460, int(sh * 0.82)))
         x = max(20, (sw - target_w) // 2)
         y = max(20, (sh - target_h) // 3)
         self._root.geometry(f"{target_w}x{target_h}+{x}+{y}")
