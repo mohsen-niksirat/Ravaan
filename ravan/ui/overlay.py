@@ -99,7 +99,6 @@ class OverlayWindow:
         mode = getattr(self, "theme_mode", "auto")
         self.palette = get_active_palette(mode)
         bg = self.palette.bg
-        fg = self.palette.fg
         border = self.palette.border
 
         ui_style = getattr(self.cfg, "prediction_ui_style", "modern") if self.cfg else "modern"

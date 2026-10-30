@@ -16,7 +16,6 @@ from ravan.ui.theme import (
     apply_theme_to_ttk,
     apply_window_decorations,
     get_active_palette,
-    get_ui_font,
 )
 
 log = logging.getLogger(__name__)

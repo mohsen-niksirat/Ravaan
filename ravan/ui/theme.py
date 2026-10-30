@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import ctypes
 import logging
-from pathlib import Path
 import sys
 import tkinter as tk
-from tkinter import ttk
 from dataclasses import dataclass
+from pathlib import Path
+from tkinter import ttk
 
 log = logging.getLogger(__name__)
 

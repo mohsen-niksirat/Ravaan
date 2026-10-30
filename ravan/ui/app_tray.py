@@ -67,7 +67,7 @@ def create_app_tray(app: Any) -> TrayIcon:
 
     def _toggle_power_mode() -> None:
         target = not getattr(app, "power_mode_active", False)
-        setattr(app, "power_mode_active", target)
+        app.power_mode_active = target
         if hasattr(app, "tray") and app.tray is not None:
             app.tray.set_power_mode(target)
         app._ui_queue.put(("set_power_mode", target))

@@ -13,12 +13,78 @@ from ravan.core.config import (
     Snippet,
 )
 from ravan.ui.theme import (
+    Palette,
     apply_theme_to_ttk,
     apply_window_decorations,
     get_active_palette,
 )
 
 log = logging.getLogger(__name__)
+
+
+class _ScrollableTab:
+    """Scrollable container for Notebook tabs with responsive layout and mousewheel handling."""
+
+    def __init__(self, notebook: ttk.Notebook, palette: Palette, rtl: bool = False, padding: int = 8) -> None:
+        self.outer = ttk.Frame(notebook)
+        self.canvas = tk.Canvas(
+            self.outer,
+            bg=palette.bg,
+            highlightthickness=0,
+            borderwidth=0,
+        )
+        self.scrollbar = ttk.Scrollbar(
+            self.outer,
+            orient="vertical",
+            command=self.canvas.yview,
+        )
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        sb_side = "left" if rtl else "right"
+        cv_side = "right" if rtl else "left"
+        self.scrollbar.pack(side=sb_side, fill="y")
+        self.canvas.pack(side=cv_side, fill="both", expand=True)
+
+        self.inner = ttk.Frame(self.canvas, padding=padding)
+        anchor = "ne" if rtl else "nw"
+        self.win_id = self.canvas.create_window((0, 0), window=self.inner, anchor=anchor)
+
+        def _on_canvas_configure(e: tk.Event) -> None:
+            self.canvas.itemconfig(self.win_id, width=max(100, e.width))
+
+        def _on_inner_configure(_e: tk.Event) -> None:
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+        self.canvas.bind("<Configure>", _on_canvas_configure)
+        self.inner.bind("<Configure>", _on_inner_configure)
+
+        def _on_wheel(e: tk.Event) -> None:
+            if not self.canvas.winfo_exists():
+                return
+            if getattr(e, "num", None) == 4:
+                self.canvas.yview_scroll(-2, "units")
+            elif getattr(e, "num", None) == 5:
+                self.canvas.yview_scroll(2, "units")
+            elif getattr(e, "delta", 0):
+                self.canvas.yview_scroll(int(-1 * (e.delta / 120) * 2), "units")
+
+        self._on_wheel = _on_wheel
+        self.canvas.bind("<MouseWheel>", _on_wheel)
+        self.inner.bind("<MouseWheel>", _on_wheel)
+        self.canvas.bind("<Button-4>", _on_wheel)
+        self.canvas.bind("<Button-5>", _on_wheel)
+        self.inner.bind("<Button-4>", _on_wheel)
+        self.inner.bind("<Button-5>", _on_wheel)
+
+    def bind_recursive_scroll(self, widget: tk.Widget) -> None:
+        try:
+            widget.bind("<MouseWheel>", self._on_wheel, add="+")
+            widget.bind("<Button-4>", self._on_wheel, add="+")
+            widget.bind("<Button-5>", self._on_wheel, add="+")
+        except Exception:
+            pass
+        for child in widget.winfo_children():
+            self.bind_recursive_scroll(child)
 
 
 class SettingsWindow:
@@ -88,7 +154,8 @@ class SettingsWindow:
         self._root = tk.Toplevel()
         self._root.withdraw()
         self._root.attributes("-topmost", True)
-        self._root.resizable(False, False)
+        self._root.resizable(True, True)
+        self._root.minsize(580, 420)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
         palette = get_active_palette(getattr(self.cfg, "theme_mode", "auto"))
         apply_window_decorations(self._root, palette)
@@ -110,13 +177,21 @@ class SettingsWindow:
         for ch in self._root.winfo_children():
             ch.destroy()
 
-        pad = {"padx": 10, "pady": 4}
-        frm = ttk.Frame(self._root, padding=10)
+        palette = get_active_palette(getattr(self.cfg, "theme_mode", "auto"))
+        pad = {"padx": 8, "pady": 3}
+        frm = ttk.Frame(self._root, padding=8)
         frm.pack(fill="both", expand=True)
 
-        # Search Bar
+        # ── Buttons: Pinned at bottom so they are NEVER cut off ──
+        btns = ttk.Frame(frm)
+        btns.pack(side="bottom", fill="x", pady=(6, 0))
+        btn_side = "left" if rtl else "right"
+        ttk.Button(btns, text=t("settings.btn_cancel", "Cancel"), command=self._close).pack(side=btn_side, padx=4)
+        ttk.Button(btns, text=t("settings.btn_save", "Save Settings"), style="Accent.TButton", command=self._save).pack(side=btn_side, padx=4)
+
+        # ── Search Bar: Top ──
         search_frm = ttk.Frame(frm)
-        search_frm.pack(fill="x", pady=(0, 6))
+        search_frm.pack(side="top", fill="x", pady=(0, 6))
         pack_side = "right" if rtl else "left"
         ttk.Label(search_frm, text=t("settings.search_label", "🔍 Search:")).pack(
             side=pack_side, padx=(0, 6) if not rtl else (6, 0)
@@ -131,26 +206,27 @@ class SettingsWindow:
             command=lambda: self._search_var.set(""),
         ).pack(side=pack_side, padx=(4, 0))
 
+        # ── Notebook in middle: Expands and fills remaining space ──
         nb = ttk.Notebook(frm)
-        nb.pack(fill="both", expand=True, pady=(0, 10))
+        nb.pack(side="top", fill="both", expand=True)
 
-        tab_general = ttk.Frame(nb, padding=10)
-        tab_prediction = ttk.Frame(nb, padding=10)
-        tab_hotkeys = ttk.Frame(nb, padding=10)
-        tab_autofix = ttk.Frame(nb, padding=10)
-        tab_exclusions = ttk.Frame(nb, padding=10)
-        tab_snippets = ttk.Frame(nb, padding=10)
-        tab_sync = ttk.Frame(nb, padding=10)
-        tab_about = ttk.Frame(nb, padding=10)
+        tab_general = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
+        tab_autofix = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
+        tab_prediction = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
+        tab_hotkeys = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
+        tab_exclusions = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
+        tab_snippets = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
+        tab_sync = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
+        tab_about = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
 
-        nb.add(tab_general, text=f"⚙️ {t('settings.tab_general', 'General')}")
-        nb.add(tab_autofix, text=f"⚡ {t('settings.tab_autofix', 'Auto-Fix')}")
-        nb.add(tab_prediction, text=f"🔮 {t('settings.tab_prediction', 'Prediction')}")
-        nb.add(tab_hotkeys, text=f"⌨️ {t('settings.tab_hotkeys', 'Hotkeys')}")
-        nb.add(tab_exclusions, text=f"🚫 {t('settings.tab_exclusions', 'Excluded Apps')}")
-        nb.add(tab_snippets, text=f"📝 {t('settings.tab_snippets', 'Snippets')}")
-        nb.add(tab_sync, text=f"☁️ {t('settings.tab_sync', 'Cloud Sync')}")
-        nb.add(tab_about, text=f"ℹ️ {t('settings.tab_about', 'About')}")
+        nb.add(tab_general.outer, text=f"⚙️ {t('settings.tab_general', 'General')}")
+        nb.add(tab_autofix.outer, text=f"⚡ {t('settings.tab_autofix', 'Auto-Fix')}")
+        nb.add(tab_prediction.outer, text=f"🔮 {t('settings.tab_prediction', 'Prediction')}")
+        nb.add(tab_hotkeys.outer, text=f"⌨️ {t('settings.tab_hotkeys', 'Hotkeys')}")
+        nb.add(tab_exclusions.outer, text=f"🚫 {t('settings.tab_exclusions', 'Excluded Apps')}")
+        nb.add(tab_snippets.outer, text=f"📝 {t('settings.tab_snippets', 'Snippets')}")
+        nb.add(tab_sync.outer, text=f"☁️ {t('settings.tab_sync', 'Cloud Sync')}")
+        nb.add(tab_about.outer, text=f"ℹ️ {t('settings.tab_about', 'About')}")
 
         from ravan.ui.settings_autofix import build_autofix_section
         from ravan.ui.settings_builder import (
@@ -163,24 +239,36 @@ class SettingsWindow:
             build_sync_section,
         )
 
-        build_general_section(self, tab_general, 0, pad)
-        build_autofix_section(self, tab_autofix, 0, pad)
-        build_prediction_section(self, tab_prediction, 0, pad)
-        build_hotkeys_section(self, tab_hotkeys, 0, pad)
-        build_exclusions_section(self, tab_exclusions, 0, pad)
-        build_snippets_section(self, tab_snippets, 0, pad)
-        build_sync_section(self, tab_sync, 0, pad)
-        build_about_section(tab_about)
+        build_general_section(self, tab_general.inner, 0, pad)
+        build_autofix_section(self, tab_autofix.inner, 0, pad)
+        build_prediction_section(self, tab_prediction.inner, 0, pad)
+        build_hotkeys_section(self, tab_hotkeys.inner, 0, pad)
+        build_exclusions_section(self, tab_exclusions.inner, 0, pad)
+        build_snippets_section(self, tab_snippets.inner, 0, pad)
+        build_sync_section(self, tab_sync.inner, 0, pad)
+        build_about_section(tab_about.inner)
+
+        for tab in (
+            tab_general,
+            tab_autofix,
+            tab_prediction,
+            tab_hotkeys,
+            tab_exclusions,
+            tab_snippets,
+            tab_sync,
+            tab_about,
+        ):
+            tab.bind_recursive_scroll(tab.inner)
 
         tabs_spec = [
-            (tab_general, t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "زبان", "شروع", "صدا"]),
-            (tab_autofix, t("settings.tab_autofix", "Auto-Fix"), ["autofix", "layout", "undo", "switch", "اصلاح", "چیدمان"]),
-            (tab_prediction, t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "پیش‌بینی", "نیم‌فاصله"]),
-            (tab_hotkeys, t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید"]),
-            (tab_exclusions, t("settings.tab_exclusions", "Excluded Apps"), ["exclude", "blacklist", "app", "مستثنی"]),
-            (tab_snippets, t("settings.tab_snippets", "Snippets"), ["snippet", "trigger", "متن"]),
-            (tab_sync, t("settings.tab_sync", "Cloud Sync"), ["sync", "gist", "webdav", "همگام"]),
-            (tab_about, t("settings.tab_about", "About"), ["about", "version", "درباره"]),
+            (tab_general.outer, t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "زبان", "شروع", "صدا"]),
+            (tab_autofix.outer, t("settings.tab_autofix", "Auto-Fix"), ["autofix", "layout", "undo", "switch", "اصلاح", "چیدمان"]),
+            (tab_prediction.outer, t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "پیش‌بینی", "نیم‌فاصله"]),
+            (tab_hotkeys.outer, t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید"]),
+            (tab_exclusions.outer, t("settings.tab_exclusions", "Excluded Apps"), ["exclude", "blacklist", "app", "مستثنی"]),
+            (tab_snippets.outer, t("settings.tab_snippets", "Snippets"), ["snippet", "trigger", "متن"]),
+            (tab_sync.outer, t("settings.tab_sync", "Cloud Sync"), ["sync", "gist", "webdav", "همگام"]),
+            (tab_about.outer, t("settings.tab_about", "About"), ["about", "version", "درباره"]),
         ]
 
         def _filter_tabs(*_args: Any) -> None:
@@ -197,13 +285,6 @@ class SettingsWindow:
                 nb.select(first)
 
         self._search_var.trace_add("write", _filter_tabs)
-
-        # ── Buttons ──
-        btns = ttk.Frame(frm)
-        btns.pack(fill="x", pady=(4, 0))
-        btn_side = "left" if rtl else "right"
-        ttk.Button(btns, text=t("settings.btn_cancel", "Cancel"), command=self._close).pack(side=btn_side, padx=4)
-        ttk.Button(btns, text=t("settings.btn_save", "Save Settings"), style="Accent.TButton", command=self._save).pack(side=btn_side, padx=4)
 
         def _next_tab(_e: Any = None) -> str:
             tabs = nb.tabs()
@@ -244,13 +325,13 @@ class SettingsWindow:
         if self._root is None:
             return
         self._root.update_idletasks()
-        w = self._root.winfo_reqwidth()
-        h = self._root.winfo_reqheight()
         sw = self._root.winfo_screenwidth()
         sh = self._root.winfo_screenheight()
-        x = max(20, (sw - w) // 2)
-        y = max(20, (sh - h) // 3)
-        self._root.geometry(f"+{x}+{y}")
+        target_w = min(740, max(580, int(sw * 0.85)))
+        target_h = min(620, max(440, int(sh * 0.82)))
+        x = max(20, (sw - target_w) // 2)
+        y = max(20, (sh - target_h) // 3)
+        self._root.geometry(f"{target_w}x{target_h}+{x}+{y}")
 
     # ── Actions ──────────────────────────────────────────────────────
 
