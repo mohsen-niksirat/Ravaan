@@ -21,6 +21,11 @@ from ravan.ui.package_export_dialog import (  # noqa: F401
     PackageExportDialog,
     open_package_export_dialog,
 )
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+)
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +81,9 @@ class PackagePreviewDialog:
         top.geometry("560x520")
         top.minsize(480, 420)
         top.attributes("-topmost", True)
+        palette = get_active_palette()
+        apply_window_decorations(top, palette)
+        apply_theme_to_ttk(top, palette)
 
         frm = ttk.Frame(top, padding=12)
         frm.pack(fill="both", expand=True)

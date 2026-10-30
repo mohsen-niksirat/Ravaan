@@ -16,7 +16,12 @@ from typing import Any
 
 from ravan.core.config import Config, save_config
 from ravan.core.i18n import get_locale, is_rtl, set_locale, t
-from ravan.ui.theme import get_active_palette, get_ui_font
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+    get_ui_font,
+)
 
 log = logging.getLogger(__name__)
 
@@ -161,6 +166,8 @@ class FirstRunWizard:
         win.resizable(True, True)
         win.attributes("-topmost", True)
         win.configure(bg=palette.bg)
+        apply_window_decorations(win, palette)
+        apply_theme_to_ttk(win, palette)
         win.protocol("WM_DELETE_WINDOW", lambda: self._close(completed=False))
 
         # Center on screen
@@ -236,12 +243,12 @@ class FirstRunWizard:
         )
         tk.Label(
             top_bar,
-            text=step_text,
+            text=f" {step_text} ",
             font=get_ui_font(size=9, bold=True, rtl=rtl),
-            bg=palette.card_bg,
+            bg=palette.badge_bg,
             fg=palette.accent,
-            padx=8,
-            pady=2,
+            padx=10,
+            pady=3,
         ).pack(side="right" if rtl else "left")
 
         # Language switcher in top corner
@@ -367,6 +374,17 @@ class FirstRunWizard:
                 font=f_card_t,
             )
             r.pack(side="right" if rtl else "left")
+
+            if val == "standard":
+                tk.Label(
+                    top_row,
+                    text="★ پیشنهادی" if rtl else "★ Recommended",
+                    font=get_ui_font(size=8, bold=True, rtl=rtl),
+                    bg=palette.badge_bg,
+                    fg=palette.badge_fg,
+                    padx=6,
+                    pady=1,
+                ).pack(side="left" if rtl else "right", padx=6)
 
             tk.Label(
                 card,
@@ -642,14 +660,18 @@ class FirstRunWizard:
             nav,
             text=action_text,
             font=btn_font,
-            bg=palette.accent,
-            fg="#ffffff" if palette.name != "high_contrast" else "#000000",
+            bg=palette.highlight,
+            fg=palette.highlight_fg,
+            activebackground=palette.accent_hover,
+            activeforeground=palette.highlight_fg,
             relief="flat",
-            padx=18,
-            pady=6,
+            padx=20,
+            pady=7,
             cursor="hand2",
             command=lambda: self._close(completed=True) if is_last else self._next_step(),
         )
+        btn_action.bind("<Enter>", lambda _: btn_action.config(bg=palette.accent_hover))
+        btn_action.bind("<Leave>", lambda _: btn_action.config(bg=palette.highlight))
         btn_action.pack(side="right" if not rtl else "left", padx=(8, 0) if not rtl else (0, 8))
 
         # Back Button (steps 2 and 3)
@@ -660,10 +682,14 @@ class FirstRunWizard:
                 font=get_ui_font(size=9, bold=False, rtl=rtl),
                 bg=palette.card_bg,
                 fg=palette.fg,
+                activebackground=palette.button_hover,
+                activeforeground=palette.fg,
                 relief="flat",
                 padx=14,
-                pady=6,
+                pady=7,
                 cursor="hand2",
                 command=self._prev_step,
             )
+            btn_back.bind("<Enter>", lambda _: btn_back.config(bg=palette.button_hover))
+            btn_back.bind("<Leave>", lambda _: btn_back.config(bg=palette.card_bg))
             btn_back.pack(side="right" if not rtl else "left", padx=4)

@@ -286,19 +286,66 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     ).grid(row=row, column=0, columnspan=3, sticky=align, **pad)
     row += 1
 
-    win._autocorrect_var = tk.BooleanVar(value=win.cfg.autocorrect_enabled)
+    initial_ac_enabled = bool(win.cfg.autocorrect_enabled)
+    initial_ac_mode = str(getattr(win.cfg, "autocorrect_mode", "safe")).lower()
+    if not initial_ac_enabled or initial_ac_mode == "off":
+        if initial_ac_mode == "off":
+            initial_ac_enabled = False
+
+    win._autocorrect_var = tk.BooleanVar(value=initial_ac_enabled)
     ttk.Checkbutton(frm, text=t("settings.autocorrect_enabled", "Enable autocorrect on word boundaries"), variable=win._autocorrect_var).grid(
         row=row, column=0, columnspan=3, sticky=align, **pad
     )
     row += 1
 
     ttk.Label(frm, text=t("settings.autocorrect_mode", "Autocorrect mode:")).grid(row=row, column=0, sticky=align, **pad)
-    win._autocorrect_mode_var = tk.StringVar(value=getattr(win.cfg, "autocorrect_mode", "safe"))
+    win._autocorrect_mode_var = tk.StringVar(value="safe" if initial_ac_mode == "off" else initial_ac_mode)
     mode_box = ttk.Combobox(
-        frm, textvariable=win._autocorrect_mode_var, values=["safe", "normal", "off"], state="readonly", width=12
+        frm,
+        textvariable=win._autocorrect_mode_var,
+        values=["safe", "normal", "off"],
+        state="readonly" if initial_ac_enabled else "disabled",
+        width=12,
     )
     mode_box.grid(row=row, column=1, sticky="w", **pad)
     row += 1
+
+    _syncing_ac = False
+
+    def _on_ac_var_changed(*_):
+        nonlocal _syncing_ac
+        if _syncing_ac:
+            return
+        _syncing_ac = True
+        try:
+            is_on = win._autocorrect_var.get()
+            if is_on:
+                mode_box.configure(state="readonly")
+                if win._autocorrect_mode_var.get() == "off":
+                    win._autocorrect_mode_var.set("safe")
+            else:
+                mode_box.configure(state="disabled")
+        finally:
+            _syncing_ac = False
+
+    def _on_ac_mode_changed(*_):
+        nonlocal _syncing_ac
+        if _syncing_ac:
+            return
+        _syncing_ac = True
+        try:
+            m = win._autocorrect_mode_var.get()
+            if m == "off":
+                win._autocorrect_var.set(False)
+                mode_box.configure(state="disabled")
+            else:
+                win._autocorrect_var.set(True)
+                mode_box.configure(state="readonly")
+        finally:
+            _syncing_ac = False
+
+    win._autocorrect_var.trace_add("write", _on_ac_var_changed)
+    win._autocorrect_mode_var.trace_add("write", _on_ac_mode_changed)
 
     win._digits_var = tk.BooleanVar(value=win.cfg.quickpick_digits)
     ttk.Checkbutton(frm, text=t("settings.quickpick_digits", "Digits 1–5 quick-pick in popup"), variable=win._digits_var).grid(

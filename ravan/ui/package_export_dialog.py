@@ -10,6 +10,11 @@ from ravan.core.config import Snippet
 from ravan.core.config_types import SnippetGroup
 from ravan.core.i18n import is_rtl, t
 from ravan.core.package import export_package
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+)
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +55,9 @@ class PackageExportDialog:
         top.geometry("540x540")
         top.minsize(460, 460)
         top.attributes("-topmost", True)
+        palette = get_active_palette()
+        apply_window_decorations(top, palette)
+        apply_theme_to_ttk(top, palette)
 
         frm = ttk.Frame(top, padding=12)
         frm.pack(fill="both", expand=True)

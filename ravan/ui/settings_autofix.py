@@ -23,7 +23,19 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     )
     mode_frame.pack(fill="x", pady=6)
 
-    win._autofix_mode_var = tk.StringVar(value=getattr(win.cfg, "autofix_mode", "safe"))
+    initial_af_mode = getattr(win.cfg, "autofix_mode", "safe")
+    win._autofix_master_var = tk.BooleanVar(value=initial_af_mode != "off")
+    win._autofix_mode_var = tk.StringVar(value=initial_af_mode)
+
+    master_cb = ttk.Checkbutton(
+        mode_frame,
+        text=t("settings.autofix_master_enable", "Enable automatic wrong-layout correction (sghl → سلام)"),
+        variable=win._autofix_master_var,
+    )
+    master_cb.pack(anchor="w" if not rtl else "e", pady=(0, 6))
+
+    rb_container = ttk.Frame(mode_frame)
+    rb_container.pack(fill="x", padx=(18, 0) if not rtl else (0, 18))
 
     modes = [
         ("off", t("settings.autofix_off", "Off — Disabled")),
@@ -32,12 +44,42 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     ]
     for val, lbl in modes:
         rb = ttk.Radiobutton(
-            mode_frame,
+            rb_container,
             text=lbl,
             value=val,
             variable=win._autofix_mode_var,
         )
         rb.pack(anchor="w" if not rtl else "e", pady=2)
+
+    _syncing_af = False
+
+    def _sync_af_from_master(*_):
+        nonlocal _syncing_af
+        if _syncing_af:
+            return
+        _syncing_af = True
+        try:
+            if win._autofix_master_var.get():
+                if win._autofix_mode_var.get() == "off":
+                    win._autofix_mode_var.set("safe")
+            else:
+                win._autofix_mode_var.set("off")
+        finally:
+            _syncing_af = False
+
+    def _sync_af_from_mode(*_):
+        nonlocal _syncing_af
+        if _syncing_af:
+            return
+        _syncing_af = True
+        try:
+            m = win._autofix_mode_var.get()
+            win._autofix_master_var.set(m != "off")
+        finally:
+            _syncing_af = False
+
+    win._autofix_master_var.trace_add("write", _sync_af_from_master)
+    win._autofix_mode_var.trace_add("write", _sync_af_from_mode)
 
     from ravan.ui.tooltip import ToolTip
 
@@ -165,5 +207,13 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
         text=t("settings.btn_remove_blacklist", "✓ Remove from Blacklist"),
         command=_remove_selected,
     ).pack(side=side)
+
+    bottom_frame = ttk.Frame(parent)
+    bottom_frame.pack(fill="x", pady=(8, 4))
+    ttk.Button(
+        bottom_frame,
+        text=t("settings.reset_defaults", "↺ Reset Defaults"),
+        command=lambda: win._reset_tab_defaults("autofix"),
+    ).pack(side="left" if rtl else "right")
 
     return start_row + 1

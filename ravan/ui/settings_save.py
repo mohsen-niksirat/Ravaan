@@ -81,7 +81,9 @@ def save_settings_window(win: Any) -> None:
             return
         cfg.global_undo_hotkey = val
 
-    if hasattr(win, "_autofix_mode_var"):
+    if hasattr(win, "_autofix_master_var") and not win._autofix_master_var.get():
+        cfg.autofix_mode = "off"
+    elif hasattr(win, "_autofix_mode_var"):
         cfg.autofix_mode = win._autofix_mode_var.get()
     if hasattr(win, "_auto_layout_switch_var"):
         cfg.auto_layout_switch = win._auto_layout_switch_var.get()
@@ -105,7 +107,11 @@ def save_settings_window(win: Any) -> None:
         cfg.learning_enabled = win._learning_enabled_var.get()
     cfg.autocorrect_enabled = win._autocorrect_var.get()
     if hasattr(win, "_autocorrect_mode_var"):
-        cfg.autocorrect_mode = win._autocorrect_mode_var.get()
+        cur_mode = win._autocorrect_mode_var.get()
+        if not cfg.autocorrect_enabled:
+            cfg.autocorrect_mode = "off"
+        else:
+            cfg.autocorrect_mode = "safe" if cur_mode == "off" else cur_mode
     if hasattr(win, "_theme_mode_var"):
         cfg.theme_mode = win._theme_mode_var.get()
     cfg.fix_punctuation_spacing = win._punct_spacing_var.get()

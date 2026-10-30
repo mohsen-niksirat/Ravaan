@@ -12,6 +12,12 @@ from typing import Any
 
 from ravan.core.i18n import is_rtl, t
 from ravan.core.updater import download_and_launch_installer
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+    get_ui_font,
+)
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +47,9 @@ class UpdateDialog:
         )
         self._root.attributes("-topmost", True)
         self._root.resizable(False, False)
+        palette = get_active_palette()
+        apply_window_decorations(self._root, palette)
+        apply_theme_to_ttk(self._root, palette)
 
         rtl = is_rtl()
         align = "e" if rtl else "w"
@@ -140,6 +149,7 @@ class UpdateDialog:
         download_btn = ttk.Button(
             btn_bar,
             text=t("updater.btn_install", "⬇ Download & Install"),
+            style="Accent.TButton",
             command=_on_download,
         )
         download_btn.pack(side=pack_side, padx=(0, 6) if not rtl else (6, 0))

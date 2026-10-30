@@ -107,6 +107,8 @@ class AppDialogsMixin:
                 self.set_prediction_enabled(bool(arg))
             elif action == "set_autocorrect":
                 self.set_autocorrect_enabled(bool(arg))
+            elif action == "set_autofix":
+                self.set_autofix_enabled(bool(arg))
             elif action == "set_auto_zwnj":
                 self.set_auto_zwnj_enabled(bool(arg))
             elif action == "toggle_pause":
@@ -117,6 +119,10 @@ class AppDialogsMixin:
                 self._show_update_dialog(arg)
             elif action == "toggle_power_mode":
                 self.toggle_power_mode()
+            elif action == "set_power_mode":
+                target = bool(arg)
+                if getattr(self, "power_mode_active", False) != target:
+                    self.toggle_power_mode()
             elif action == "start_macro_recording":
                 self.start_macro_recording()
             elif action == "stop_macro_recording":
@@ -124,6 +130,14 @@ class AppDialogsMixin:
             elif action == "toggle_translit":
                 if hasattr(self, "_toggle_translit"):
                     self._toggle_translit()
+            elif action == "set_translit":
+                if hasattr(self, "set_translit_enabled"):
+                    self.set_translit_enabled(bool(arg))
+                else:
+                    self.cfg.translit_enabled = bool(arg)
+                    from ravan.core.config import save_config
+
+                    save_config(self.cfg)
             elif action == "clean_clipboard":
                 if hasattr(self, "_clean_clipboard_text"):
                     self._clean_clipboard_text()
@@ -145,6 +159,16 @@ class AppDialogsMixin:
 
     def set_autocorrect_enabled(self: Any, enabled: bool) -> None:
         self.cfg.autocorrect_enabled = enabled
+        if hasattr(self, "predictor") and self.predictor is not None:
+            self.predictor.autocorrect_mode = self.cfg.autocorrect_mode if enabled else "off"
+        from ravan.core.config import save_config
+
+        save_config(self.cfg)
+
+    def set_autofix_enabled(self: Any, enabled: bool) -> None:
+        self.cfg.autofix_wrong_layout = enabled
+        if hasattr(self, "autofix") and self.autofix is not None:
+            self.autofix.mode = "safe" if enabled else "off"
         from ravan.core.config import save_config
 
         save_config(self.cfg)

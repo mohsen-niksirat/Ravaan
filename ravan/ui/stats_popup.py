@@ -83,16 +83,16 @@ class StatsPopupWindow:
             (t("stats.language_ratio", "Language Ratio:"), ratio),
         ]
 
-        body = tk.Frame(frame, bg=palette.card_bg, padx=10, pady=8)
-        body.pack(fill="x", pady=2)
+        body = tk.Frame(frame, bg=palette.card_bg, padx=12, pady=10, highlightbackground=palette.border, highlightthickness=1)
+        body.pack(fill="x", pady=4)
 
         f_label = get_ui_font(size=9, bold=False, rtl=rtl)
         f_val = get_ui_font(size=9, bold=True, rtl=rtl)
 
         for label_text, val_text in rows:
             r_frm = tk.Frame(body, bg=palette.card_bg)
-            r_frm.pack(fill="x", pady=2)
-            tk.Label(r_frm, text=label_text, font=f_label, bg=palette.card_bg, fg=palette.fg).pack(side=align_label)
+            r_frm.pack(fill="x", pady=3)
+            tk.Label(r_frm, text=label_text, font=f_label, bg=palette.card_bg, fg=palette.subtext).pack(side=align_label)
             tk.Label(
                 r_frm, text=val_text, font=f_val, bg=palette.card_bg, fg=palette.accent
             ).pack(side=align_val)

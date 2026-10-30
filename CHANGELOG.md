@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-10-30 - Windows 11 Fluent 2 UI Redesign, Bundled Vazirmatn Font & Tray Toggle Fixes
+
+### Added
+- **Windows 11 Fluent 2 Design & Persian Typography (ravan/ui/theme.py, ravan/data/fonts/)**:
+  - Bundled authentic high-fidelity Vazirmatn fonts (Regular, Medium, Bold) into `ravan/data/fonts/` and integrated runtime in-memory font registration via Windows GDI (`AddFontResourceExW`) without requiring administrator font installation.
+  - Comprehensive modern TTK styling engine implementing Fluent 2 design language across the entire application: custom styled TNotebook with accent active tabs, modern TButton with hover/pressed states, Accent.TButton with high-contrast text, styled rounded TEntry, polished Treeview headings and alternating rows, and smooth modern scrollbars.
+  - Windows 11 immersive dark mode titlebars (`DWMWA_USE_IMMERSIVE_DARK_MODE` attributes 20/19) and rounded window corners (`DWMWCP_ROUND`).
+  - Restyled every dialog and window: Quick Tips & Shortcuts, Setup Wizard, Statistics Popup, Snippet Editor, Update Dialog, Crash Dialog, Diagnostics, Window Picker, Package Dialogs, and Macro Dialog.
+- **Auto-Fix Layout Quick Toggle in System Tray (ravan/ui/tray.py, ravan/ui/app_tray.py)**:
+  - Added dedicated «اصلاح خودکار چیدمان (sghl←سلام)» / «Auto-Fix Layout» quick toggle directly to the Windows system tray right-click menu, allowing instant switching of wrong-layout keyboard auto-correction.
+- **Master Checkbox for Auto-Fix in Settings (ravan/ui/settings_autofix.py)**:
+  - Added a synchronized master toggle checkbox in Settings -> Auto-Fix tab for quick enabling/disabling of wrong-layout correction, linked reactively to the Safe / Aggressive radio buttons.
+  - Added default reset handling for Auto-Fix settings tab.
+
+### Fixed
+- **System Tray Quick Toggles Desynchronization & Race Condition (ravan/ui/app_tray.py, ravan/ui/tray.py)**:
+  - Eliminated the race condition where toggling Autocorrect or other quick toggles in the tray menu required clicking twice and appeared to re-enable itself.
+  - Quick toggle callbacks now mutate `app.cfg`, update predictors/engines, and save to disk synchronously before enqueuing events for the UI thread, ensuring pystray's immediate checkmark queries receive the exact updated state on the very first click.
+  - Added explicit Win32 menu refresh (`update_menu()`) across all tray toggle actions.
+- **Settings Autocorrect & Mode Synchronization (ravan/ui/settings_builder.py, ravan/ui/settings_save.py)**:
+  - Connected `win._autocorrect_var` and `_autocorrect_mode_var` via bidirectional reactive traces. Disabling autocorrect automatically disables the mode combobox, and selecting mode "off" unchecks the master box, eliminating mismatched configurations.
+
+
 ## [2.5.0] - 2026-10-29 - Smart Persian Numbers, Currency, Date/Time Expansion, Typography & UI Polish
 
 ### Added

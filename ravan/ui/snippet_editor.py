@@ -19,6 +19,11 @@ from ravan.ui.snippet_editor_io import (
     validate_snippet_entry,
 )
 from ravan.ui.snippet_groups_ui import SnippetGroupSelector, pick_image_file
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+)
 
 
 class SnippetEditorWindow:
@@ -67,6 +72,9 @@ class SnippetEditorWindow:
         self._root.geometry("880x620")
         self._root.minsize(780, 520)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
+        palette = get_active_palette()
+        apply_window_decorations(self._root, palette)
+        apply_theme_to_ttk(self._root, palette)
 
         main_frm = ttk.Frame(self._root, padding=10)
         main_frm.pack(fill="both", expand=True)
@@ -182,10 +190,16 @@ class SnippetEditorWindow:
             (t("snippets_editor.btn_export", "Export JSON…"), self._export_json, "left", 4),
             (t("packages.import_btn", "📦 Import Package…"), self._import_pack, "left", 4),
             (t("packages.export_btn", "📦 Export Package…"), self._export_pack, "left", 4),
-            (t("snippets_editor.btn_save_close", "Save & Close"), self._save_all_and_close, "right", 6),
             (t("snippets_editor.btn_cancel", "Cancel"), self._close, "right", (6, 0)),
         ]:
             ttk.Button(bot_bar, text=txt, command=cmd).pack(side=side, padx=px)
+
+        ttk.Button(
+            bot_bar,
+            text=t("snippets_editor.btn_save_close", "Save & Close"),
+            style="Accent.TButton",
+            command=self._save_all_and_close,
+        ).pack(side="right", padx=6)
 
         self._refresh_list()
         if self.snippets:

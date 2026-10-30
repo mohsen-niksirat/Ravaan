@@ -9,7 +9,12 @@ from typing import Any
 
 from ravan.core.config import Config
 from ravan.core.i18n import is_rtl, t
-from ravan.ui.theme import get_active_palette, get_ui_font
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+    get_ui_font,
+)
 
 log = logging.getLogger(__name__)
 
@@ -198,6 +203,8 @@ class QuickTipsWindow:
         top.geometry("640x560")
         top.minsize(540, 420)
         top.configure(bg=p.bg)
+        apply_window_decorations(top, p)
+        apply_theme_to_ttk(top, p)
 
         # Center on screen
         try:
@@ -293,21 +300,22 @@ class QuickTipsWindow:
             cat_lbl.pack(anchor="e" if rtl else "w", pady=(10, 6), fill="x")
 
             for item in cat["items"]:
-                card = ttk.Frame(items_container, padding=(10, 8), relief="groove")
+                card = ttk.Frame(items_container, padding=(12, 10), style="Card.TFrame")
                 card.pack(fill="x", pady=4, anchor="e" if rtl else "w")
 
-                top_row = ttk.Frame(card)
+                top_row = ttk.Frame(card, style="Card.TFrame")
                 top_row.pack(fill="x")
 
                 badge = tk.Label(
                     top_row,
                     text=f" {item['badge']} ",
-                    bg=p.highlight,
-                    fg=p.highlight_fg,
+                    bg=p.badge_bg,
+                    fg=p.badge_fg,
                     font=get_ui_font(size=8, bold=True),
-                    relief="flat",
-                    padx=4,
-                    pady=1,
+                    relief="solid",
+                    bd=1,
+                    padx=6,
+                    pady=2,
                 )
                 badge.pack(side="right" if rtl else "left", padx=(0, 6) if not rtl else (6, 0))
 

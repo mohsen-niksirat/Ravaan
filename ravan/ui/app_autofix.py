@@ -37,15 +37,18 @@ class AppAutofixMixin:
             user_dict_path=config_dir() / "user_translit.json"
         )
 
-    def _toggle_translit(self: Any) -> None:
-        self.cfg.translit_enabled = not getattr(self.cfg, "translit_enabled", False)
+    def set_translit_enabled(self: Any, enabled: bool) -> None:
+        self.cfg.translit_enabled = enabled
         from ravan.core.config import save_config
 
         save_config(self.cfg)
-        status = "فعال" if self.cfg.translit_enabled else "غیرفعال"
+        status = "فعال" if enabled else "غیرفعال"
         msg = f"حالت فینگلیش به فارسی {status} شد (Ctrl+Alt+T)"
         self._show_toast(msg)
         self._record_event(f"Toggled transliteration: {status}")
+
+    def _toggle_translit(self: Any) -> None:
+        self.set_translit_enabled(not getattr(self.cfg, "translit_enabled", False))
 
     def _maybe_translit_word(self: Any, word: str, delimiter: str = "") -> bool:
         if not hasattr(self, "translit") or self.translit is None:

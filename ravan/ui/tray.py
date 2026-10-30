@@ -71,6 +71,8 @@ class TrayIcon:
         on_record_macro: Callable[[], None] | None = None,
         on_toggle_autocorrect: Callable[[bool], None] | None = None,
         is_autocorrect_enabled: Callable[[], bool] | None = None,
+        on_toggle_autofix: Callable[[bool], None] | None = None,
+        is_autofix_enabled: Callable[[], bool] | None = None,
         on_toggle_auto_zwnj: Callable[[bool], None] | None = None,
         is_auto_zwnj_enabled: Callable[[], bool] | None = None,
         on_toggle_pause: Callable[[], None] | None = None,
@@ -95,6 +97,8 @@ class TrayIcon:
         self._on_record_macro = on_record_macro
         self._on_toggle_autocorrect = on_toggle_autocorrect
         self._is_autocorrect_enabled = is_autocorrect_enabled
+        self._on_toggle_autofix = on_toggle_autofix
+        self._is_autofix_enabled = is_autofix_enabled
         self._on_toggle_auto_zwnj = on_toggle_auto_zwnj
         self._is_auto_zwnj_enabled = is_auto_zwnj_enabled
         self._on_toggle_pause = on_toggle_pause
@@ -118,6 +122,9 @@ class TrayIcon:
         def visible_autocorrect(_item: Any) -> bool:
             return self._is_autocorrect_enabled() if self._is_autocorrect_enabled else True
 
+        def visible_autofix(_item: Any) -> bool:
+            return self._is_autofix_enabled() if self._is_autofix_enabled else True
+
         def visible_auto_zwnj(_item: Any) -> bool:
             return self._is_auto_zwnj_enabled() if self._is_auto_zwnj_enabled else True
 
@@ -130,6 +137,7 @@ class TrayIcon:
         def _toggle_translit(_icon: Any, _item: Any) -> None:
             if self._on_toggle_translit:
                 self._on_toggle_translit()
+            self.update_menu()
 
         from ravan.core.i18n import t
         from ravan.ui.log_setup import open_logs_folder
@@ -159,6 +167,11 @@ class TrayIcon:
                 t("tray.autocorrect", "Autocorrect"),
                 self._toggle_autocorrect,
                 checked=visible_autocorrect,
+            ),
+            Item(
+                t("tray.autofix", "Auto-Fix Layout (sghl→سلام)"),
+                self._toggle_autofix,
+                checked=visible_autofix,
             ),
             Item(
                 t("tray.auto_zwnj", "Auto-ZWNJ"),
@@ -218,6 +231,14 @@ class TrayIcon:
             except Exception:
                 pass
 
+    def update_menu(self) -> None:
+        """Explicitly re-query menu checked states in pystray."""
+        if self._icon is not None:
+            try:
+                self._icon.update_menu()
+            except Exception:
+                pass
+
     def stop(self) -> None:
         if self._icon is not None:
             try:
@@ -243,6 +264,7 @@ class TrayIcon:
     def _toggle_power_mode(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_toggle_power_mode:
             self._on_toggle_power_mode()
+        self.update_menu()
 
     def _toggle_pause_action(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_toggle_pause:
@@ -283,6 +305,7 @@ class TrayIcon:
                 self._is_prediction_enabled() if self._is_prediction_enabled else True
             )
             self._on_toggle_prediction(not current)
+        self.update_menu()
 
     def _toggle_autocorrect(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_toggle_autocorrect:
@@ -290,6 +313,15 @@ class TrayIcon:
                 self._is_autocorrect_enabled() if self._is_autocorrect_enabled else True
             )
             self._on_toggle_autocorrect(not current)
+        self.update_menu()
+
+    def _toggle_autofix(self, _icon: Any = None, _item: Any = None) -> None:
+        if self._on_toggle_autofix:
+            current = (
+                self._is_autofix_enabled() if self._is_autofix_enabled else True
+            )
+            self._on_toggle_autofix(not current)
+        self.update_menu()
 
     def _toggle_auto_zwnj(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_toggle_auto_zwnj:
@@ -297,6 +329,7 @@ class TrayIcon:
                 self._is_auto_zwnj_enabled() if self._is_auto_zwnj_enabled else True
             )
             self._on_toggle_auto_zwnj(not current)
+        self.update_menu()
 
     def _check_updates(self, _icon: Any = None, _item: Any = None) -> None:
         def _bg():

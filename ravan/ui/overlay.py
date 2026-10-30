@@ -133,7 +133,7 @@ class OverlayWindow:
             if hasattr(self, "_grip"):
                 self._grip.config(bg=bg, fg=self.palette.subtext)
             self._hint.config(bg=bg, fg=self.palette.subtext)
-            self._lang_label.config(bg=bg, fg=fg)
+            self._lang_label.config(bg=self.palette.card_bg, fg=self.palette.accent)
         else:
             self._frame = tk.Frame(
                 self._root,
@@ -148,7 +148,7 @@ class OverlayWindow:
             f_grip = get_ui_font(size=max(8, f_sz - 4))
             self._grip = tk.Label(
                 self._frame,
-                text="⋮⋮ روان",
+                text="•• روان ••",
                 bg=bg,
                 fg=self.palette.subtext,
                 font=f_grip,
@@ -173,15 +173,16 @@ class OverlayWindow:
             )
             self._bind_drag(self._hint)
 
-            f_lang = get_ui_font(size=f_sz + 2, bold=True, rtl=True)
+            f_lang = get_ui_font(size=f_sz + 1, bold=True, rtl=True)
             self._lang_label = tk.Label(
                 self._frame,
                 text="",
-                bg=bg,
-                fg=fg,
+                bg=self.palette.card_bg,
+                fg=self.palette.accent,
                 font=f_lang,
-                padx=12,
-                pady=8,
+                padx=14,
+                pady=7,
+                relief="flat",
             )
 
     def apply_config(self, cfg: Any) -> None:
@@ -209,6 +210,19 @@ class OverlayWindow:
         widget.bind("<Button-1>", lambda e, r=row_index: self._on_mouse_down(e, r))
         widget.bind("<B1-Motion>", self._on_mouse_drag)
         widget.bind("<ButtonRelease-1>", lambda e, r=row_index: self._on_mouse_up(e, r))
+        if row_index >= 0:
+            widget.bind("<Enter>", lambda _e, r=row_index: self._on_row_enter(r))
+            widget.bind("<Leave>", lambda _e, r=row_index: self._on_row_leave(r))
+
+    def _on_row_enter(self, idx: int) -> None:
+        if idx < len(self._candidates) and idx != self._selected and idx < len(self._rows):
+            p = getattr(self, "palette", get_active_palette())
+            self._rows[idx].config(bg=getattr(p, "button_hover", p.card_bg))
+
+    def _on_row_leave(self, idx: int) -> None:
+        if idx < len(self._candidates) and idx != self._selected and idx < len(self._rows):
+            p = getattr(self, "palette", get_active_palette())
+            self._rows[idx].config(bg=p.bg)
 
     def _on_mouse_down(self, event: tk.Event, row_index: int = -1) -> None:
         self._drag_start_screen_x = event.x_root
@@ -397,11 +411,23 @@ class OverlayWindow:
         for row in self._rows:
             row.pack_forget()
 
+    @staticmethod
+    def _format_lang_label(label: str) -> str:
+        raw = label.strip()
+        if raw == "FA":
+            return "🇮🇷 فارسی"
+        if raw in ("FA-TL", "TL"):
+            return "🔤 فینگلیش (FA)"
+        if raw == "EN":
+            return "🇬🇧 English"
+        return raw
+
     def show_language(self, label: str, x: int, y: int, height: int = 16) -> None:
         self.hide()
         self._mode = "lang"
-        self._lang_label.config(text=label)
-        self._lang_label.pack()
+        display_label = self._format_lang_label(label)
+        self._lang_label.config(text=display_label)
+        self._lang_label.pack(padx=6, pady=4)
         self._place(x, y + height + 4)
         self._show_no_activate()
         self._fade_after = self._root.after(1200, self.hide)

@@ -182,6 +182,11 @@ class RavanApp(
             self.autofix.load_blacklist(getattr(cfg, "autofix_blacklist", []))
             self.autofix.app_modes = dict(getattr(cfg, "autofix_app_modes", {}))
         self._init_accent()
+        if hasattr(self, "tray") and self.tray is not None:
+            try:
+                self.tray.update_menu()
+            except Exception:
+                pass
         log.info("Settings updated")
 
     def _undo_last_autocorrect(self) -> bool:

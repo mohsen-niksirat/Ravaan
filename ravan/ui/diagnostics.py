@@ -11,6 +11,11 @@ from tkinter import messagebox, ttk
 from typing import Any
 
 from ravan import __version__
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+)
 
 
 class DiagnosticsWindow:
@@ -55,6 +60,9 @@ class DiagnosticsWindow:
         self._root.geometry("700x520")
         self._root.minsize(620, 420)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
+        palette = get_active_palette()
+        apply_window_decorations(self._root, palette)
+        apply_theme_to_ttk(self._root, palette)
 
         main_frm = ttk.Frame(self._root, padding=10)
         main_frm.pack(fill="both", expand=True)

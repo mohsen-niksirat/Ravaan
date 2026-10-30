@@ -81,6 +81,17 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._pause_var.set(hotkey_to_text(d.pause_hotkey))
         if hasattr(win, "_translit_hotkey_var"):
             win._translit_hotkey_var.set(hotkey_to_text(d.translit_hotkey))
+    elif tab_name == "autofix":
+        if hasattr(win, "_autofix_mode_var"):
+            win._autofix_mode_var.set(d.autofix_mode)
+        if hasattr(win, "_autofix_master_var"):
+            win._autofix_master_var.set(d.autofix_mode != "off")
+        if hasattr(win, "_auto_layout_switch_var"):
+            win._auto_layout_switch_var.set(d.auto_layout_switch)
+        if hasattr(win, "_auto_layout_mode_var"):
+            win._auto_layout_mode_var.set(d.auto_layout_mode)
+        if hasattr(win, "_global_undo_var"):
+            win._global_undo_var.set(hotkey_to_text(d.global_undo_hotkey) if d.global_undo_hotkey else "")
     elif tab_name == "exclusions":
         if hasattr(win, "_excl_text"):
             win._excl_text.delete("1.0", "end")

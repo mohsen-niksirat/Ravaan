@@ -12,6 +12,11 @@ from ravan.core.config import (
     Config,
     Snippet,
 )
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+)
 
 log = logging.getLogger(__name__)
 
@@ -85,6 +90,9 @@ class SettingsWindow:
         self._root.attributes("-topmost", True)
         self._root.resizable(False, False)
         self._root.protocol("WM_DELETE_WINDOW", self._close)
+        palette = get_active_palette(getattr(self.cfg, "theme_mode", "auto"))
+        apply_window_decorations(self._root, palette)
+        apply_theme_to_ttk(self._root, palette)
         self._render_ui()
         self._root.update_idletasks()
         self._center()
@@ -135,14 +143,14 @@ class SettingsWindow:
         tab_sync = ttk.Frame(nb, padding=10)
         tab_about = ttk.Frame(nb, padding=10)
 
-        nb.add(tab_general, text=t("settings.tab_general", "General"))
-        nb.add(tab_autofix, text=t("settings.tab_autofix", "Auto-Fix"))
-        nb.add(tab_prediction, text=t("settings.tab_prediction", "Prediction"))
-        nb.add(tab_hotkeys, text=t("settings.tab_hotkeys", "Hotkeys"))
-        nb.add(tab_exclusions, text=t("settings.tab_exclusions", "Excluded Apps"))
-        nb.add(tab_snippets, text=t("settings.tab_snippets", "Snippets"))
-        nb.add(tab_sync, text=t("settings.tab_sync", "Cloud Sync"))
-        nb.add(tab_about, text=t("settings.tab_about", "About"))
+        nb.add(tab_general, text=f"⚙️ {t('settings.tab_general', 'General')}")
+        nb.add(tab_autofix, text=f"⚡ {t('settings.tab_autofix', 'Auto-Fix')}")
+        nb.add(tab_prediction, text=f"🔮 {t('settings.tab_prediction', 'Prediction')}")
+        nb.add(tab_hotkeys, text=f"⌨️ {t('settings.tab_hotkeys', 'Hotkeys')}")
+        nb.add(tab_exclusions, text=f"🚫 {t('settings.tab_exclusions', 'Excluded Apps')}")
+        nb.add(tab_snippets, text=f"📝 {t('settings.tab_snippets', 'Snippets')}")
+        nb.add(tab_sync, text=f"☁️ {t('settings.tab_sync', 'Cloud Sync')}")
+        nb.add(tab_about, text=f"ℹ️ {t('settings.tab_about', 'About')}")
 
         from ravan.ui.settings_autofix import build_autofix_section
         from ravan.ui.settings_builder import (
@@ -195,7 +203,7 @@ class SettingsWindow:
         btns.pack(fill="x", pady=(4, 0))
         btn_side = "left" if rtl else "right"
         ttk.Button(btns, text=t("settings.btn_cancel", "Cancel"), command=self._close).pack(side=btn_side, padx=4)
-        ttk.Button(btns, text=t("settings.btn_save", "Save Settings"), command=self._save).pack(side=btn_side, padx=4)
+        ttk.Button(btns, text=t("settings.btn_save", "Save Settings"), style="Accent.TButton", command=self._save).pack(side=btn_side, padx=4)
 
         def _next_tab(_e: Any = None) -> str:
             tabs = nb.tabs()

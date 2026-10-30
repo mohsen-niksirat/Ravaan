@@ -15,7 +15,11 @@ from typing import Any
 from ravan import __version__
 from ravan.core.config import config_dir
 from ravan.core.i18n import is_rtl, t
-from ravan.ui.theme import get_active_palette
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+)
 
 log = logging.getLogger(__name__)
 
@@ -126,6 +130,8 @@ class CrashDialog:
         root.geometry("680x560")
         root.minsize(580, 440)
         root.configure(bg=palette.bg)
+        apply_window_decorations(root, palette)
+        apply_theme_to_ttk(root, palette)
 
         # Main frame
         main_frm = ttk.Frame(root, padding=16)

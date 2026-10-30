@@ -11,6 +11,11 @@ from typing import Any
 from ravan.core.config import Snippet
 from ravan.core.i18n import is_rtl, t
 from ravan.core.macro import serialize_macro
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+)
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +46,9 @@ class MacroSaveDialog:
         top.geometry("460x280")
         top.resizable(False, False)
         top.attributes("-topmost", True)
+        palette = get_active_palette()
+        apply_window_decorations(top, palette)
+        apply_theme_to_ttk(top, palette)
 
         # Center dialog
         top.update_idletasks()

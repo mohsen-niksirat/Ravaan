@@ -8,6 +8,12 @@ from collections.abc import Callable
 from tkinter import ttk
 from typing import Any
 
+from ravan.ui.theme import (
+    apply_theme_to_ttk,
+    apply_window_decorations,
+    get_active_palette,
+)
+
 log = logging.getLogger(__name__)
 
 
@@ -43,6 +49,9 @@ class WindowPickerWindow:
         win.geometry("560x420")
         win.minsize(450, 320)
         win.transient(self._parent)
+        palette = get_active_palette()
+        apply_window_decorations(win, palette)
+        apply_theme_to_ttk(win, palette)
         win.protocol("WM_DELETE_WINDOW", self._close)
 
         pad = {"padx": 10, "pady": 6}
