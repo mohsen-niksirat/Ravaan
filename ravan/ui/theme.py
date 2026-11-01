@@ -219,7 +219,7 @@ def apply_popup_window_attributes(win: tk.Tk | tk.Toplevel, palette: Palette, sh
         # WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST
         style = wapi.user32.GetWindowLongW(root_hwnd, -20)
         wapi.user32.SetWindowLongW(root_hwnd, -20, style | 0x08000088)
-        wapi.user32.SetWindowPos(root_hwnd, 0, 0, 0, 0, 0, 0x0027)
+        wapi.user32.SetWindowPos(root_hwnd, -1, 0, 0, 0, 0, 0x0037)
         if show:
             wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
 

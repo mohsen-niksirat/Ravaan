@@ -39,7 +39,7 @@ class AppPollingMixin:
         # New window → unknown text state; reset journal & popup
         self.journal.clear()
         self._pending_predict = False
-        if self.overlay.predicting:
+        if self.overlay.visible:
             self.overlay.hide()
             set_popup_visible(False)
 
@@ -55,7 +55,7 @@ class AppPollingMixin:
             log.info("System clock jump detected (elapsed=%.2fs); recovering after wake/lock.", elapsed)
             self.journal.clear()
             self._pending_predict = False
-            if hasattr(self, "overlay") and self.overlay.predicting:
+            if hasattr(self, "overlay") and self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
             if hasattr(self, "hook") and self.hook:
@@ -99,11 +99,21 @@ class AppPollingMixin:
             hwnd = w.user32.GetForegroundWindow()
             if not hwnd:
                 return False
-            # Never treat non-activating suggestion overlay as an interactive dialog
+            cur_root = int(w.user32.GetAncestor(hwnd, 2) or hwnd)
+            # Never treat non-activating suggestion overlay or toast as an interactive dialog
             if hasattr(self, "overlay") and hasattr(self.overlay, "_get_root_hwnd"):
                 ov_hwnd = self.overlay._get_root_hwnd()
-                if ov_hwnd and int(hwnd) == int(ov_hwnd):
+                if ov_hwnd and (int(hwnd) == int(ov_hwnd) or cur_root == int(ov_hwnd)):
                     return False
+            if hasattr(self, "_toast") and getattr(self._toast, "_top", None):
+                try:
+                    thwnd = int(self._toast._top.winfo_id())
+                    troothwnd = int(w.user32.GetAncestor(thwnd, 2) or thwnd)
+                    if int(hwnd) in (thwnd, troothwnd) or cur_root in (thwnd, troothwnd):
+                        return False
+                except Exception:
+                    pass
+
             pid = wintypes.DWORD(0)
             w.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
             return pid.value == self._own_pid
@@ -187,7 +197,7 @@ class AppPollingMixin:
         self._pending_predict = False
         prefix = self.journal.last_word()
         if prefix and (prefix.isdigit() or all(c.isdigit() or c in "+-.,/" for c in prefix)):
-            if self.overlay.predicting:
+            if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
             return
@@ -209,8 +219,6 @@ class AppPollingMixin:
                 if cands:
                     if getattr(self.overlay, "has_custom_pos", False) and self.overlay.custom_x >= 0:
                         cx, cy, ch = self.overlay.custom_x, self.overlay.custom_y, 16
-                    elif self.overlay.predicting and self.overlay.visible and getattr(self.overlay, "current_x", -1) >= 0:
-                        cx, cy, ch = self.overlay.current_x, self.overlay.current_y, 16
                     else:
                         caret = get_caret_rect()
                         cx, cy, ch = caret.x, caret.y, caret.height
@@ -227,7 +235,7 @@ class AppPollingMixin:
                         context_word,
                     )
                     return
-            if self.overlay.predicting:
+            if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
             return
@@ -236,14 +244,12 @@ class AppPollingMixin:
             prefix, context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
         )
         if not cands:
-            if self.overlay.predicting:
+            if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
             return
         if getattr(self.overlay, "has_custom_pos", False) and self.overlay.custom_x >= 0:
             cx, cy, ch = self.overlay.custom_x, self.overlay.custom_y, 16
-        elif self.overlay.predicting and self.overlay.visible and getattr(self.overlay, "current_x", -1) >= 0:
-            cx, cy, ch = self.overlay.current_x, self.overlay.current_y, 16
         else:
             caret = get_caret_rect()
             cx, cy, ch = caret.x, caret.y, caret.height
@@ -256,7 +262,7 @@ class AppPollingMixin:
 
     def _maybe_timeout_popup(self: Any) -> None:
         """Auto-hide a stale prediction popup (e.g. user switched to mouse)."""
-        if not self.overlay.predicting:
+        if not self.overlay.visible:
             return
         timeout_s = self.cfg.popup_timeout_ms / 1000.0
         if timeout_s <= 0:

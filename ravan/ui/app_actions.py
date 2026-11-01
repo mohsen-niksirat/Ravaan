@@ -22,7 +22,7 @@ class AppActionsMixin:
         """Convert selected text if any exists; otherwise convert the last typed word(s)."""
         from ravan.platform.clipboard import try_convert_selection
 
-        self._suppress_until = time.monotonic() + 0.12
+        self._suppress_until = time.monotonic() + 0.03
         if try_convert_selection(self.mapper.convert_text):
             log.info("Converted selected text layout")
             self._f12_last_converted = None
@@ -37,7 +37,7 @@ class AppActionsMixin:
         ):
             self._f12_repeat_count = getattr(self, "_f12_repeat_count", 1) + 1
             prev_conv_len, prev_orig_text = self._f12_last_converted
-            self._suppress_until = now + 0.06
+            self._suppress_until = now + 0.03
             replace_last_n_with(prev_conv_len, prev_orig_text)
             self.journal.pop_last_n_chars(prev_conv_len)
             for ch in prev_orig_text:
@@ -66,7 +66,7 @@ class AppActionsMixin:
             return
 
         log.info("Convert %d words: %r → %r", n, span_text, converted)
-        self._suppress_until = time.monotonic() + 0.06
+        self._suppress_until = time.monotonic() + 0.03
         replace_last_n_with(span_len, converted)
         self.journal.pop_last_n_chars(span_len)
         for ch in converted:
@@ -78,7 +78,7 @@ class AppActionsMixin:
         from ravan.core.transform import normalize_text
         from ravan.platform.clipboard import try_convert_selection
 
-        self._suppress_until = time.monotonic() + 0.12
+        self._suppress_until = time.monotonic() + 0.03
         if try_convert_selection(normalize_text):
             log.info("Normalized selected text")
             return
@@ -94,7 +94,7 @@ class AppActionsMixin:
         if not normalized or normalized == word:
             return
         log.info("Normalize %r → %r (trailing: %d)", word, normalized, trailing)
-        self._suppress_until = time.monotonic() + 0.05
+        self._suppress_until = time.monotonic() + 0.03
         trailing_str = " " * trailing
         replace_last_n_with(len(word) + trailing, normalized + trailing_str)
         self.journal.pop_last_word_info(allow_trailing_spaces=True)
@@ -106,7 +106,7 @@ class AppActionsMixin:
         from ravan.core.normalizer import toggle_digits
         from ravan.platform.clipboard import try_convert_selection
 
-        self._suppress_until = time.monotonic() + 0.12
+        self._suppress_until = time.monotonic() + 0.03
         if try_convert_selection(toggle_digits):
             log.info("Toggled digits of selected text")
             return
@@ -122,7 +122,7 @@ class AppActionsMixin:
         if not converted or converted == word:
             return
         log.info("Toggle digits %r → %r (trailing: %d)", word, converted, trailing)
-        self._suppress_until = time.monotonic() + 0.05
+        self._suppress_until = time.monotonic() + 0.03
         trailing_str = " " * trailing
         replace_last_n_with(len(word) + trailing, converted + trailing_str)
         self.journal.pop_last_word_info(allow_trailing_spaces=True)
@@ -134,7 +134,7 @@ class AppActionsMixin:
         from ravan.core.transform import cycle_case
         from ravan.platform.clipboard import try_convert_selection
 
-        self._suppress_until = time.monotonic() + 0.12
+        self._suppress_until = time.monotonic() + 0.03
         if try_convert_selection(cycle_case):
             log.info("Cycled case of selected text")
             return
@@ -150,7 +150,7 @@ class AppActionsMixin:
         if not cased or cased == word:
             return
         log.info("Cycle case %r → %r (trailing: %d)", word, cased, trailing)
-        self._suppress_until = time.monotonic() + 0.05
+        self._suppress_until = time.monotonic() + 0.03
         trailing_str = " " * trailing
         replace_last_n_with(len(word) + trailing, cased + trailing_str)
         self.journal.pop_last_word_info(allow_trailing_spaces=True)
@@ -186,7 +186,7 @@ class AppActionsMixin:
         from ravan.platform.clipboard import set_clipboard_text
         from ravan.platform.inject import send_shortcut
 
-        self._suppress_until = time.monotonic() + 0.1
+        self._suppress_until = time.monotonic() + 0.03
         set_clipboard_text(text)
         time.sleep(0.02)
         send_shortcut([w.VK_CONTROL], ord("V"))
@@ -231,7 +231,7 @@ class AppActionsMixin:
 
         delete_n = len(suffix) + 2
         replace_text = f"{ZWNJ}{suffix} "
-        self._suppress_until = time.monotonic() + 0.05
+        self._suppress_until = time.monotonic() + 0.03
         replace_last_n_with(delete_n, replace_text)
         for _ in range(delete_n):
             if self.journal._chars:
@@ -278,7 +278,7 @@ class AppActionsMixin:
         from ravan.ui.stats_popup import StatsPopupWindow
 
         old_clip = get_clipboard_text()
-        self._suppress_until = time.monotonic() + 0.15
+        self._suppress_until = time.monotonic() + 0.03
 
         # Simulate Ctrl+C to copy selected text
         send_shortcut([w.VK_CONTROL], 0x43)

@@ -199,7 +199,7 @@ class RavanApp(
 
         delete_len = len(corrected) + len(delim)
         replace_text = orig + delim
-        self._suppress_until = time.monotonic() + 0.08
+        self._suppress_until = time.monotonic() + 0.03
         replace_last_n_with(delete_len, replace_text)
 
         for _ in range(delete_len):
@@ -221,7 +221,7 @@ class RavanApp(
 
     def _erase_word_and_delimiter(self, word: str, delimiter: str = "") -> None:
         del_len = len(word) + len(delimiter)
-        self._suppress_until = time.monotonic() + 0.1
+        self._suppress_until = time.monotonic() + 0.03
         replace_last_n_with(del_len, "")
         for _ in range(del_len):
             if self.journal._chars:

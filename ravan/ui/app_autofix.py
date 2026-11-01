@@ -140,7 +140,7 @@ class AppAutofixMixin:
 
         del_len = len(inserted_fa) + len(delimiter)
         replace_text = orig_word + delimiter
-        self._suppress_until = time.monotonic() + 0.08
+        self._suppress_until = time.monotonic() + 0.03
         from ravan.platform.inject import replace_last_n_with
 
         replace_last_n_with(del_len, replace_text)
@@ -315,7 +315,7 @@ class AppAutofixMixin:
             if rec is not None:
                 del_len = len(rec.fixed) + len(rec.delimiter)
                 replace_text = rec.original + rec.delimiter
-                self._suppress_until = time.monotonic() + 0.08
+                self._suppress_until = time.monotonic() + 0.03
                 from ravan.platform.inject import replace_last_n_with
 
                 replace_last_n_with(del_len, replace_text)
@@ -359,7 +359,7 @@ class AppAutofixMixin:
 
         self.autofix.on_manual_edit(elapsed)
         del_len = len(rec.fixed)
-        self._suppress_until = time.monotonic() + 0.08
+        self._suppress_until = time.monotonic() + 0.03
         from ravan.platform.inject import replace_last_n_with
 
         replace_last_n_with(del_len, rec.original)
@@ -393,7 +393,7 @@ class AppAutofixMixin:
 
         delete_len = len(corrected) + len(delim)
         replace_text = orig + delim
-        self._suppress_until = time.monotonic() + 0.08
+        self._suppress_until = time.monotonic() + 0.03
         from ravan.platform.inject import replace_last_n_with
 
         replace_last_n_with(delete_len, replace_text)

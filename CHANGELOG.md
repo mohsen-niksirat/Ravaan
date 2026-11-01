@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added default reset handling for Auto-Fix settings tab.
 
 ### Fixed
+- **Prediction Overlay Position Stability (ravan/ui/overlay.py, ravan/ui/app_polling.py)**:
+  - Fixed issue where the suggestion box jumped with every single keystroke; coordinates stay anchored and locked.
+- **Empty Ghost Box Elimination (ravan/ui/overlay.py, ravan/ui/app_polling.py)**:
+  - Fixed issue where an empty prediction frame remained on screen when text was deleted with Backspace.
+- **Fast Typing & Backspace Keystroke Synchronization (ravan/ui/key_handler.py)**:
+  - Hardware Backspace is never suppressed by synthetic cooldowns, preventing journal desync during rapid typing.
+- **Overlay Focus Retention & Zero Typing Interruption (ravan/ui/overlay.py, ravan/ui/app_polling.py)**:
+  - Strictly enforced WS_EX_NOACTIVATE and SW_SHOWNOACTIVATE; non-modal popups never pause background keystrokes.
 - **System Tray Quick Toggles Desynchronization & Race Condition (ravan/ui/app_tray.py, ravan/ui/tray.py)**:
   - Eliminated the race condition where toggling Autocorrect or other quick toggles in the tray menu required clicking twice and appeared to re-enable itself.
   - Quick toggle callbacks now mutate `app.cfg`, update predictors/engines, and save to disk synchronously before enqueuing events for the UI thread, ensuring pystray's immediate checkmark queries receive the exact updated state on the very first click.

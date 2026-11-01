@@ -35,7 +35,11 @@ class KeyHandlerMixin:
                 continue
             if event.flags & LLKHF_INJECTED:
                 continue
-            if time.monotonic() < self._suppress_until:
+            # Physical Backspace from user must NEVER be suppressed by synthetic cooldown,
+            # ensuring journal and active editor stay perfectly synchronized during fast typing.
+            if event.vk_code == w.VK_BACK:
+                pass
+            elif time.monotonic() < self._suppress_until:
                 continue
             self._handle_key(event)
 
@@ -247,6 +251,11 @@ class KeyHandlerMixin:
                     return
             self._last_autocorrect = None
             self.journal.push("\b")
+            # If buffer becomes empty after backspace, immediately dismiss any active popup
+            if not self.journal.last_word():
+                if self.overlay.visible:
+                    self.overlay.hide()
+                    set_popup_visible(False)
             self._schedule_predict()
             return
 
