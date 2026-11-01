@@ -141,26 +141,30 @@ def test_show_crash_dialog_non_interactive():
 
 def test_install_crash_handler_flow(tmp_path):
     """Verify install_crash_handler writes report file and calls on_crash without blocking."""
+    orig_excepthook = sys.excepthook
     notified = []
 
     def on_crash(msg: str):
         notified.append(msg)
 
-    with patch("ravan.ui.log_setup.config_dir", return_value=tmp_path):
-        install_crash_handler(on_crash=on_crash, show_dialog=False)
-        handler = sys.excepthook
+    try:
+        with patch("ravan.ui.log_setup.config_dir", return_value=tmp_path):
+            install_crash_handler(on_crash=on_crash, show_dialog=False)
+            handler = sys.excepthook
 
-        try:
-            raise ArithmeticError("Custom calculation exception")
-        except ArithmeticError:
-            handler(*sys.exc_info())
+            try:
+                raise ArithmeticError("Custom calculation exception")
+            except ArithmeticError:
+                handler(*sys.exc_info())
 
-        crash_files = list((tmp_path / "crash").glob("crash_*.txt"))
-        assert len(crash_files) == 1
-        saved_text = crash_files[0].read_text(encoding="utf-8")
+            crash_files = list((tmp_path / "crash").glob("crash_*.txt"))
+            assert len(crash_files) == 1
+            saved_text = crash_files[0].read_text(encoding="utf-8")
 
-        assert "Ravaan Crash Report" in saved_text
-        assert "ArithmeticError" in saved_text
-        assert "Custom calculation exception" in saved_text
-        assert "PRIVACY GUARANTEE" in saved_text
-        assert len(notified) == 1
+            assert "Ravaan Crash Report" in saved_text
+            assert "ArithmeticError" in saved_text
+            assert "Custom calculation exception" in saved_text
+            assert "PRIVACY GUARANTEE" in saved_text
+            assert len(notified) == 1
+    finally:
+        sys.excepthook = orig_excepthook

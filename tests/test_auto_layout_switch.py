@@ -83,10 +83,16 @@ def test_is_ime_composing() -> None:
         assert is_ime_composing() is True
 
 
+class _MockOverlay:
+    def hide(self) -> None: pass
+    def destroy(self) -> None: pass
+    def tick(self) -> None: pass
+
+
 def test_auto_layout_switch_modes() -> None:
     cfg = Config()
     cfg.auto_layout_switch = True
-    app = RavanApp(cfg)
+    app = RavanApp(cfg, overlay=_MockOverlay())
     app._replace_word = MagicMock()
     app._maybe_switch_keyboard_layout = MagicMock()
 
@@ -114,12 +120,6 @@ def test_auto_layout_switch_modes() -> None:
     assert handled is True
     app._replace_word.assert_called_once()
     app._maybe_switch_keyboard_layout.assert_called_once_with("fa")
-
-
-class _MockOverlay:
-    def hide(self) -> None: pass
-    def destroy(self) -> None: pass
-    def tick(self) -> None: pass
 
 
 def test_auto_layout_switch_suppressed_in_excluded_passwords_ime() -> None:
