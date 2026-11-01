@@ -290,7 +290,7 @@ def test_settings_reset_tab_defaults():
         # Reset prediction
         reset_tab_defaults(win, "prediction")
         assert win._prediction_var.get() is True
-        assert win._autocorrect_var.get() is True
+        assert win._autocorrect_var.get() is False
 
         # Reset hotkeys
         reset_tab_defaults(win, "hotkeys")

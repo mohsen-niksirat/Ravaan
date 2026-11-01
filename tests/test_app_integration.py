@@ -4,6 +4,7 @@ from ravan.ui.app import RavanApp
 
 class MockOverlay:
     def __init__(self) -> None:
+        self.visible = False
         self.predicting = False
         self.clipboard_open = False
         self.active_popup = False
@@ -13,7 +14,7 @@ class MockOverlay:
 
 
 def test_app_journal_and_word_completion():
-    cfg = Config()
+    cfg = Config(autocorrect_enabled=True)
     cfg.snippets.append(Snippet(trigger="@@", replacement="me@test.com"))
     app = RavanApp(cfg, overlay=MockOverlay())
 

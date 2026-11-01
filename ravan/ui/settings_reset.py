@@ -37,9 +37,13 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._theme_mode_var.set(d.theme_mode)
         if hasattr(win, "_translit_var"):
             win._translit_var.set(d.translit_enabled)
+        if hasattr(win, "_show_lang_on_click_var"):
+            win._show_lang_on_click_var.set(d.show_lang_on_click)
     elif tab_name == "prediction":
         if hasattr(win, "_prediction_var"):
             win._prediction_var.set(d.prediction_enabled)
+        if hasattr(win, "_suggestion_accept_enter_var"):
+            win._suggestion_accept_enter_var.set(d.suggestion_accept_enter)
         if hasattr(win, "_autocorrect_var"):
             win._autocorrect_var.set(d.autocorrect_enabled)
         if hasattr(win, "_autocorrect_mode_var"):

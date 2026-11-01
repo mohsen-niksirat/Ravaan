@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 class Config:
     convert_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Pause", []))
     lang_indicator_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("L", ["Alt"]))
-    autocorrect_enabled: bool = True
+    autocorrect_enabled: bool = False
     prediction_enabled: bool = True
     learning_enabled: bool = True
     quickpick_digits: bool = True
@@ -37,6 +37,8 @@ class Config:
     min_prefix_len: int = 1
     next_word_prediction: bool = True
     prediction_auto_space: bool = True
+    suggestion_accept_enter: bool = False
+    show_lang_on_click: bool = True
     overlay_custom_pos: bool = False
     overlay_pos_x: int = -1
     overlay_pos_y: int = -1
@@ -411,7 +413,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
     cfg = Config(
         convert_hotkey=_hotkey_from_dict(data.get("convert_hotkey"), HotkeySpec("Pause")),
         lang_indicator_hotkey=_hotkey_from_dict(data.get("lang_indicator_hotkey"), HotkeySpec("L", ["Alt"])),
-        autocorrect_enabled=bool(data.get("autocorrect_enabled", True)),
+        autocorrect_enabled=bool(data.get("autocorrect_enabled", False)),
         prediction_enabled=bool(data.get("prediction_enabled", True)),
         learning_enabled=bool(data.get("learning_enabled", True)),
         quickpick_digits=bool(data.get("quickpick_digits", True)),
@@ -421,6 +423,8 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         min_prefix_len=_bounded_int(data, "min_prefix_len", 1, 1, 64),
         next_word_prediction=bool(data.get("next_word_prediction", True)),
         prediction_auto_space=bool(data.get("prediction_auto_space", True)),
+        suggestion_accept_enter=bool(data.get("suggestion_accept_enter", False)),
+        show_lang_on_click=bool(data.get("show_lang_on_click", True)),
         overlay_custom_pos=bool(data.get("overlay_custom_pos", False)),
         overlay_pos_x=_bounded_int(data, "overlay_pos_x", -1, -1, 30000),
         overlay_pos_y=_bounded_int(data, "overlay_pos_y", -1, -1, 30000),

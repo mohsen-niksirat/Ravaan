@@ -20,15 +20,15 @@ LLKHF_INJECTED = 0x10
 _popup_visible = False
 _swallow_digits = False
 _swallow_arrow: str | None = None
+_swallow_enter = False
 # Packed as a single tuple so the hook thread always reads a consistent snapshot.
 # CPython reference assignment is atomic under the GIL, so swapping the whole
 # tuple in one assignment prevents the hook thread from seeing a partially-updated state.
-_popup_state: tuple[bool, bool, str | None] = (False, False, None)
+_popup_state: tuple[bool, bool, str | None, bool] = (False, False, None, False)
 
 
 _NAV_VKS = {
     w.VK_ESCAPE,
-    w.VK_RETURN,
     w.VK_TAB,
     w.VK_UP,
     w.VK_DOWN,
@@ -63,14 +63,22 @@ class HookEvent:
 
 
 def set_popup_visible(
-    visible: bool, swallow_digits: bool = True, swallow_arrow: str | None = None
+    visible: bool,
+    swallow_digits: bool = True,
+    swallow_arrow: str | None = None,
+    swallow_enter: bool = False,
 ) -> None:
-    """When visible, navigation keys (and optionally 1–5 or accept arrow) are swallowed."""
-    global _popup_visible, _swallow_digits, _swallow_arrow, _popup_state
-    # Atomic tuple swap — hook thread always reads a consistent (visible, digits, arrow) snapshot.
-    _popup_state = (visible, swallow_digits and visible, swallow_arrow if visible else None)
+    """When visible, navigation keys (and optionally 1–5, accept arrow, or enter) are swallowed."""
+    global _popup_visible, _swallow_digits, _swallow_arrow, _swallow_enter, _popup_state
+    # Atomic tuple swap — hook thread always reads a consistent (visible, digits, arrow, enter) snapshot.
+    _popup_state = (
+        visible,
+        swallow_digits and visible,
+        swallow_arrow if visible else None,
+        swallow_enter and visible,
+    )
     # Keep legacy module-level names in sync for any external readers.
-    _popup_visible, _swallow_digits, _swallow_arrow = _popup_state
+    _popup_visible, _swallow_digits, _swallow_arrow, _swallow_enter = _popup_state
 
 
 class KeyboardHook:
@@ -209,15 +217,19 @@ class KeyboardHook:
 
             if _popup_visible and is_down:
                 vk = event.vk_code
-                if vk in _NAV_VKS or (_swallow_digits and vk in _DIGIT_VKS):
-                    # Never swallow Shift+Enter: pass through so the target app receives the newline!
-                    if vk == w.VK_RETURN and _is_shift_pressed():
+                if vk == w.VK_RETURN:
+                    # Only swallow Enter if swallow_enter is explicitly enabled AND Shift is not held!
+                    if _swallow_enter and not _is_shift_pressed():
                         self._emit(event)
-                        return int(
-                            w.user32.CallNextHookEx(
-                                self._hook or 0, n_code, w_param, l_param
-                            )
+                        return 1  # swallow
+                    # Otherwise pass Enter directly through to the active application
+                    self._emit(event)
+                    return int(
+                        w.user32.CallNextHookEx(
+                            self._hook or 0, n_code, w_param, l_param
                         )
+                    )
+                if vk in _NAV_VKS or (_swallow_digits and vk in _DIGIT_VKS):
                     self._emit(event)
                     return 1  # swallow — target app must not see these
                 if _swallow_arrow == "right" and vk == w.VK_RIGHT:

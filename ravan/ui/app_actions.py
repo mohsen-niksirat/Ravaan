@@ -157,17 +157,34 @@ class AppActionsMixin:
         for ch in cased + trailing_str:
             self.journal.push(ch)
 
-    def _show_lang_indicator(self: Any) -> None:
+    def _show_lang_indicator(self: Any, use_mouse_pos: bool = False) -> None:
         lang = current_language()
         if lang is None:
             return
         label = language_label(lang)
         if getattr(self.cfg, "translit_enabled", False):
             label = f"{label}-TL"
-        caret = get_caret_rect()
-        self.overlay.show_language(
-            label, caret.x, caret.y, caret.height
-        )
+        if use_mouse_pos:
+            try:
+                from ravan.platform.caret import _cursor_position
+
+                cp = _cursor_position()
+                cx, cy, ch = cp.x, cp.y, cp.height
+            except Exception:
+                caret = get_caret_rect()
+                cx, cy, ch = caret.x, caret.y, caret.height
+        else:
+            caret = get_caret_rect()
+            cx, cy, ch = caret.x, caret.y, caret.height
+            if cx <= 1 and cy <= 1:
+                try:
+                    from ravan.platform.caret import _cursor_position
+
+                    cp = _cursor_position()
+                    cx, cy, ch = cp.x, cp.y, cp.height
+                except Exception:
+                    pass
+        self.overlay.show_language(label, cx, cy, ch)
 
     def _show_clipboard_popup(self: Any) -> None:
         from ravan.platform.hook import set_popup_visible

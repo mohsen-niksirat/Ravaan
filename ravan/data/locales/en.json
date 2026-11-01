@@ -164,7 +164,10 @@
     "group_status_active": "Active",
     "group_status_disabled": "Disabled",
     "group_prompt_name": "Enter group name (e.g. Browsers, Code):",
-    "group_prompt_matchers": "Enter application exe names or classes (comma-separated, e.g. chrome.exe, code.exe, class:Notepad):"
+    "group_prompt_matchers": "Enter application exe names or classes (comma-separated, e.g. chrome.exe, code.exe, class:Notepad):",
+    "suggestion_accept_enter": "Accept suggestion on Enter (default: Off, use digits 1-5 only)",
+    "show_lang_on_click": "Show keyboard language indicator on mouse click",
+    "show_lang_on_click_example": "Example: Clicking in any text input automatically displays current language (FA / EN)"
   },
   "stats": {
     "header": "📊 Text Statistics",

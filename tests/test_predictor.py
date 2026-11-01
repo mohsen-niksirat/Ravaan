@@ -3,7 +3,7 @@ from ravan.core.predictor import DictPredictor
 
 
 def _pred() -> DictPredictor:
-    return DictPredictor.from_config(Config())
+    return DictPredictor.from_config(Config(autocorrect_enabled=True))
 
 
 def test_english_completion():
@@ -134,14 +134,14 @@ def test_autocorrect_modes():
     assert pred_off.correct("teh") is None
 
     # Test "safe" mode
-    pred_safe = DictPredictor.from_config(Config(autocorrect_mode="safe"))
+    pred_safe = DictPredictor.from_config(Config(autocorrect_enabled=True, autocorrect_mode="safe"))
     assert pred_safe.correct("teh") is not None
     assert pred_safe.correct("teh").text == "the"
     # "hel" is a prefix of "hello", so safe mode must reject it
     assert pred_safe.correct("hel") is None
 
     # Test "normal" mode
-    pred_normal = DictPredictor.from_config(Config(autocorrect_mode="normal"))
+    pred_normal = DictPredictor.from_config(Config(autocorrect_enabled=True, autocorrect_mode="normal"))
     assert pred_normal.correct("teh") is not None
     assert pred_normal.correct("teh").text == "the"
 

@@ -139,6 +139,22 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
 
     from ravan.ui.tooltip import ToolTip
 
+    win._show_lang_on_click_var = tk.BooleanVar(
+        value=getattr(win.cfg, "show_lang_on_click", True)
+    )
+    cb_lang_click = ttk.Checkbutton(
+        frm,
+        text=t("settings.show_lang_on_click", "Show keyboard language indicator on mouse click"),
+        variable=win._show_lang_on_click_var,
+    )
+    cb_lang_click.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    lang_click_ex = t(
+        "settings.show_lang_on_click_example",
+        "Example: Clicking in any text box automatically shows whether typing in FA or EN",
+    )
+    ToolTip(cb_lang_click, lang_click_ex)
+    row += 1
+
     win._cliphist_var = tk.BooleanVar(value=win.cfg.clipboard_history_enabled)
     cb_clip = ttk.Checkbutton(frm, text=t("settings.enable_cliphist", "Enable clipboard history (Alt+V)"), variable=win._cliphist_var)
     cb_clip.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
@@ -360,6 +376,16 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
         frm,
         text=t("settings.prediction_auto_space", "Auto-insert space after accepting suggestion"),
         variable=win._prediction_auto_space_var,
+    ).grid(row=row, column=0, columnspan=3, sticky=align, **pad)
+    row += 1
+
+    win._suggestion_accept_enter_var = tk.BooleanVar(
+        value=getattr(win.cfg, "suggestion_accept_enter", False)
+    )
+    ttk.Checkbutton(
+        frm,
+        text=t("settings.suggestion_accept_enter", "Accept suggestion on Enter (recommended: Off)"),
+        variable=win._suggestion_accept_enter_var,
     ).grid(row=row, column=0, columnspan=3, sticky=align, **pad)
     row += 1
 

@@ -225,8 +225,11 @@ class AppPollingMixin:
                     self.overlay.show_predictions(
                         cands, cx, cy, ch, on_accept=self._accept_candidate
                     )
+                    swallow_enter = bool(getattr(self.cfg, "suggestion_accept_enter", False))
                     set_popup_visible(
-                        True, swallow_digits=self.cfg.quickpick_digits
+                        True,
+                        swallow_digits=self.cfg.quickpick_digits,
+                        swallow_enter=swallow_enter,
                     )
                     self._popup_shown_at = time.monotonic()
                     log.info(
@@ -256,7 +259,12 @@ class AppPollingMixin:
         self.overlay.show_predictions(
             cands, cx, cy, ch, on_accept=self._accept_candidate
         )
-        set_popup_visible(True, swallow_digits=self.cfg.quickpick_digits)
+        swallow_enter = bool(getattr(self.cfg, "suggestion_accept_enter", False))
+        set_popup_visible(
+            True,
+            swallow_digits=self.cfg.quickpick_digits,
+            swallow_enter=swallow_enter,
+        )
         self._popup_shown_at = time.monotonic()
         log.info("Showing %d suggestions for %r", len(cands), prefix)
 
@@ -372,3 +380,57 @@ class AppPollingMixin:
 
         import threading
         threading.Thread(target=_bg_worker, name="ravan-bg-sync", daemon=True).start()
+
+    def _poll_mouse_click(self: Any) -> None:
+        """Detect mouse click in an input area and show language indicator before typing."""
+        if not getattr(self.cfg, "show_lang_on_click", True):
+            return
+
+        is_down = bool(w.user32.GetAsyncKeyState(0x01) & 0x8000)  # VK_LBUTTON
+        now = time.monotonic()
+        last_down = getattr(self, "_mouse_left_down", False)
+
+        if is_down and not last_down:
+            self._mouse_left_down = True
+            self._mouse_down_time = now
+            try:
+                from ravan.platform.caret import _cursor_position
+
+                self._mouse_down_pos = _cursor_position()
+            except Exception:
+                self._mouse_down_pos = None
+            return
+
+        if not is_down and last_down:
+            self._mouse_left_down = False
+            down_time = getattr(self, "_mouse_down_time", 0.0)
+            elapsed = now - down_time
+            if elapsed > 0.45:
+                return
+
+            down_pos = getattr(self, "_mouse_down_pos", None)
+            if down_pos is not None:
+                try:
+                    from ravan.platform.caret import _cursor_position
+
+                    cur = _cursor_position()
+                    dx = abs(cur.x - down_pos.x)
+                    dy = abs(cur.y - down_pos.y)
+                    if dx > 15 or dy > 15:
+                        return
+                except Exception:
+                    pass
+
+            last_shown = getattr(self, "_last_mouse_lang_shown", 0.0)
+            if now - last_shown < 0.6:
+                return
+
+            if self._is_excluded() or self._is_foreground_self():
+                return
+
+            if self.overlay.predicting:
+                self.overlay.hide()
+                set_popup_visible(False)
+
+            self._last_mouse_lang_shown = now
+            self._show_lang_indicator(use_mouse_pos=True)

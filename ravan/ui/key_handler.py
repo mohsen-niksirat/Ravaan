@@ -75,6 +75,11 @@ class KeyHandlerMixin:
         char = vk_to_unicode(vk, event.scan_code) or ""
         self._record_event("Key pressed", vk=vk, char=char)
 
+        # Typing dismisses any active language indicator chip instantly (except modifier keys or the hotkey itself)
+        if not is_modifier(vk) and not matches_hotkey(vk, self.cfg.lang_indicator_hotkey):
+            if getattr(self.overlay, "visible", False) and getattr(self.overlay, "_mode", "") == "lang":
+                self.overlay.hide()
+
         if hasattr(self, "_handle_accent_key") and self._handle_accent_key(event, vk, char):
             return
 
@@ -131,15 +136,17 @@ class KeyHandlerMixin:
                 self.overlay.move_selection(1)
                 return
             if vk in (w.VK_RETURN, w.VK_TAB):
-                if vk == w.VK_RETURN and _is_shift_pressed():
-                    # Shift+Enter: user wants a newline / line break in the active app.
-                    # Dismiss the prediction popup, push newline to journal, do NOT accept candidate.
-                    self.overlay.hide()
-                    set_popup_visible(False)
-                    self._last_autocorrect = None
-                    self.journal.push("\n")
-                    log.debug("Shift+Enter passed through as newline; prediction dismissed")
-                    return
+                if vk == w.VK_RETURN:
+                    if not getattr(self.cfg, "suggestion_accept_enter", False) or _is_shift_pressed():
+                        # Enter when suggestion_accept_enter is False (default) or Shift+Enter:
+                        # User wants Enter to pass through to active app (e.g. browser navigation, editor newline).
+                        # Dismiss prediction popup, push newline to journal, do NOT accept candidate.
+                        self.overlay.hide()
+                        set_popup_visible(False)
+                        self._last_autocorrect = None
+                        self.journal.push("\n")
+                        log.debug("Enter passed through to target app; prediction dismissed without accept")
+                        return
 
                 cand = self.overlay.accept_selected()
                 if cand:

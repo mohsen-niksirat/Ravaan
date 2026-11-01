@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.6.0] - 2026-10-30 - Windows 11 Fluent 2 UI Redesign, Bundled Vazirmatn Font & Tray Toggle Fixes
+## [2.6.0] - 2026-11-01 - Windows 11 Fluent 2 UI Redesign, Bundled Vazirmatn Font, Mouse Click Language Indicator & New Brand Icon
 
 ### Added
+- **Click-to-Show Keyboard Language Indicator & Resilient Positioning (ravan/ui/app_polling.py, ravan/ui/overlay.py, ravan/ui/app_actions.py)**:
+  - Automatically displays current active keyboard layout language indicator («فارسی» / «English») upon mouse click in any text input area, before typing even begins.
+  - Formatted language labels with national flags and friendly labels instead of raw acronyms.
+  - Resilient caret fallback querying cursor position to prevent top-left screen placement in non-UIA applications.
+  - Added toggle `show_lang_on_click` in Settings -> General Options.
+- **Modern High-Fidelity App Icon (ravan/data/icon.png, ravan/data/icon.ico)**:
+  - Updated application icon across tray, window titlebars, taskbar, and installer with the newly designed golden/white pen nib "R" badge on rounded teal card.
+- **Suggestion Acceptance Restricted to Digits 1–5 (ravan/platform/hook.py, ravan/ui/key_handler.py, ravan/ui/app_polling.py)**:
+  - Enter key no longer accepts predictions or swallows key events by default (`suggestion_accept_enter = False`), allowing direct URL navigation in browsers and uninterrupted newlines.
+  - Candidates are accepted via digit keys 1–5 or mouse click.
+- **Autocorrect Disabled by Default (ravan/core/config.py)**:
+  - `autocorrect_enabled` is now disabled (`False`) by default for clean, zero-interference typing experience out of the box.
 - **Windows 11 Fluent 2 Design & Persian Typography (ravan/ui/theme.py, ravan/data/fonts/)**:
   - Bundled authentic high-fidelity Vazirmatn fonts (Regular, Medium, Bold) into `ravan/data/fonts/` and integrated runtime in-memory font registration via Windows GDI (`AddFontResourceExW`) without requiring administrator font installation.
   - Comprehensive modern TTK styling engine implementing Fluent 2 design language across the entire application: custom styled TNotebook with accent active tabs, modern TButton with hover/pressed states, Accent.TButton with high-contrast text, styled rounded TEntry, polished Treeview headings and alternating rows, and smooth modern scrollbars.

@@ -127,6 +127,7 @@ class RavanApp(
                     self._poll_focus()
                     self._poll_hook_health()
                     self._poll_language()
+                    self._poll_mouse_click()
                     self._poll_clipboard()
                     self._poll_background_sync()
                     self._maybe_predict()

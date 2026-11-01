@@ -164,7 +164,10 @@
     "group_status_active": "فعال",
     "group_status_disabled": "غیرفعال",
     "group_prompt_name": "نام گروه را وارد کنید (مثلا مرورگرها، برنامه‌نویسی):",
-    "group_prompt_matchers": "نام فایل‌های اجرایی یا کلاس پنجره‌ها را با ویرگول جدا کنید (مثلا chrome.exe, code.exe, class:Notepad):"
+    "group_prompt_matchers": "نام فایل‌های اجرایی یا کلاس پنجره‌ها را با ویرگول جدا کنید (مثلا chrome.exe, code.exe, class:Notepad):",
+    "suggestion_accept_enter": "تایید کلمه پیشنهادی با زدن Enter (پیش‌فرض: غیرفعال، صرفاً با ارقام ۱ تا ۵)",
+    "show_lang_on_click": "نمایش نشانگر زبان کیبورد با کلیک ماوس در محل تایپ",
+    "show_lang_on_click_example": "مثال: با کلیک ماوس در هر کادر متنی، پیش از شروع تایپ نشانگر زبان کیبورد ظاهر می‌شود"
   },
   "stats": {
     "header": "📊 آمار متن",

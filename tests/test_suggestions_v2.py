@@ -148,7 +148,7 @@ def test_hook_callback_shift_enter_not_swallowed():
 
     from ravan.platform.hook import KeyboardHook, set_popup_visible
     hook = KeyboardHook()
-    set_popup_visible(True)
+    set_popup_visible(True, swallow_enter=True)
     try:
         kb = w.KBDLLHOOKSTRUCT()
         kb.vkCode = w.VK_RETURN
@@ -156,13 +156,20 @@ def test_hook_callback_shift_enter_not_swallowed():
         kb.flags = 0
         kb_ptr = ctypes.addressof(kb)
 
-        # 1. Plain Enter when popup is visible -> swallowed (returns 1)
+        # 1. Plain Enter when popup is visible and swallow_enter=True -> swallowed (returns 1)
         with patch("ravan.platform.hook._is_shift_pressed", return_value=False):
             res = hook._callback(0, w.WM_KEYDOWN, kb_ptr)
             assert res == 1
 
         # 2. Shift+Enter when popup is visible -> NOT swallowed (passes through)
         with patch("ravan.platform.hook._is_shift_pressed", return_value=True), \
+             patch("ravan.platform.winapi.user32.CallNextHookEx", return_value=0):
+            res = hook._callback(0, w.WM_KEYDOWN, kb_ptr)
+            assert res == 0
+
+        # 3. Plain Enter when swallow_enter=False (default) -> NOT swallowed (passes through)
+        set_popup_visible(True, swallow_enter=False)
+        with patch("ravan.platform.hook._is_shift_pressed", return_value=False), \
              patch("ravan.platform.winapi.user32.CallNextHookEx", return_value=0):
             res = hook._callback(0, w.WM_KEYDOWN, kb_ptr)
             assert res == 0

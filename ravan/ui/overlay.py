@@ -410,12 +410,14 @@ class OverlayWindow:
     @staticmethod
     def _format_lang_label(label: str) -> str:
         raw = label.strip()
-        if raw == "FA":
+        if raw in ("FA", "فا"):
             return "🇮🇷 فارسی"
-        if raw in ("FA-TL", "TL"):
+        if raw in ("FA-TL", "TL", "فا-TL"):
             return "🔤 فینگلیش (FA)"
-        if raw == "EN":
-            return "🇬🇧 English"
+        if raw in ("EN", "En", "en"):
+            return "🇺🇸 English"
+        if raw.lower().startswith("ar") or raw == "عرب":
+            return "🇸🇦 العربية"
         return raw
 
     def show_language(self, label: str, x: int, y: int, height: int = 16) -> None:
@@ -423,10 +425,18 @@ class OverlayWindow:
         self._mode = "lang"
         display_label = self._format_lang_label(label)
         self._lang_label.config(text=display_label)
-        self._lang_label.pack(padx=6, pady=4)
+        self._lang_label.pack(padx=10, pady=6)
+        if (x <= 1 and y <= 1) or x < 0 or y < 0:
+            try:
+                from ravan.platform.caret import _cursor_position
+
+                cp = _cursor_position()
+                x, y, height = cp.x, cp.y, cp.height
+            except Exception:
+                pass
         self._place(x, y + height + 4)
         self._show_no_activate()
-        self._fade_after = self._root.after(1200, self.hide)
+        self._fade_after = self._root.after(1400, self.hide)
 
     def show_predictions(
         self,

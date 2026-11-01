@@ -1,7 +1,9 @@
 {
   "convert_hotkey": { "key": "Pause", "modifiers": [] },
   "lang_indicator_hotkey": { "key": "L", "modifiers": ["Alt"] },
-  "autocorrect_enabled": true,
+  "autocorrect_enabled": false,
+  "suggestion_accept_enter": false,
+  "show_lang_on_click": true,
   "prediction_enabled": true,
   "quickpick_digits": true,
   "prediction_debounce_ms": 50,

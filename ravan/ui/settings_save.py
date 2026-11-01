@@ -128,6 +128,10 @@ def save_settings_window(win: Any) -> None:
     cfg.prediction_enabled = win._prediction_var.get()
     if hasattr(win, "_prediction_auto_space_var"):
         cfg.prediction_auto_space = win._prediction_auto_space_var.get()
+    if hasattr(win, "_suggestion_accept_enter_var"):
+        cfg.suggestion_accept_enter = win._suggestion_accept_enter_var.get()
+    if hasattr(win, "_show_lang_on_click_var"):
+        cfg.show_lang_on_click = win._show_lang_on_click_var.get()
     if hasattr(win, "_overlay_custom_pos_var"):
         cfg.overlay_custom_pos = win._overlay_custom_pos_var.get()
     if hasattr(win, "_prediction_ui_style_var"):
