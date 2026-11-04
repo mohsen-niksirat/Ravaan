@@ -185,6 +185,9 @@ class AppActionsMixin:
                 except Exception:
                     pass
         self.overlay.show_language(label, cx, cy, ch)
+        # Stamp the popup timer so _maybe_timeout_popup does not hide the chip
+        # on the next loop tick (hotkey and mouse-click paths both come here).
+        self._popup_shown_at = time.monotonic()
 
     def _show_clipboard_popup(self: Any) -> None:
         from ravan.platform.hook import set_popup_visible

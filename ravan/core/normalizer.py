@@ -52,9 +52,7 @@ _CONSECUTIVE_SPACES = re.compile(r"[ \t]+")
 _PUNCT_BEFORE_SPACE = re.compile(r"\s+([،؛!?:.؟…])")
 _PERSIAN_PUNCT_AFTER = re.compile(r"([،؛؟])([^\s،؛!?:.؟…»\)])")
 _EXCLAMATION_AFTER = re.compile(r"(!+)([^\s،؛!?:.؟…»\)])")
-_COLON_DOT_AFTER = re.compile(
-    r"(?<![0-9۰-۹])([.:])(?![0-9۰-۹\s،؛!?:.؟…»\)])([^\s،؛!?:.؟…»\)])"
-)
+_COLON_DOT_AFTER = re.compile(r"(?<![0-9۰-۹])([.:])([آ-ی])")
 
 
 def en_to_fa_digits(text: str) -> str:
@@ -133,8 +131,16 @@ def normalize_persian_punctuation(text: str) -> str:
     result = re.sub(r"(?<!\.)\.{3}(?!\.)", "…", result)
 
     # 2. Smart quotes: replace straight quotes ("..." or “...”) with Persian guillemets («...»)
-    # only when the enclosed text contains Persian letters
-    result = re.sub(r'["“]([^"”\n]*[آ-ی][^"”\n]*)["”]', r"«\1»", result)
+    # only when the enclosed text contains Persian letters. Each quoted segment is matched
+    # as a whole (the inner class excludes every quote char) so pairing can never leak
+    # across two neighbouring segments like "hello" و "سلام".
+    def _smart_quote_repl(m: re.Match) -> str:
+        inner = m.group(1)
+        if any("آ" <= c <= "ی" for c in inner):
+            return f"«{inner}»"
+        return m.group(0)
+
+    result = re.sub(r'["“]([^"“”\n]*)["”]', _smart_quote_repl, result)
 
     # 3. Contextual Persian question mark: '?' preceded by Persian letters/numbers or ZWNJ
     result = re.sub(r"(?<=[آ-ی۰-۹\u200c])\s*\?", "؟", result)

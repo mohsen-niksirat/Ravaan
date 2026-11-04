@@ -41,7 +41,7 @@ SENSITIVE_PATTERNS = [
     re.compile(r"^xox[baprs]-[0-9a-zA-Z-]{20,}$"),  # Slack tokens
     re.compile(r"^AKIA[0-9A-Z]{16}$"),  # AWS Access Key
     re.compile(r"^AIza[0-9A-Za-z-_]{35}$"),  # Google API key
-    re.compile(r"^-----BEGIN (?:RSA |EC )?PRIVATE KEY-----"),  # Private keys
+    re.compile(r"^-----BEGIN [A-Z0-9 ]*PRIVATE KEY( BLOCK)?-----"),  # Private keys (RSA/EC/DSA/OPENSSH/PGP...)
 ]
 
 

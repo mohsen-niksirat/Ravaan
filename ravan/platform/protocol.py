@@ -162,7 +162,11 @@ def parse_protocol_url(url: str) -> dict[str, Any]:
             "error": f"Disallowed action: {raw_action[:32]}",
         }
 
-    raw_params = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=20)
+    try:
+        raw_params = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=20)
+    except ValueError:
+        # parse_qs raises ValueError above max_num_fields — keep the never-throw contract.
+        return {"valid": False, "action": "", "params": {}, "error": "Too many parameters"}
     params: dict[str, str] = {}
     for k, v in raw_params.items():
         clean_k = sanitize_param_value(k).lower()

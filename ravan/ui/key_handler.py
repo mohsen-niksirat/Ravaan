@@ -291,7 +291,9 @@ class KeyHandlerMixin:
 
             if modifiers_down(["shift"], exact=True):
                 self._suppress_until = time.monotonic() + 0.05
-                replace_last_n_with(0, ZWNJ)
+                # The delivered space is already in the target buffer: erase it and
+                # insert the ZWNJ in its place (same accounting as auto-ZWNJ below).
+                replace_last_n_with(1, ZWNJ)
                 self.journal.push(ZWNJ)
                 self.overlay.hide()
                 set_popup_visible(False)
@@ -334,7 +336,9 @@ class KeyHandlerMixin:
 
                     if new_res is not None:
                         self._suppress_until = time.monotonic() + 0.05
-                        replace_last_n_with(len(res_prev), new_res)
+                        # +1: the macro char that triggered this path was delivered to
+                        # the target app before our backspaces reach the input queue.
+                        replace_last_n_with(len(res_prev) + 1, new_res)
                         for _ in range(len(res_prev)):
                             if self.journal._chars:
                                 self.journal._chars.pop()
@@ -355,9 +359,12 @@ class KeyHandlerMixin:
                 if expr:
                     res = calculate(expr)
                     if res is not None:
+                        # The '=' key itself was delivered to the target app, and any
+                        # trailing spaces are part of the journal buffer as well.
+                        trail = len(text_buf) - len(text_buf.rstrip(" "))
                         self._suppress_until = time.monotonic() + 0.05
-                        replace_last_n_with(len(expr), res)
-                        for _ in range(len(expr)):
+                        replace_last_n_with(len(expr) + trail + 1, res)
+                        for _ in range(len(expr) + trail):
                             if self.journal._chars:
                                 self.journal._chars.pop()
                         for c in res:
@@ -380,10 +387,12 @@ class KeyHandlerMixin:
                     if dec is not None or curr is not None:
                         res = calculate(expr_part, decimals=dec, currency=curr)
                         if res is not None:
+                            # match_len covers the whole typed span including the char
+                            # just delivered to the target app; the journal holds all
+                            # of it except that final character.
                             self._suppress_until = time.monotonic() + 0.05
-                            erase_n = match_len - 1
-                            replace_last_n_with(erase_n, res)
-                            for _ in range(erase_n):
+                            replace_last_n_with(match_len, res)
+                            for _ in range(match_len - 1):
                                 if self.journal._chars:
                                     self.journal._chars.pop()
                             for c in res:
@@ -402,7 +411,9 @@ class KeyHandlerMixin:
                 text_buf = self.journal.text()
                 if len(text_buf) >= 2 and text_buf[-1] == " " and text_buf[-2] not in (" ", "\n"):
                     self._suppress_until = time.monotonic() + 0.05
-                    replace_last_n_with(1, "")
+                    # Delivered punctuation + the stray space are both in the target
+                    # buffer: erase both and re-inject the punctuation.
+                    replace_last_n_with(2, ch)
                     if self.journal._chars:
                         self.journal._chars.pop()
                     self._record_event(f"Fixed spacing before punctuation '{ch}'")
@@ -414,7 +425,9 @@ class KeyHandlerMixin:
                 text_buf = self.journal.text()
                 if text_buf and text_buf[-1] not in (" ", "\n", "(", "«", "[", "\t"):
                     self._suppress_until = time.monotonic() + 0.05
-                    replace_last_n_with(0, " ")
+                    # The delivered bracket is already in the target buffer: erase it
+                    # and re-insert as " <bracket>".
+                    replace_last_n_with(1, " " + ch)
                     self.journal.push(" ")
 
         # Smart contextual Persian punctuation (e.g. ? -> ؟, , -> ،, ; -> ؛)
@@ -432,7 +445,9 @@ class KeyHandlerMixin:
                     target_p = mapping.get(ch)
                     if target_p:
                         self._suppress_until = time.monotonic() + 0.05
-                        replace_last_n_with(0, target_p)
+                        # The delivered ASCII punctuation is already in the target
+                        # buffer: erase it and inject the Persian equivalent.
+                        replace_last_n_with(1, target_p)
                         self.journal.push(target_p)
                         self._record_event(f"Smart Persian punctuation conversion: '{target_p}'")
                         self.overlay.hide()

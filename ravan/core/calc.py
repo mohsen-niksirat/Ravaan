@@ -9,6 +9,7 @@ rounding macros (=N), and currency-aware output (=t Toman, =r Rial).
 from __future__ import annotations
 
 import ast
+import math
 import operator
 import re
 from typing import Any
@@ -101,6 +102,9 @@ def safe_eval(expr: str) -> float | int | None:
         return None
 
     if res is None or not isinstance(res, (int, float)) or isinstance(res, complex):
+        return None
+    if isinstance(res, float) and not math.isfinite(res):
+        # Reject inf/nan leaking through huge literals (1e999) or overflow.
         return None
     if isinstance(res, float) and res.is_integer():
         return int(res)
@@ -234,5 +238,7 @@ def extract_math_query(text: str) -> tuple[str, int | None, str | None, int] | N
             return None
 
     _, dec, curr = parse_calc_query(f"{valid_expr}={suffix}")
-    matched_len = len(valid_expr) + 1 + len(suffix)
+    # True consumed span (may include internal/trailing spaces that .strip() removed).
+    # Callers erase exactly this many characters from the target app buffer.
+    matched_len = m.end() - m.start()
     return valid_expr, dec, curr, matched_len

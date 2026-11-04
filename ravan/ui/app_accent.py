@@ -97,7 +97,7 @@ class AppAccentMixin:
                     caret.y,
                     caret.height,
                 )
-                set_popup_visible(True, swallow_digits=True)
+                set_popup_visible(True, swallow_digits=True, swallow_enter=True)
                 return True
 
         return False

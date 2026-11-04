@@ -153,6 +153,9 @@ class AppPollingMixin:
             self.overlay.show_language(
                 language_label(lang), caret.x, caret.y, caret.height
             )
+            # Stamp the popup timer so the language chip is not instantly hidden
+            # by _maybe_timeout_popup on the next loop tick.
+            self._popup_shown_at = time.monotonic()
 
     def _poll_clipboard(self: Any) -> None:
         if not self.cfg.clipboard_history_enabled:

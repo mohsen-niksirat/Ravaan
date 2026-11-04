@@ -330,6 +330,13 @@ def _bounded_int(data: dict[str, Any], key: str, default: int, low: int, high: i
         return default
 
 
+def _bounded_float(data: dict[str, Any], key: str, default: float, low: float, high: float) -> float:
+    try:
+        return max(low, min(float(data.get(key, default)), high))
+    except (TypeError, ValueError):
+        return default
+
+
 def config_from_dict(raw_data: dict[str, Any]) -> Config:
     data = migrate_config_dict(dict(raw_data))
     snippets = [
@@ -362,10 +369,18 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         unprotect_secret,
     )
 
+    # Only these Credential Manager targets may ever be referenced from config.json.
+    # A config file (e.g. restored from an untrusted backup) must never be able to
+    # name an arbitrary target and read another application's stored credential.
+    allowed_cred_targets = {CRED_TARGET_GIST, CRED_TARGET_WEBDAV, CRED_TARGET_AI}
+
     # Gist token resolution
     raw_gist = str(data.get("gist_token", "")).strip()
     if raw_gist.startswith(WINCRED_PREFIX):
-        target = raw_gist[len(WINCRED_PREFIX) :].strip() or CRED_TARGET_GIST
+        target = raw_gist[len(WINCRED_PREFIX) :].strip()
+        if target not in allowed_cred_targets:
+            log.warning("Ignoring non-allowlisted credential target in config for gist token.")
+            target = CRED_TARGET_GIST
         gist_tok = get_credential(target)
         g_mig = False
     elif raw_gist:
@@ -380,7 +395,10 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
     # WebDAV password resolution
     raw_webdav = str(data.get("webdav_password", "")).strip()
     if raw_webdav.startswith(WINCRED_PREFIX):
-        target = raw_webdav[len(WINCRED_PREFIX) :].strip() or CRED_TARGET_WEBDAV
+        target = raw_webdav[len(WINCRED_PREFIX) :].strip()
+        if target not in allowed_cred_targets:
+            log.warning("Ignoring non-allowlisted credential target in config for WebDAV password.")
+            target = CRED_TARGET_WEBDAV
         webdav_pwd = get_credential(target)
         w_mig = False
     elif raw_webdav:
@@ -395,7 +413,10 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
     # AI API key resolution
     raw_ai = str(data.get("ai_api_key", "")).strip()
     if raw_ai.startswith(WINCRED_PREFIX):
-        target = raw_ai[len(WINCRED_PREFIX) :].strip() or CRED_TARGET_AI
+        target = raw_ai[len(WINCRED_PREFIX) :].strip()
+        if target not in allowed_cred_targets:
+            log.warning("Ignoring non-allowlisted credential target in config for AI API key.")
+            target = CRED_TARGET_AI
         ai_key = get_credential(target)
         a_mig = False
     elif raw_ai:
@@ -430,7 +451,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         overlay_pos_y=_bounded_int(data, "overlay_pos_y", -1, -1, 30000),
         prediction_ui_style=str(data.get("prediction_ui_style", "modern")),
         prediction_font_size=_bounded_int(data, "prediction_font_size", 12, 9, 24),
-        prediction_opacity=float(max(0.5, min(1.0, float(data.get("prediction_opacity", 0.95))))),
+        prediction_opacity=_bounded_float(data, "prediction_opacity", 0.95, 0.5, 1.0),
         excluded_apps=[str(x).strip().lower() for x in excluded if str(x).strip()],
         snippets=snippets,
         snippet_groups=snippet_groups,
@@ -594,8 +615,17 @@ def save_config(cfg: Config) -> None:
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
-        replaced = True
+        for attempt in range(3):
+            try:
+                os.replace(temporary, path)
+                replaced = True
+                break
+            except PermissionError:
+                # On Windows another thread/process may still hold config.json open
+                # for reading; a short retry avoids losing this save entirely.
+                if attempt == 2:
+                    raise
+                time.sleep(0.05)
     finally:
         if not replaced:
             try:

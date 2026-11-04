@@ -215,11 +215,17 @@ class KeyboardHook:
                     w.user32.CallNextHookEx(self._hook or 0, n_code, w_param, l_param)
                 )
 
-            if _popup_visible and is_down:
+            # Single atomic read of the packed popup state. Unpacking the legacy
+            # globals one by one here could interleave with a concurrent
+            # set_popup_visible() tuple swap and yield a torn snapshot.
+            popup_visible_snap, swallow_digits_snap, swallow_arrow_snap, swallow_enter_snap = (
+                _popup_state
+            )
+            if popup_visible_snap and is_down:
                 vk = event.vk_code
                 if vk == w.VK_RETURN:
                     # Only swallow Enter if swallow_enter is explicitly enabled AND Shift is not held!
-                    if _swallow_enter and not _is_shift_pressed():
+                    if swallow_enter_snap and not _is_shift_pressed():
                         self._emit(event)
                         return 1  # swallow
                     # Otherwise pass Enter directly through to the active application
@@ -229,13 +235,13 @@ class KeyboardHook:
                             self._hook or 0, n_code, w_param, l_param
                         )
                     )
-                if vk in _NAV_VKS or (_swallow_digits and vk in _DIGIT_VKS):
+                if vk in _NAV_VKS or (swallow_digits_snap and vk in _DIGIT_VKS):
                     self._emit(event)
                     return 1  # swallow — target app must not see these
-                if _swallow_arrow == "right" and vk == w.VK_RIGHT:
+                if swallow_arrow_snap == "right" and vk == w.VK_RIGHT:
                     self._emit(event)
                     return 1
-                if _swallow_arrow == "left" and vk == w.VK_LEFT:
+                if swallow_arrow_snap == "left" and vk == w.VK_LEFT:
                     self._emit(event)
                     return 1
 
