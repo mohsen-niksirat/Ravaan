@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-11-05 - Delivered-Key Accounting Fixes, Config Hardening & Privacy Filters
+
+### Fixed
+- **Delivered-Key Accounting Across Trigger Sites (ravan/ui/key_handler.py)**:
+  - Physical trigger keys (`=`, punctuation, space, brackets) reach the target application through the keyboard hook while Ravaan processes them; seven trigger sites miscounted that delivered character and corrupted typed text (e.g. `1+2=` produced `13`, `کتاب .` deleted the dot instead of the stray space, `?` produced `?؟`, `کتاب(` produced `کتاب( `).
+  - Inline calculator (`=`), rounding/currency follow-up macros, Smart Persian punctuation, punctuation-spacing fix, space-before-bracket, and Shift+Space ZWNJ now all follow the same "+1 delivered character" convention as the core word-replacement path, keeping the journal and the target buffer in sync.
+- **Inline Calculator Match Span & Non-Finite Results (ravan/core/calc.py)**:
+  - Queries with a space before the trigger (`12000 =t`, `12+3 =2`) reported a truncated match length, leaving stray leading digits behind (`112,000 تومان`).
+  - `inf`/`nan` results from huge literals (`1e999`) or float overflow are now rejected instead of leaking into typed text.
+- **Smart Quote Pairing Across Segments (ravan/core/normalizer.py)**:
+  - Mixed Latin/Persian quotes on one line (`"hello" و "سلام"`) no longer pair across neighbouring quoted segments, which corrupted both quotations.
+- **Dot/Colon Spacing vs Filenames & Acronyms (ravan/core/normalizer.py)**:
+  - The space-after-dot/colon rule no longer breaks `test.py`, `U.S.A`, or other Latin tokens; Persian sentence dots keep the automatic spacing (`سلام.دوست` → `سلام. دوست`).
+- **Language Indicator Chip Visibility (ravan/ui/app_actions.py, ravan/ui/app_polling.py)**:
+  - The click/hotkey language chip was hidden by the popup timeout on the very next loop tick (~8 ms); showing it now resets the popup timer so the overlay fade-out works as designed.
+- **Quick Accent Enter Leak (ravan/ui/app_accent.py)**:
+  - While the accent bar is visible, Enter is now swallowed so accepting a letter variant can no longer submit forms or insert newlines in the target app.
+- **Deep Link Parameter Flood (ravan/platform/protocol.py)**:
+  - `ravan://` URLs with more than 20 parameters are cleanly rejected instead of crashing the launcher (`parse_qs` ValueError).
+- **Config Save Race (ravan/core/config.py)**:
+  - A concurrent reader of `config.json` on Windows could make `os.replace` fail with `PermissionError` and drop that save; saves now retry briefly.
+- **Prediction Opacity Guard (ravan/core/config.py)**:
+  - A single non-numeric `prediction_opacity` value no longer resets the entire configuration to defaults (snippets and settings are preserved).
+
+### Security
+- **Credential Target Allowlist (ravan/core/config.py)**:
+  - `wincred:` references inside `config.json` are now restricted to Ravaan's own three Credential Manager targets; a malicious imported config can no longer read another application's stored credential and send it to an attacker-controlled WebDAV/AI endpoint.
+- **Clipboard History Private-Key Filter (ravan/core/cliphistory.py)**:
+  - OpenSSH, DSA, and PGP private keys are now caught by the sensitive-content filter (previously only RSA/EC), keeping them out of the plaintext `clipboard_history.json`.
+
+### Added
+- **Regression Suite (tests/test_debug_fixes.py)**: 10 tests locking down the fixes above.
+
 ## [2.6.0] - 2026-11-01 - Windows 11 Fluent 2 UI Redesign, Bundled Vazirmatn Font, Mouse Click Language Indicator & New Brand Icon
 
 ### Added

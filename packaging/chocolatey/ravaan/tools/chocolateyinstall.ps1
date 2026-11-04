@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $toolsDir   = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
-$url64      = 'https://github.com/mohsen-niksirat/Ravaan/releases/download/v2.6.0/Ravaan-Setup-2.6.0.exe'
+$url64      = 'https://github.com/mohsen-niksirat/Ravaan/releases/download/v2.6.1/Ravaan-Setup-2.6.1.exe'
 $checksum64 = '0000000000000000000000000000000000000000000000000000000000000000'
 
 $packageArgs = @{
