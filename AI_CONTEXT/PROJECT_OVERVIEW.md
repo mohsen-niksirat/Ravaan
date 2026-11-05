@@ -41,7 +41,7 @@ ruff check .                 # لینت (خطا E,W,F,I,UP,B؛ خط طولانی
 - از ویرایش‌گر/لینتر اجازه دهید نویسهٔ نامرئی ZWNJ (`\u200c`) در واژه‌نامه‌ها و fixtureها حذف نشود؛ در تست‌ها از escape صریح استفاده شود.
 
 ## نسخه و انتشار
-- نسخه جاری: **2.7.0** (`pyproject.toml`، تگ `v2.7.0`).
+- نسخه جاری: **2.7.1** (`pyproject.toml`، تگ `v2.7.1`).
 - کانال‌های توزیع: Winget (`MohsenNiksirat.Ravaan`)، Scoop، Chocolatey، نصاب Inno Setup per-user، ZIP پرتابل. مانیفست‌ها در `packaging/`.
 - UI رشته‌ها دوزبانه EN/FA است (`ravan/data/locales/en.json`، `fa.json`، موتور `ravan/core/i18n.py`).
 
