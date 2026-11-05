@@ -12,7 +12,8 @@
 | `ravaan-agent-skill.md` | قواعد طلایی توسعه برای عامل‌های AI — **gitignored، محلی** |
 | `.agents/skills/project-intelligence/` | همین مهارت شناخت پروژه — gitignored، محلی |
 | `docs/` | BACKLOG، DEMO، PACKAGES، QA-MATRIX، SECURITY_FAQ، SMARTSCREEN، RELEASE_NOTES_TEMPLATE |
-| `tests/` | ~۸۵ فایل تست pytest + `tests/data/` (corpus و golden cases) |
+| `tests/` | ~۹۰ فایل تست pytest + `tests/data/` (corpus و golden cases)؛ شامل `test_v2_7_features.py` (جای‌گذاری چیپ، sticky، ذخیره تعلیقی، UX تنظیمات) و `test_debug_fixes.py` (رگرسیون فیکس‌های 2.6.1) |
+| `AI_CONTEXT/` | مستندات شناخت پروژه (این پوشه) — از v2.6.1 در گیت نگهداری می‌شود و با هر ریلیز refresh می‌گردد |
 | `data/config.example.json` | نمونه پیکربندی کاربر |
 | `examples/persian-dates.ravaanpack` | نمونه بسته اسنیپت |
 
@@ -39,6 +40,8 @@ ravan/
 - **به‌روزرسانی:** `ravan/core/updater.py` + `ravan/ui/update_dialog.py`؛ جریان انتشار در `.github/workflows/release.yml`
 - **تنظیمات:** `ravan/ui/settings.py` + builder/save/reset در `settings_builder.py`، `settings_save.py`، `settings_reset.py`؛ ذخیره با `ravan/core/config.py`
 - **تشخیص خودتشخیصی:** `ravan/platform/selftest.py` + `ravan/ui/diagnostics.py` + `ravan/cli.py`
+- **متریال/تم پاپ‌آپ‌ها:** `ravan/ui/theme.py` — پالت‌های `get_macos_palette`، acrylic helpers (`_enable_acrylic_blur` / `_disable_acrylic_blur`)، حاشیه DWM و `apply_popup_window_attributes(..., acrylic=, border_color=)`
+- **پیش‌نمایش زنده تنظیمات:** `ravan/ui/settings.py:_render_style_preview` (دسکتاپ شبیه‌سازی‌شده + ترکیب شفافیت) + `on_prediction_style_changed` / `on_lang_placement_changed` (apply-on-change) + `_save_then_close` (close-with-change) + `flash_saved`
 
 ## داده و ماندگاری
 - کد محلی برنامه: `ravan/data/` (tracked) — واژه‌نامه، فونت، لوکال، آیکون.

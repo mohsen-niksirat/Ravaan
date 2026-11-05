@@ -1,10 +1,10 @@
 # وضعیت جاری — Ravaan
 
-*(ثبت‌شده در تاریخ بازرسی: 2026-11-06 — به‌روزرسانی برای v2.7.1)*
+*(ثبت‌شده در تاریخ بازرسی: 2026-11-06 — به‌روزرسانی UPDATE برای v2.7.1)*
 
 ## Git
 - شاخه: `main` — بدون تغییر کاری و هم‌گام با `origin/main`.
-- HEAD: `c775176dea02f1839f93da9af3d7ce3aa77c82df` — «chore(release): v2.7.1» (2026-11-06).
+- HEAD: `512352673ea963a276c5b023f5fbdd5d25b9f23f` — «docs: refresh AI_CONTEXT for v2.7.1» (2026-11-06)؛ کامیت‌های اخیر: `c775176` chore(release): v2.7.1، `70930b6` fix پیش‌نمایش استایل، `8a57beb` feat v2.7.0.
 - آخرین تگ: `v2.7.1` (نسخه pyproject نیز 2.7.1 — هم‌خوان).
 - مخزن: https://github.com/mohsen-niksirat/Ravaan
 

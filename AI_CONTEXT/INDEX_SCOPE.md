@@ -1,6 +1,30 @@
 # دامنه شناخت (Index Scope)
 
-**تاریخ تحلیل:** 2026-11-05 — **حالت:** INITIALIZE — **HEAD مبنا:** `636ec2ebfb1d10a68b0d08904795d5bcc7b734f2`
+**تاریخ تحلیل اولیه:** 2026-11-05 — **حالت:** INITIALIZE — **HEAD مبنا:** `636ec2ebfb1d10a68b0d08904795d5bcc7b734f2`
+
+---
+
+## به‌روزرسانی UPDATE — 2026-11-06 (مبنا: `636ec2e` → HEAD `5123526`)
+
+**حالت:** UPDATE — دیفا ۴۶ فایل (+۲۴۵۷/−۹۱۵) از آخرین ایندکس کامل تا HEAD.
+
+### بازرسی‌شده در این UPDATE
+- `git diff --name-status 636ec2e..HEAD` (کل ۴۶ فایل) + خوانش مستقیم کدهای تغییر یافته در دو session قبلی (دیباگ 2.6.1 و فیچرهای 2.7.0/2.7.1)
+- مسیرهای سورس: `ravan/ui/{overlay,theme,settings,settings_builder,settings_save,app,app_actions,app_polling,app_accent,key_handler}.py`، `ravan/platform/{hook,protocol}.py`، `ravan/core/{config,config_migration,calc,normalizer,cliphistory,learning,predictor,autofix,journal,translit,zwnj}.py`، `ravan/data/locales/*.json`، `tests/test_debug_fixes.py`، `tests/test_v2_7_features.py`
+- مستندات context به‌روزشده: PROJECT_MAP، MODULES، ARCHITECTURE، PROJECT_OVERVIEW، CURRENT_STATE، همین فایل
+
+### به‌روزرسانی‌شده در مستندات
+- استایل macos/آکریلیک، sticky پیشنهادها، جای‌گذاری چیپ زبان، ذخیره تعلیقی، throttle تک، dedup رندر، UX تنظیمات (پیش‌نمایش زنده/apply-on-change/close-with-change)، فیکس‌های 2.6.1 (حسابداری کلید، allowlist wincred، فیلتر کلید خصوصی)
+- شمارش تست‌ها: ~۹۰ فایل، ۵۶۸ تست پاس (2026-11-06)
+
+### پوشش‌نداده/محدودیت‌ها
+- رفتار acrylic روی سخت‌افزار/تم‌های دیگر و پنجره‌های elevated آزموده نشده
+- هش‌های واقعی آرتیفکت‌ها در مانیفست‌های winget/scoop/choco placeholder هستند (الگوی خود مخزن)
+- فایل `test.txt` خالی در ریشه (untracked، متعلق به کاربر) وارد مستندات نشده
+
+---
+
+## بازرسی اولیه (INITIALIZE — 2026-11-05)
 
 ## بازرسی‌شده (خوانش واقعی)
 - `pyproject.toml`، `README.md`، `ravaan-agent-skill.md`، `CHANGELOG.md` (بخش 2.6.0/2.5.0)، `ROADMAP.md` (بخش ابتدایی)

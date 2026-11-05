@@ -12,7 +12,7 @@
 | `autofix.py` | موتور اصلاح خودکار چیدمان اشتباه (سبک Punto/Caramba) — قرارداد safe-mode |
 | `dict.py` (۷۹۴ل) | فهرست‌های فرکانس واژه، تطبیق فازی، بارگذاری واژه‌نامه (۱۶۲k+) |
 | `predictor.py` | `DictPredictor` — جستجوی واژه‌نامه و رتبه‌بندی نامزدهای پیشنهاد |
-| `learning.py` | یادگیری سبک تایپ کاربر v2 — n-gram با stupid-backoff، decay، وزن per-app |
+| `learning.py` | یادگیری سبک تایپ کاربر v2 — n-gram با stupid-backoff، decay، وزن per-app؛ **ذخیره تعلیقی** (`save(lazy=True)` حداقل هر ۳۰ ثانیه + `flush()`) تا هر واژه دیسک ننویسد |
 | `user_dict.py` | واژه‌نامه سفارشی کاربر (`user_words.txt`) |
 | `translit.py` | موتور آوانگاری Finglish→فارسی (۹.۷k+ ورودی، پیشوند/پسوند پویا) |
 | `zwnj.py` | موتور نیم‌فاصله — پیشوندهای «می‌/نمی‌» و پسوندهای «‌ها/‌تر/‌ترین/‌مند» |
@@ -27,7 +27,7 @@
 | `text_stats.py` | آمار سریع متن (واژه/زمان مطالعه/نسبت زبان) |
 | `transform.py` | تبدیل‌های متنی (چرخش بزرگ/کوچکی حروف، نرمال‌سازی) |
 | `accent.py` | Quick Accent — تنوع حروف فارسی/عربی و ارقام |
-| `cliphistory.py` | حلقه تاریخچه کلیپ‌بورد با پالایش امنیتی (مدیران رمز، آنتروپی، انقضا) |
+| `cliphistory.py` | حلقه تاریخچه کلیپ‌بورد با پالایش امنیتی (مدیران رمز، آنتروپی، انقضا)؛ ذخیره تعلیقی (`save(lazy=True)` هر ~۱۰ ثانیه + `flush()`) |
 | `crypto.py` | رمزنگاری DPAPI برای اعتبارنامه‌ها |
 | `sync.py` / `webdav.py` | همگام‌سازی ابری GitHub Gist / WebDAV |
 | `updater.py` | بررسی نسخه جدید از GitHub Releases + نصب درون‌برنامه‌ای |
@@ -60,13 +60,13 @@
 | `app.py` | `RavanApp` — حلقه اصلی؛ ترکیب Mixinهای زیر |
 | `key_handler.py` (۴۳۲ل) | dispatch هات‌کی و تریگرهای درون‌خطی روی رویدادهای هوک |
 | `app_autofix.py` / `app_actions.py` | اعمال/برگرداندن اصلاح‌ها؛ تبدیل‌های متنی و undo |
-| `app_polling.py` (۳۸۴ل) | نظرسنجی فوکوس/زبان/کلیپ‌بورد، چیپ زبان هنگام کلیک، نمایش پیشنهاد |
-| `overlay.py` (۶۰۱ل) | پنجره شفاف no-activate: چیپ زبان + پاپ‌آپ پیشنهاد |
+| `app_polling.py` (به‌روزشده) | نظرسنجی فوکوس/زبان/کلیپ‌بورد، چیپ زبان (با `lang_indicator_placement`)، نمایش پیشنهاد؛ **sticky popup** (شکاف نامزد وسط کلمه باکس را نمی‌بندد) + `_poll_learning_flush` (flush دوره‌ای ذخیره‌های تعلیقی) |
+| `overlay.py` (به‌روزشده) | پنجره شفاف no-activate: چیپ زبان (جای‌گذاری گوشه‌ای `corner_position` + حالت caret) + پاپ‌آپ پیشنهاد؛ **استایل macos** (آکریلیک + رنگ‌کلید، `_row_bg` غیر-کلید برای سطوح تعاملی)، throttle تک (update کامل ~۴۰Hz)، dedup رندر (`_last_render_key`) |
 | `app_tray.py` / `tray.py` | ساخت آیکون tray، منوی راست‌کلیک با toggleهای سریع |
-| `settings*.py` | پنجره تنظیمات چندزبجه‌ای: builder (۶۳۰ل)، ذخیره، ریست، تب Auto-Fix، همگام‌سازی |
+| `settings*.py` / `settings.py` | پنجره تنظیمات چندزبجه‌ای: builder، ذخیره، ریست، تب Auto-Fix، همگام‌سازی؛ **پیش‌نمایش زنده استایل** (`_render_style_preview` روی دسکتاپ شبیه‌سازی‌شده)، **apply-on-change** (استایل/جای‌گذاری)، **Save بدون بستن** (`flash_saved`)، **close-with-change** (`_save_then_close`)؛ کمبوی `prediction_ui_style` (macos/modern/compact/glass/classic) و `lang_indicator_placement` |
 | `snippet_editor*.py` / `form_dialog.py` / `package*_dialog.py` | ویرایشگر اسنیپت، فرم جای‌نگهدار، دیالوگ‌های .ravaanpack |
 | `wizard.py` (۶۱۷ل) / `quick_tips.py` | جادوگر اجرای اول / راهنمای میانبرها |
-| `theme.py` | پالت Fluent 2، فونت Vazirmatn (ثبت درون‌حافظه‌ای GDI)، گوشه‌های گرد DWM |
+| `theme.py` | پالت‌ها (dark/light/high-contrast + **macos_light/macos_dark**)، توکن‌های تایپوگرافی Vazirmatn/Segoe UI، گوشه‌های گرد DWM، **متریال acrylic** (`_enable_acrylic_blur` / `_disable_acrylic_blur` با SetWindowCompositionAttribute) و حاشیه مویی DWM در `apply_popup_window_attributes` |
 | `crash_dialog.py` / `log_setup.py` | دیالوگ کرش دوزبانه / لاگ چرخشی محدود |
 | `ai_popup.py` / `app_ai.py` / `stats_popup.py` / `accent_bar.py` | پاپ‌آپ دستیار AI / آمار سریع / نوار انتخاب حرف |
 | `diagnostics.py` / `window_picker.py` / `update_dialog.py` / `hint_manager.py` | پنجره تشخیص / انتخاب پنجره برای استثنا / به‌روزرسانی / راهنمای قابلیت‌ها |
