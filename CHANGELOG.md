@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-05 - Configurable Language Chip, Sticky Predictions, Typing Lag Fixes & macOS-Style Suggestion Box
+
+### Added
+- **Configurable Language Chip Placement**: new «جای نمایش نشانگر زبان» setting — bottom-right just above the tray icons (new default), any other screen corner, or the classic at-caret behavior; applied to both the mouse-click chip and the layout-change chip.
+- **macOS-Style Suggestion Box (`prediction_ui_style = "macos"`, new default)**: acrylic blur-behind material with color-key transparency, hairline DWM border, rounded corners, macOS accent palette and refined typography/spacing; automatic fallback to translucent alpha where the OS refuses the acrylic accent. Selectable alongside modern / compact / glass / classic.
+- **Live Style Preview in Settings**: a mini suggestion box inside the Prediction tab renders the selected design instantly and refreshes on every change.
+- **Apply-on-Change**: suggestion-box design and language-chip placement apply live on selection (no Save needed, no disk write until Save/close).
+- **Save Keeps the Window Open**: the Save button now applies + persists in place with a transient bilingual confirmation; closing the window saves pending changes first (close-with-change). Cancel / Escape remain explicit discard paths.
+- **Deferred Persistence**: learning model and clipboard history are no longer written on every event — lazy saves with periodic flush (15 s) and flush-on-exit.
+- **Regression Suite (tests/test_v2_7_features.py)**: corner anchoring, sticky popup, deferred persistence, settings apply-on-change / close-with-change.
+
+### Fixed
+- **Typing Lag (root cause)**: the learning model was serialized + DPAPI-encrypted + written to disk on EVERY completed word, stalling the UI thread as the model grew; typing now stays fast regardless of model size.
+- **Keystroke Echo Latency**: the overlay pumped a full Tk `update()` on every ~8 ms loop tick, starving the keyboard-hook thread of the GIL; full event processing is now throttled to ~40 Hz while idle-tasks still run every tick.
+- **Prediction Popup Flicker**: a mid-word candidate gap no longer hides the box — it stays until the next keystroke refreshes it, a word completes, Esc, or the timeout fires. Default timeout raised 4 s → 8 s (existing configs migrated automatically).
+- **Prediction Popup Drag/Click Broken in macOS Style**: colorkeyed pixels are click-through on Windows; candidate rows, the drag grip and the hint bar now use a non-keyed material color so dragging and mouse acceptance work while the acrylic shows at the frame edges.
+- **Stale Colors After Theme Change**: changing theme/style while the popup was visible kept old row colors on screen; the popup now re-renders immediately.
+
 ## [2.6.1] - 2026-11-05 - Delivered-Key Accounting Fixes, Config Hardening & Privacy Filters
 
 ### Fixed
