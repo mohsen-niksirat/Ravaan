@@ -156,7 +156,9 @@ class SettingsWindow:
         self._root.attributes("-topmost", True)
         self._root.resizable(True, True)
         self._root.minsize(620, 440)
-        self._root.protocol("WM_DELETE_WINDOW", self._close)
+        # Close-with-change: closing the window applies (saves) pending edits.
+        # Cancel / Escape remain explicit discard paths.
+        self._root.protocol("WM_DELETE_WINDOW", self._save_then_close)
         palette = get_active_palette(getattr(self.cfg, "theme_mode", "auto"))
         apply_window_decorations(self._root, palette)
         apply_theme_to_ttk(self._root, palette)
@@ -186,6 +188,8 @@ class SettingsWindow:
         btns = ttk.Frame(frm)
         btns.pack(side="bottom", fill="x", pady=(6, 0))
         btn_side = "left" if rtl else "right"
+        self._saved_label = ttk.Label(btns, text="", foreground=palette.success)
+        self._saved_label.pack(side=btn_side, padx=8)
         ttk.Button(btns, text=t("settings.btn_cancel", "Cancel"), command=self._close).pack(side=btn_side, padx=4)
         ttk.Button(btns, text=t("settings.btn_save", "Save Settings"), style="Accent.TButton", command=self._save).pack(side=btn_side, padx=4)
 
@@ -417,6 +421,104 @@ class SettingsWindow:
         )
         if self._snippet_editor is not None:
             self._snippet_editor.show()
+
+    def _save_then_close(self) -> None:
+        """Close-with-change: persist + apply pending edits, then close."""
+        try:
+            self._save()
+        except Exception:  # noqa: BLE001
+            log.exception("Save-on-close failed; closing without saving")
+        self._close()
+
+    def flash_saved(self) -> None:
+        """Show a transient 'saved & applied' confirmation; window stays open."""
+        from ravan.core.i18n import t
+
+        if self._root is None or not self._root.winfo_exists():
+            return
+        try:
+            self._saved_label.config(text="✓ " + t("settings.saved_flash", "ذخیره و اعمال شد — پنجره باز ماند"))
+            if getattr(self, "_saved_flash_job", None):
+                self._root.after_cancel(self._saved_flash_job)
+            self._saved_flash_job = self._root.after(2500, lambda: self._saved_label.config(text=""))
+        except Exception:  # noqa: BLE001
+            pass
+
+    def on_prediction_style_changed(self) -> None:
+        """Apply-on-change: live-update the suggestion box design (no disk write)."""
+        if hasattr(self, "_prediction_ui_style_var"):
+            self.cfg.prediction_ui_style = self._prediction_ui_style_var.get()
+        self._render_style_preview()
+        if self.on_saved:
+            self.on_saved(self.cfg)
+
+    def on_lang_placement_changed(self) -> None:
+        """Apply-on-change: live-update the language chip placement."""
+        mapping = getattr(self, "_lang_placement_map", {})
+        if hasattr(self, "_lang_placement_var"):
+            self.cfg.lang_indicator_placement = mapping.get(
+                self._lang_placement_var.get(), "bottom_right"
+            )
+        if self.on_saved:
+            self.on_saved(self.cfg)
+
+    def _render_style_preview(self) -> None:
+        """Render a live mini suggestion-box inside Settings for the chosen style."""
+        from ravan.ui.theme import get_macos_palette, get_ui_font
+
+        preview = getattr(self, "_style_preview", None)
+        if preview is None:
+            return
+        for ch in preview.winfo_children():
+            ch.destroy()
+
+        style = self._prediction_ui_style_var.get()
+        mode = getattr(self.cfg, "theme_mode", "auto")
+        palette = get_macos_palette(mode) if style == "macos" else get_active_palette(mode)
+        f_sz = int(getattr(self.cfg, "prediction_font_size", 12))
+        pad_y = 2 if style == "compact" else (5 if style == "macos" else 4)
+        pad_x = 8 if style == "compact" else (14 if style == "macos" else 10)
+
+        box = tk.Frame(
+            preview,
+            bg=palette.bg,
+            highlightthickness=2 if style == "classic" else 1,
+            highlightbackground=palette.border,
+            bd=0,
+        )
+        box.pack(fill="x", padx=6, pady=4)
+
+        rows = [
+            ("1   سلام", True),
+            ("2   سلام علیکم   [ادامه]", False),
+            ("3   سلامتی", False),
+        ]
+        for text, selected in rows:
+            if selected:
+                bg, fg, bold = palette.highlight, palette.highlight_fg, True
+            else:
+                bg = palette.bg
+                fg = palette.subtext if "[ادامه]" in text else palette.fg
+                bold = False
+            tk.Label(
+                box,
+                text=text,
+                bg=bg,
+                fg=fg,
+                font=get_ui_font(size=f_sz, bold=bold, rtl=True),
+                anchor="w",
+                padx=pad_x,
+                pady=pad_y,
+            ).pack(fill="x")
+        tk.Label(
+            box,
+            text="↑↓ انتخاب  ·  Enter تأیید  ·  Esc بستن",
+            bg=palette.bg,
+            fg=palette.subtext,
+            font=get_ui_font(size=max(8, f_sz - 3), rtl=True),
+            padx=pad_x,
+            pady=3,
+        ).pack(fill="x")
 
     def _close(self) -> None:
         self._open = False

@@ -164,6 +164,12 @@ class AppActionsMixin:
         label = language_label(lang)
         if getattr(self.cfg, "translit_enabled", False):
             label = f"{label}-TL"
+        placement = getattr(self.cfg, "lang_indicator_placement", "bottom_right")
+        if placement in ("bottom_right", "bottom_left", "top_right", "top_left"):
+            # Fixed anchor (default: bottom-right, just above the tray icons).
+            self.overlay.show_language(label, -1, -1, 16, placement=placement)
+            self._popup_shown_at = time.monotonic()
+            return
         if use_mouse_pos:
             try:
                 from ravan.platform.caret import _cursor_position

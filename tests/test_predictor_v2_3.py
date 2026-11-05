@@ -20,7 +20,7 @@ def test_config_prediction_v2_3_roundtrip() -> None:
     assert cfg.overlay_custom_pos is False
     assert cfg.overlay_pos_x == -1
     assert cfg.overlay_pos_y == -1
-    assert cfg.prediction_ui_style == "modern"
+    assert cfg.prediction_ui_style == "macos"  # v2.6.1 default material style
     assert cfg.prediction_font_size == 12
     assert cfg.prediction_opacity == 0.95
 
@@ -147,7 +147,7 @@ def test_overlay_window_custom_position_and_reset() -> None:
 
 
 def test_overlay_window_ui_styles() -> None:
-    for style in ("modern", "compact", "glass", "classic"):
+    for style in ("macos", "modern", "compact", "glass", "classic"):
         cfg = Config()
         cfg.prediction_ui_style = style
         cfg.prediction_font_size = 11

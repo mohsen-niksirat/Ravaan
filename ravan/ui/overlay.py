@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 import tkinter as tk
 from collections.abc import Callable
 from typing import Any
@@ -14,6 +15,7 @@ from ravan.ui.theme import (
     apply_popup_window_attributes,
     confidence_bar,
     get_active_palette,
+    get_macos_palette,
     get_ui_font,
 )
 
@@ -96,11 +98,17 @@ class OverlayWindow:
 
     def _apply_theme(self) -> None:
         mode = getattr(self, "theme_mode", "auto")
-        self.palette = get_active_palette(mode)
+        self._ui_style = (
+            getattr(self.cfg, "prediction_ui_style", "macos") if self.cfg else "macos"
+        )
+        ui_style = self._ui_style
+        if ui_style == "macos":
+            self.palette = get_macos_palette(mode)
+        else:
+            self.palette = get_active_palette(mode)
         bg = self.palette.bg
         border = self.palette.border
 
-        ui_style = getattr(self.cfg, "prediction_ui_style", "modern") if self.cfg else "modern"
         opacity = (
             float(getattr(self.cfg, "prediction_opacity", self.palette.alpha))
             if self.cfg
@@ -113,7 +121,7 @@ class OverlayWindow:
         )
 
         if ui_style == "glass":
-            opacity = min(opacity, 0.86)
+            opacity = min(opacity, 0.72)
         elif ui_style == "classic":
             opacity = 1.0
 
@@ -122,15 +130,42 @@ class OverlayWindow:
             self._root.attributes("-alpha", opacity)
         except Exception:  # noqa: BLE001
             pass
+        # Theme changed: force the next show_predictions to re-render rows with
+        # the new palette (the dedup must not keep stale colors on screen).
+        self._last_render_key = None
 
         bd = 2 if ui_style == "classic" else 1
         relief = "solid" if ui_style == "classic" else "flat"
 
+        # macOS material: acrylic blur-behind + crisp hairline border. The Tk
+        # background is used as transparency key ONLY when the OS accepted the
+        # acrylic accent, otherwise a translucent solid fallback is used.
+        attrs = self._apply_noactivate()
+        self._acrylic_active = bool(attrs.get("acrylic")) if isinstance(attrs, dict) else False
+        if self._acrylic_active:
+            self._target_alpha = 1.0
+            try:
+                self._root.attributes("-alpha", 1.0)
+                self._root.attributes("-transparentcolor", bg)
+            except Exception:  # noqa: BLE001
+                self._acrylic_active = False
+        elif hasattr(self, "_frame"):
+            # Leaving the macos style: neutralize any leftover transparency key.
+            try:
+                self._root.attributes("-transparentcolor", "#010101")
+            except Exception:  # noqa: BLE001
+                pass
+        # Windows makes colorkeyed pixels click-through: interactive surfaces
+        # (candidate rows, grip, hint) must use a NON-keyed material color, so
+        # the acrylic shows only through the frame margins while the popup stays
+        # fully draggable and clickable.
+        self._row_bg = self.palette.card_bg if self._acrylic_active else bg
+
         if hasattr(self, "_frame"):
             self._frame.config(bg=bg, highlightbackground=border, bd=bd, relief=relief)
             if hasattr(self, "_grip"):
-                self._grip.config(bg=bg, fg=self.palette.subtext)
-            self._hint.config(bg=bg, fg=self.palette.subtext)
+                self._grip.config(bg=self._row_bg, fg=self.palette.subtext)
+            self._hint.config(bg=self._row_bg, fg=self.palette.subtext)
             self._lang_label.config(bg=self.palette.card_bg, fg=self.palette.accent)
         else:
             self._frame = tk.Frame(
@@ -144,10 +179,11 @@ class OverlayWindow:
             self._frame.pack(fill="both", expand=True)
 
             f_grip = get_ui_font(size=max(8, f_sz - 4))
+            grip_text = "⋯  روان  ⋯" if ui_style == "macos" else "•• روان ••"
             self._grip = tk.Label(
                 self._frame,
-                text="•• روان ••",
-                bg=bg,
+                text=grip_text,
+                bg=self._row_bg,
                 fg=self.palette.subtext,
                 font=f_grip,
                 cursor="fleur",
@@ -162,7 +198,7 @@ class OverlayWindow:
             self._hint = tk.Label(
                 self._frame,
                 text=_HINT_TEXT,
-                bg=bg,
+                bg=self._row_bg,
                 fg=self.palette.subtext,
                 font=f_hint,
                 justify="left",
@@ -182,6 +218,14 @@ class OverlayWindow:
                 pady=7,
                 relief="flat",
             )
+
+        # Live refresh: when the popup is currently visible (style/theme changed
+        # mid-session from Settings), re-render the rows with the new palette.
+        if getattr(self, "_mode", "idle") == "predict" and self._candidates:
+            try:
+                self._render_candidates()
+            except Exception:  # noqa: BLE001
+                pass
 
     def apply_config(self, cfg: Any) -> None:
         self.cfg = cfg
@@ -220,7 +264,7 @@ class OverlayWindow:
     def _on_row_leave(self, idx: int) -> None:
         if idx < len(self._candidates) and idx != self._selected and idx < len(self._rows):
             p = getattr(self, "palette", get_active_palette())
-            self._rows[idx].config(bg=p.bg)
+            self._rows[idx].config(bg=getattr(self, "_row_bg", p.bg))
 
     def _on_mouse_down(self, event: tk.Event, row_index: int = -1) -> None:
         self._drag_start_screen_x = event.x_root
@@ -294,9 +338,15 @@ class OverlayWindow:
         except Exception:  # noqa: BLE001
             return None
 
-    def _apply_noactivate(self, show: bool = False) -> None:
-        apply_popup_window_attributes(
-            self._root, getattr(self, "palette", get_active_palette()), show=show
+    def _apply_noactivate(self, show: bool = False) -> dict[str, bool]:
+        palette = getattr(self, "palette", get_active_palette())
+        acrylic = getattr(self, "_ui_style", "modern") == "macos"
+        return apply_popup_window_attributes(
+            self._root,
+            palette,
+            show=show,
+            acrylic=acrylic,
+            border_color=palette.border if acrylic else None,
         )
 
     def _fade_in(self) -> None:
@@ -349,7 +399,13 @@ class OverlayWindow:
     def tick(self) -> None:
         try:
             self._root.update_idletasks()
-            self._root.update()
+            # Full event processing at ~40 Hz instead of every loop tick (~125 Hz):
+            # update() is expensive and, on the UI thread, starves the keyboard
+            # hook thread of the GIL — a direct source of typed-echo lag.
+            now = time.monotonic()
+            if now - getattr(self, "_last_full_update", 0.0) >= 0.025:
+                self._last_full_update = now
+                self._root.update()
         except (tk.TclError, RuntimeError):
             pass
 
@@ -420,23 +476,55 @@ class OverlayWindow:
             return "🇸🇦 العربية"
         return raw
 
-    def show_language(self, label: str, x: int, y: int, height: int = 16) -> None:
+    def show_language(self, label: str, x: int, y: int, height: int = 16, placement: str = "click") -> None:
         self.hide()
         self._mode = "lang"
         display_label = self._format_lang_label(label)
         self._lang_label.config(text=display_label)
         self._lang_label.pack(padx=10, pady=6)
-        if (x <= 1 and y <= 1) or x < 0 or y < 0:
-            try:
-                from ravan.platform.caret import _cursor_position
+        if placement in ("bottom_right", "bottom_left", "top_right", "top_left"):
+            self._place_at_corner(placement)
+        else:
+            if (x <= 1 and y <= 1) or x < 0 or y < 0:
+                try:
+                    from ravan.platform.caret import _cursor_position
 
-                cp = _cursor_position()
-                x, y, height = cp.x, cp.y, cp.height
-            except Exception:
-                pass
-        self._place(x, y + height + 4)
+                    cp = _cursor_position()
+                    x, y, height = cp.x, cp.y, cp.height
+                except Exception:
+                    pass
+            self._place(x, y + height + 4)
         self._show_no_activate()
         self._fade_after = self._root.after(1400, self.hide)
+
+    @staticmethod
+    def corner_position(
+        placement: str,
+        work_area: tuple[int, int, int, int],
+        popup_w: int,
+        popup_h: int,
+    ) -> tuple[int, int]:
+        """Anchor point for a screen-corner placement (default: above the tray icons)."""
+        m_left, m_top, m_right, m_bottom = work_area
+        px = (m_right - popup_w - 12) if "right" in placement else (m_left + 12)
+        py = (m_top + 8) if placement.startswith("top") else (m_bottom - popup_h - 8)
+        return int(px), int(py)
+
+    def _place_at_corner(self, placement: str) -> None:
+        """Anchor the chip to a screen corner of the primary monitor."""
+        self._root.update_idletasks()
+        w = max(self._root.winfo_reqwidth(), 60)
+        h = max(self._root.winfo_reqheight(), 24)
+        try:
+            from ravan.platform import winapi as wapi
+
+            sw = self._root.winfo_screenwidth()
+            sh = self._root.winfo_screenheight()
+            area = wapi.get_monitor_work_area(sw // 2, sh // 2)
+        except Exception:
+            area = (0, 0, self._root.winfo_screenwidth(), self._root.winfo_screenheight())
+        px, py = self.corner_position(placement, area, w, h)
+        self._place(px, py)
 
     def show_predictions(
         self,
@@ -462,6 +550,18 @@ class OverlayWindow:
             and [c.text for c in self._candidates] == [c.text for c in candidates]
         )
         prev_selected = self._selected if keep_selection else 0
+
+        # Identical candidate list while typing: keep the popup exactly as it is —
+        # no widget re-render, no SetWindowPos per keystroke (typing smoothness).
+        render_key = (tuple(c.text for c in candidates), prev_selected)
+        if (
+            keep_selection
+            and self.visible
+            and self._mode == "predict"
+            and render_key == getattr(self, "_last_render_key", None)
+        ):
+            return
+        self._last_render_key = render_key
 
         self._mode = "predict"
         self._candidates = list(candidates)
@@ -527,8 +627,8 @@ class OverlayWindow:
             else int(self.theme.font_size)
         )
 
-        pad_y = 2 if ui_style == "compact" else 4
-        pad_x = 8 if ui_style == "compact" else 10
+        pad_y = 2 if ui_style == "compact" else (5 if ui_style == "macos" else 4)
+        pad_x = 8 if ui_style == "compact" else (14 if ui_style == "macos" else 10)
 
         if ui_style != "compact" and hasattr(self, "_grip"):
             self._grip.pack(fill="x")
@@ -541,7 +641,7 @@ class OverlayWindow:
             row = tk.Label(
                 self._frame,
                 text="",
-                bg=p.bg,
+                bg=getattr(self, "_row_bg", p.bg),
                 fg=p.fg,
                 font=fnt,
                 anchor="w",
@@ -558,9 +658,9 @@ class OverlayWindow:
             if selected:
                 bg, fg = p.highlight, p.highlight_fg
             elif getattr(c, "kind", None) and c.kind.name == "SENTENCE":
-                bg, fg = p.bg, p.subtext
+                bg, fg = getattr(self, "_row_bg", p.bg), p.subtext
             else:
-                bg, fg = p.bg, p.fg
+                bg, fg = getattr(self, "_row_bg", p.bg), p.fg
             self._rows[i].config(
                 text=self._row_text(i, c, selected),
                 bg=bg,
@@ -575,6 +675,7 @@ class OverlayWindow:
             self._rows[j].pack_forget()
 
         self._hint.pack(fill="x")
+        self._last_render_key = (tuple(c.text for c in self._candidates), self._selected)
 
     def _place(self, x: int, y: int) -> None:
         self._root.update_idletasks()

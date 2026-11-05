@@ -132,6 +132,11 @@ def save_settings_window(win: Any) -> None:
         cfg.suggestion_accept_enter = win._suggestion_accept_enter_var.get()
     if hasattr(win, "_show_lang_on_click_var"):
         cfg.show_lang_on_click = win._show_lang_on_click_var.get()
+    if hasattr(win, "_lang_placement_var"):
+        mapping = getattr(win, "_lang_placement_map", {})
+        cfg.lang_indicator_placement = mapping.get(
+            win._lang_placement_var.get(), "bottom_right"
+        )
     if hasattr(win, "_overlay_custom_pos_var"):
         cfg.overlay_custom_pos = win._overlay_custom_pos_var.get()
     if hasattr(win, "_prediction_ui_style_var"):
@@ -252,4 +257,8 @@ def save_settings_window(win: Any) -> None:
     save_config(cfg)
     if win.on_saved:
         win.on_saved(cfg)
-    win._close()
+    # v2.6.1: Save no longer closes the window — it applies changes in place
+    # (apply-on-change friendly). Closing the window also saves via
+    # _save_then_close().
+    if hasattr(win, "flash_saved"):
+        win.flash_saved()

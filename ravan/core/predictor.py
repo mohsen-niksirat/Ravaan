@@ -251,7 +251,13 @@ class DictPredictor(Predictor):
                     self.learning.learn_trigram(parts[-2], parts[-1], word, app_name=app_name)
                 if parts:
                     self.learning.learn_transition(parts[-1], word, app_name=app_name)
-            self.learning.save()
+            # Deferred write: the full model serialize + DPAPI encrypt used to run
+            # synchronously on every completed word — the main source of typing lag.
+            self.learning.save(lazy=True)
+
+    def flush_learning(self) -> None:
+        """Persist deferred learning-model changes (periodic poll / shutdown)."""
+        self.learning.flush()
 
     @classmethod
     def from_config(cls, cfg: Config) -> DictPredictor:

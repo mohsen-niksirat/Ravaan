@@ -167,7 +167,15 @@
     "group_prompt_matchers": "نام فایل‌های اجرایی یا کلاس پنجره‌ها را با ویرگول جدا کنید (مثلا chrome.exe, code.exe, class:Notepad):",
     "suggestion_accept_enter": "تایید کلمه پیشنهادی با زدن Enter (پیش‌فرض: غیرفعال، صرفاً با ارقام ۱ تا ۵)",
     "show_lang_on_click": "نمایش نشانگر زبان کیبورد با کلیک ماوس در محل تایپ",
-    "show_lang_on_click_example": "مثال: با کلیک ماوس در هر کادر متنی، پیش از شروع تایپ نشانگر زبان کیبورد ظاهر می‌شود"
+    "show_lang_on_click_example": "مثال: با کلیک ماوس در هر کادر متنی، پیش از شروع تایپ نشانگر زبان کیبورد ظاهر می‌شود",
+    "lang_indicator_placement": "جای نمایش نشانگر زبان:",
+    "placement.bottom_right": "پایین راست — بالای آیکون‌های تری",
+    "placement.bottom_left": "پایین چپ",
+    "placement.top_right": "بالا راست",
+    "placement.top_left": "بالا چپ",
+    "placement.click": "در محل کلیک (کنار نشانگر)",
+    "style_preview": "پیش‌نمایش زنده:",
+    "saved_flash": "ذخیره و اعمال شد — پنجره باز ماند"
   },
   "stats": {
     "header": "📊 آمار متن",

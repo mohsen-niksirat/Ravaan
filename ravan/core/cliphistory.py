@@ -81,6 +81,8 @@ class ClipboardHistory:
     def __init__(self, maxlen: int = 50, storage_path: Path | None = None) -> None:
         self.maxlen = maxlen
         self.storage_path = storage_path
+        self._dirty = False
+        self._last_save_at = time.monotonic()  # defer even the first lazy save
         self._items: deque[str] = deque(maxlen=maxlen)
         self._pinned: list[str] = []
         self._timestamps: dict[str, float] = {}
@@ -165,7 +167,7 @@ class ClipboardHistory:
         self._timestamps[stripped] = time.time()
         active_keys = set(self._items) | set(self._pinned)
         self._timestamps = {k: v for k, v in self._timestamps.items() if k in active_keys}
-        self.save()
+        self.save(lazy=True)
         return True
 
     def toggle_pin(self, text: str) -> bool:
@@ -196,9 +198,15 @@ class ClipboardHistory:
     def __len__(self) -> int:
         return len(self.items())
 
-    def save(self) -> None:
+    def save(self, lazy: bool = False) -> None:
         if self.storage_path is None:
             return
+        if lazy:
+            # New clipboard entries arrive in bursts; defer the disk write and
+            # let flush() persist them from the periodic maintenance poll.
+            if time.monotonic() - getattr(self, "_last_save_at", 0.0) < 10.0:
+                self._dirty = True
+                return
         try:
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
             active_keys = set(self._items) | set(self._pinned)
@@ -214,8 +222,15 @@ class ClipboardHistory:
                 json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
             )
             tmp.replace(self.storage_path)
+            self._dirty = False
+            self._last_save_at = time.monotonic()
         except Exception as exc:  # noqa: BLE001
             log.warning("Failed to save clipboard history: %s", exc)
+
+    def flush(self) -> None:
+        """Persist deferred (lazy) changes immediately if any are pending."""
+        if getattr(self, "_dirty", False):
+            self.save()
 
     def load(self) -> None:
         if self.storage_path is None or not self.storage_path.is_file():

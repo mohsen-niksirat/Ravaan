@@ -155,6 +155,36 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
     ToolTip(cb_lang_click, lang_click_ex)
     row += 1
 
+    # Language chip placement (default: bottom-right, just above the tray icons)
+    win._lang_placement_map = {
+        t("settings.placement.bottom_right", "پایین راست — بالای آیکون‌های تری"): "bottom_right",
+        t("settings.placement.bottom_left", "پایین چپ"): "bottom_left",
+        t("settings.placement.top_right", "بالا راست"): "top_right",
+        t("settings.placement.top_left", "بالا چپ"): "top_left",
+        t("settings.placement.click", "در محل کلیک (کنار نشانگر)"): "click",
+    }
+    code_to_label = {v: k for k, v in win._lang_placement_map.items()}
+    win._lang_placement_var = tk.StringVar(
+        value=code_to_label.get(
+            getattr(win.cfg, "lang_indicator_placement", "bottom_right"),
+            next(iter(win._lang_placement_map)),
+        )
+    )
+    ttk.Label(
+        frm,
+        text=t("settings.lang_indicator_placement", "جای نمایش نشانگر زبان:"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+    placement_box = ttk.Combobox(
+        frm,
+        textvariable=win._lang_placement_var,
+        values=list(win._lang_placement_map.keys()),
+        state="readonly",
+        width=32,
+    )
+    placement_box.grid(row=row, column=1, columnspan=2, sticky="w", **pad)
+    placement_box.bind("<<ComboboxSelected>>", lambda _e: win.on_lang_placement_changed())
+    row += 1
+
     win._cliphist_var = tk.BooleanVar(value=win.cfg.clipboard_history_enabled)
     cb_clip = ttk.Checkbutton(frm, text=t("settings.enable_cliphist", "Enable clipboard history (Alt+V)"), variable=win._cliphist_var)
     cb_clip.grid(row=row, column=0, columnspan=3, sticky=align, **pad)
@@ -395,16 +425,28 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
         text=t("settings.prediction_ui_style", "Suggestion box design style:"),
     ).grid(row=row, column=0, sticky=align, **pad)
     win._prediction_ui_style_var = tk.StringVar(
-        value=getattr(win.cfg, "prediction_ui_style", "modern")
+        value=getattr(win.cfg, "prediction_ui_style", "macos")
     )
     ui_box = ttk.Combobox(
         frm,
         textvariable=win._prediction_ui_style_var,
-        values=["modern", "compact", "glass", "classic"],
+        values=["macos", "modern", "compact", "glass", "classic"],
         state="readonly",
         width=12,
     )
     ui_box.grid(row=row, column=1, sticky="w", **pad)
+    ui_box.bind("<<ComboboxSelected>>", lambda _e: win.on_prediction_style_changed())
+    row += 1
+
+    # Live preview: shows exactly how the suggestion box will look with the
+    # selected design style (updates instantly on selection change).
+    ttk.Label(
+        frm,
+        text=t("settings.style_preview", "پیش‌نمایش زنده:"),
+    ).grid(row=row, column=0, sticky="ne", **pad)
+    win._style_preview = ttk.Frame(frm, relief="groove", borderwidth=1)
+    win._style_preview.grid(row=row, column=1, columnspan=2, sticky="ew", **pad)
+    win._render_style_preview()
     row += 1
 
     ttk.Label(

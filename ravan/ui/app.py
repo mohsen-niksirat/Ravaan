@@ -129,6 +129,7 @@ class RavanApp(
                     self._poll_language()
                     self._poll_mouse_click()
                     self._poll_clipboard()
+                    self._poll_learning_flush()
                     self._poll_background_sync()
                     self._maybe_predict()
                     self._maybe_timeout_popup()
@@ -152,6 +153,17 @@ class RavanApp(
             return
         log.info("Stopping Ravan")
         self._running = False
+        # Persist deferred state before teardown.
+        try:
+            if hasattr(self, "predictor") and hasattr(self.predictor, "flush_learning"):
+                self.predictor.flush_learning()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            if hasattr(self, "clip_history") and hasattr(self.clip_history, "flush"):
+                self.clip_history.flush()
+        except Exception:  # noqa: BLE001
+            pass
         set_popup_visible(False)
         self.overlay.hide()
         self.hook.stop()

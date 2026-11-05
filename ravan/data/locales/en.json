@@ -167,7 +167,15 @@
     "group_prompt_matchers": "Enter application exe names or classes (comma-separated, e.g. chrome.exe, code.exe, class:Notepad):",
     "suggestion_accept_enter": "Accept suggestion on Enter (default: Off, use digits 1-5 only)",
     "show_lang_on_click": "Show keyboard language indicator on mouse click",
-    "show_lang_on_click_example": "Example: Clicking in any text input automatically displays current language (FA / EN)"
+    "show_lang_on_click_example": "Example: Clicking in any text input automatically displays current language (FA / EN)",
+    "lang_indicator_placement": "Language chip position:",
+    "placement.bottom_right": "Bottom right — above the tray icons",
+    "placement.bottom_left": "Bottom left",
+    "placement.top_right": "Top right",
+    "placement.top_left": "Top left",
+    "placement.click": "At the click point (next to the caret)",
+    "style_preview": "Live preview:",
+    "saved_flash": "Saved & applied — window stays open"
   },
   "stats": {
     "header": "📊 Text Statistics",

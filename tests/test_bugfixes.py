@@ -176,6 +176,10 @@ def test_cliphistory_prunes_evicted_timestamps(tmp_path):
     for i in range(10):
         hist.add(f"item_{i}", ignore_passwords=False)
 
+    # v2.6.1: adds persist lazily; flush forces the deferred write (the app
+    # flushes on a periodic poll and at shutdown).
+    hist.flush()
+
     # Deque maxlen is 3, so only 3 items should be present
     assert len(hist.items()) == 3
     # Timestamps should be strictly pruned to the 3 active items

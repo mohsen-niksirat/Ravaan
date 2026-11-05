@@ -182,6 +182,59 @@ def get_active_palette(mode: str = "auto") -> Palette:
         return Palette.dark()
 
 
+def get_macos_palette(mode: str = "auto") -> Palette:
+    """macOS-style material palette (vibrant accent, hairline border, soft neutrals).
+
+    High-contrast mode intentionally keeps the accessible palette.
+    """
+    base = get_active_palette(mode)
+    if base.name == "high_contrast":
+        return base
+    if base.name == "light":
+        return Palette(
+            name="macos_light",
+            bg="#f5f5f7",
+            fg="#1d1d1f",
+            subtext="#86868b",
+            card_bg="#e9e9ee",
+            accent="#007aff",
+            border="#d6d6da",
+            highlight="#0a84ff",
+            highlight_fg="#ffffff",
+            alpha=0.96,
+            corner_radius=12.0,
+            accent_hover="#3395ff",
+            card_border="#d6d6da",
+            input_bg="#ffffff",
+            button_bg="#e9e9ee",
+            button_hover="#dcdce1",
+            badge_bg="#e8f0fe",
+            badge_fg="#007aff",
+            glow="#0a84ff",
+        )
+    return Palette(
+        name="macos_dark",
+        bg="#232326",
+        fg="#f5f5f7",
+        subtext="#98989d",
+        card_bg="#2c2c30",
+        accent="#0a84ff",
+        border="#3a3a3e",
+        highlight="#0a84ff",
+        highlight_fg="#ffffff",
+        alpha=0.96,
+        corner_radius=12.0,
+        accent_hover="#409cff",
+        card_border="#3a3a3e",
+        input_bg="#1b1b1e",
+        button_bg="#2c2c30",
+        button_hover="#3a3a3f",
+        badge_bg="#1e293b",
+        badge_fg="#0a84ff",
+        glow="#0a84ff",
+    )
+
+
 def get_ui_font(size: int = 10, bold: bool = False, rtl: bool = False) -> tuple[str, int, str]:
     """Return standard font tuple with Vazirmatn / Segoe UI stack."""
     weight = "bold" if bold else "normal"
@@ -196,8 +249,71 @@ def confidence_bar(score: float) -> str:
     return _CONFIDENCE_LEVELS[idx]
 
 
-def apply_popup_window_attributes(win: tk.Tk | tk.Toplevel, palette: Palette, show: bool = False) -> None:
+def _hex_to_colorref(hex_color: str) -> int | None:
+    """Convert '#rrggbb' to a Windows COLORREF (0x00bbggrr)."""
+    try:
+        rgb = int(hex_color.lstrip("#"), 16)
+        return ((rgb & 0xFF) << 16) | (rgb & 0xFF00) | ((rgb >> 16) & 0xFF)
+    except (ValueError, AttributeError):
+        return None
+
+
+def _enable_acrylic_blur(hwnd: int, hex_color: str) -> bool:
+    """Enable acrylic blur-behind behind a popup window (SetWindowCompositionAttribute).
+
+    The tint color carries the material opacity; Tk paints its background with the
+    very same color as a transparency key so the blurred desktop shows through.
+    Returns False when the OS refuses (then callers must fall back to plain alpha).
+    """
+    try:
+        rgb = int(hex_color.lstrip("#"), 16)
+        r, g, b = (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF
+        tint = (0xC8 << 24) | (b << 16) | (g << 8) | r  # ABGR with ~78% opacity
+
+        class ACCENT_POLICY(ctypes.Structure):
+            _fields_ = [
+                ("AccentState", ctypes.c_int),
+                ("AccentFlags", ctypes.c_int),
+                ("GradientColor", ctypes.c_uint),
+                ("AnimationId", ctypes.c_int),
+            ]
+
+        class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
+            _fields_ = [
+                ("dwAttribute", ctypes.c_int),
+                ("pData", ctypes.c_void_p),
+                ("cbData", ctypes.c_size_t),
+            ]
+
+        # ACCENT_ENABLE_ACRYLICBLURBEHIND = 4, WCA_ACCENT_POLICY = 19
+        accent = ACCENT_POLICY(4, 0, tint, 0)
+        data = WINDOWCOMPOSITIONATTRIBDATA(
+            19,
+            ctypes.cast(ctypes.byref(accent), ctypes.c_void_p),
+            ctypes.sizeof(accent),
+        )
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        # Force-refresh: re-tinting requires toggling the accent off and on.
+        disable = ACCENT_POLICY(0, 0, 0, 0)  # ACCENT_DISABLED
+        data_off = WINDOWCOMPOSITIONATTRIBDATA(
+            19, ctypes.cast(ctypes.byref(disable), ctypes.c_void_p), ctypes.sizeof(disable)
+        )
+        user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data_off))
+        return bool(user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data)))
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Acrylic blur unavailable: %s", exc)
+        return False
+
+
+def apply_popup_window_attributes(
+    win: tk.Tk | tk.Toplevel,
+    palette: Palette,
+    show: bool = False,
+    acrylic: bool = False,
+    border_color: str | None = None,
+) -> dict[str, bool]:
     """Apply unified frameless, topmost, opacity, and DWM rounded corners to a popup window."""
+    result = {"acrylic": False}
     win.attributes("-topmost", True)
     win.overrideredirect(True)
     try:
@@ -206,7 +322,7 @@ def apply_popup_window_attributes(win: tk.Tk | tk.Toplevel, palette: Palette, sh
         pass
 
     if sys.platform != "win32":
-        return
+        return result
 
     try:
         from ravan.platform import winapi as wapi
@@ -214,7 +330,7 @@ def apply_popup_window_attributes(win: tk.Tk | tk.Toplevel, palette: Palette, sh
         hwnd = win.winfo_id()
         root_hwnd = int(wapi.user32.GetAncestor(hwnd, 2) or hwnd)
         if not root_hwnd:
-            return
+            return result
 
         # WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST
         style = wapi.user32.GetWindowLongW(root_hwnd, -20)
@@ -223,13 +339,29 @@ def apply_popup_window_attributes(win: tk.Tk | tk.Toplevel, palette: Palette, sh
         if show:
             wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
 
+        dwmapi = ctypes.WinDLL("dwmapi", use_last_error=True)
+
         # DWM rounded corners (DWMWA_WINDOW_CORNER_PREFERENCE = 33)
         corner_pref = ctypes.c_int(2)  # DWMWCP_ROUND
-        ctypes.WinDLL("dwmapi", use_last_error=True).DwmSetWindowAttribute(
+        dwmapi.DwmSetWindowAttribute(
             wapi.wintypes.HWND(root_hwnd), 33, ctypes.byref(corner_pref), ctypes.sizeof(corner_pref)
         )
+
+        # Crisp 1px material border (DWMWA_BORDER_COLOR = 34, Win11)
+        if border_color:
+            cref = _hex_to_colorref(border_color)
+            if cref is not None:
+                val = ctypes.c_uint(cref)
+                dwmapi.DwmSetWindowAttribute(
+                    wapi.wintypes.HWND(root_hwnd), 34, ctypes.byref(val), ctypes.sizeof(val)
+                )
+
+        # macOS-style acrylic material (falls back to plain window alpha)
+        if acrylic:
+            result["acrylic"] = _enable_acrylic_blur(root_hwnd, palette.bg)
+        return result
     except Exception:
-        pass
+        return result
 
 
 def apply_window_decorations(win: tk.Tk | tk.Toplevel, palette: Palette | None = None) -> None:

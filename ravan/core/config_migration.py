@@ -36,4 +36,12 @@ def migrate_config_dict(data: dict[str, Any]) -> dict[str, Any]:
     data.setdefault("voice_dictation_enabled", False)
     data.setdefault("suggestion_accept_arrow", "right")
     data.setdefault("continuation_suggestions_enabled", True)
+    # v2.6.1 defaults (idempotent value migrations — schema stays 3):
+    # longer prediction-popup persistence, macOS-style suggestion box, and the
+    # language chip anchored above the tray icons instead of at the click point.
+    if data.get("popup_timeout_ms") == 4000:
+        data["popup_timeout_ms"] = 8000
+    if data.get("prediction_ui_style") == "modern":
+        data["prediction_ui_style"] = "macos"
+    data.setdefault("lang_indicator_placement", "bottom_right")
     return data

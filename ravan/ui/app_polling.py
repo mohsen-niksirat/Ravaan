@@ -150,12 +150,35 @@ class AppPollingMixin:
 
                 play_layout_switch_sound(lang.tag == "fa")
             caret = get_caret_rect()
-            self.overlay.show_language(
-                language_label(lang), caret.x, caret.y, caret.height
-            )
+            placement = getattr(self.cfg, "lang_indicator_placement", "bottom_right")
+            if placement in ("bottom_right", "bottom_left", "top_right", "top_left"):
+                self.overlay.show_language(
+                    language_label(lang), -1, -1, caret.height, placement=placement
+                )
+            else:
+                self.overlay.show_language(
+                    language_label(lang), caret.x, caret.y, caret.height
+                )
             # Stamp the popup timer so the language chip is not instantly hidden
             # by _maybe_timeout_popup on the next loop tick.
             self._popup_shown_at = time.monotonic()
+
+    def _poll_learning_flush(self: Any) -> None:
+        """Periodically persist lazily-deferred learning/clipboard state off the keystroke path."""
+        now = time.monotonic()
+        if now - getattr(self, "_last_lazy_flush", 0.0) < 15.0:
+            return
+        self._last_lazy_flush = now
+        try:
+            if hasattr(self.predictor, "flush_learning"):
+                self.predictor.flush_learning()
+        except Exception:  # noqa: BLE001
+            log.debug("Deferred learning flush failed", exc_info=True)
+        try:
+            if hasattr(self, "clip_history") and hasattr(self.clip_history, "flush"):
+                self.clip_history.flush()
+        except Exception:  # noqa: BLE001
+            log.debug("Deferred clipboard flush failed", exc_info=True)
 
     def _poll_clipboard(self: Any) -> None:
         if not self.cfg.clipboard_history_enabled:
@@ -250,6 +273,11 @@ class AppPollingMixin:
             prefix, context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
         )
         if not cands:
+            if self.overlay.predicting:
+                # Sticky popup: keep the current suggestion box visible until the
+                # next keystroke refreshes it, a word completes, or the timeout
+                # fires — a mid-word candidate gap must not flicker it away.
+                return
             if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)

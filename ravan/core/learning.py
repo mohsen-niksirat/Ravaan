@@ -75,6 +75,13 @@ class UserLearningEngine:
     ) -> None:
         self.storage_path = storage_path or (config_dir() / "user_learning.json")
         self.learning_enabled = learning_enabled
+        # Deferred persistence: record_selection() fires on every completed word;
+        # serializing + DPAPI-encrypting the whole model per word stalls the UI
+        # thread (and starves the keyboard hook) as the model grows. Saves are
+        # lazy (min interval) and flushed periodically / on shutdown.
+        self._dirty = False
+        self._last_save_at = time.monotonic()  # defer even the first lazy save
+        self._lazy_save_interval = 30.0
         self.word_counts: dict[str, float] = {}
         self.transitions: dict[str, dict[str, float]] = {}
         self.trigrams: dict[str, dict[str, float]] = {}
@@ -349,7 +356,12 @@ class UserLearningEngine:
         self._seed_defaults()
         self.save()
 
-    def save(self) -> None:
+    def save(self, lazy: bool = False) -> None:
+        if lazy:
+            # Defer: skip the write when one happened recently; flush() persists later.
+            if time.monotonic() - self._last_save_at < self._lazy_save_interval:
+                self._dirty = True
+                return
         try:
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
             tmp = self.storage_path.with_suffix(".tmp")
@@ -359,8 +371,15 @@ class UserLearningEngine:
             encrypted = protect_secret(raw_json)
             tmp.write_text(encrypted, encoding="utf-8")
             tmp.replace(self.storage_path)
+            self._dirty = False
+            self._last_save_at = time.monotonic()
         except Exception as exc:  # noqa: BLE001
             log.warning("Failed to save user learning model: %s", exc)
+
+    def flush(self) -> None:
+        """Persist deferred (lazy) changes immediately if any are pending."""
+        if self._dirty:
+            self.save()
 
     def _load(self) -> None:
         if not self.storage_path.is_file():

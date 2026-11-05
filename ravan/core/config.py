@@ -33,16 +33,19 @@ class Config:
     quickpick_digits: bool = True
     prediction_debounce_ms: int = 50
     prediction_max_candidates: int = 5
-    popup_timeout_ms: int = 4000
+    popup_timeout_ms: int = 8000
     min_prefix_len: int = 1
     next_word_prediction: bool = True
     prediction_auto_space: bool = True
     suggestion_accept_enter: bool = False
     show_lang_on_click: bool = True
+    # Where the keyboard-language chip appears: "click" = at the caret/cursor,
+    # or a fixed screen corner (default: above the tray icons, bottom-right).
+    lang_indicator_placement: str = "bottom_right"
     overlay_custom_pos: bool = False
     overlay_pos_x: int = -1
     overlay_pos_y: int = -1
-    prediction_ui_style: str = "modern"  # "modern" | "compact" | "glass" | "classic"
+    prediction_ui_style: str = "macos"  # "macos" | "modern" | "compact" | "glass" | "classic"
     prediction_font_size: int = 12
     prediction_opacity: float = 0.95
     excluded_apps: list[str] = field(default_factory=lambda: list(DEFAULT_EXCLUDED_APPS))
@@ -440,16 +443,27 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         quickpick_digits=bool(data.get("quickpick_digits", True)),
         prediction_debounce_ms=_bounded_int(data, "prediction_debounce_ms", 50, 0, 5000),
         prediction_max_candidates=_bounded_int(data, "prediction_max_candidates", 5, 1, 20),
-        popup_timeout_ms=_bounded_int(data, "popup_timeout_ms", 4000, 0, 120000),
+        popup_timeout_ms=_bounded_int(data, "popup_timeout_ms", 8000, 0, 120000),
         min_prefix_len=_bounded_int(data, "min_prefix_len", 1, 1, 64),
         next_word_prediction=bool(data.get("next_word_prediction", True)),
         prediction_auto_space=bool(data.get("prediction_auto_space", True)),
         suggestion_accept_enter=bool(data.get("suggestion_accept_enter", False)),
         show_lang_on_click=bool(data.get("show_lang_on_click", True)),
+        lang_indicator_placement=(
+            data.get("lang_indicator_placement", "bottom_right")
+            if data.get("lang_indicator_placement", "bottom_right")
+            in ("click", "bottom_right", "bottom_left", "top_right", "top_left")
+            else "bottom_right"
+        ),
         overlay_custom_pos=bool(data.get("overlay_custom_pos", False)),
         overlay_pos_x=_bounded_int(data, "overlay_pos_x", -1, -1, 30000),
         overlay_pos_y=_bounded_int(data, "overlay_pos_y", -1, -1, 30000),
-        prediction_ui_style=str(data.get("prediction_ui_style", "modern")),
+        prediction_ui_style=(
+            data.get("prediction_ui_style", "macos")
+            if data.get("prediction_ui_style", "macos")
+            in ("macos", "modern", "compact", "glass", "classic")
+            else "macos"
+        ),
         prediction_font_size=_bounded_int(data, "prediction_font_size", 12, 9, 24),
         prediction_opacity=_bounded_float(data, "prediction_opacity", 0.95, 0.5, 1.0),
         excluded_apps=[str(x).strip().lower() for x in excluded if str(x).strip()],
