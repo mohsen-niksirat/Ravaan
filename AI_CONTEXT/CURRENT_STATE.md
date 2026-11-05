@@ -1,17 +1,18 @@
 # وضعیت جاری — Ravaan
 
-*(ثبت‌شده در تاریخ بازرسی: 2026-11-05)*
+*(ثبت‌شده در تاریخ بازرسی: 2026-11-05 — به‌روزرسانی برای v2.7.0)*
 
 ## Git
-- شاخه: `main` — بدون تغییر کاری (`git status` تمیز) و هم‌گام با `origin/main`.
-- HEAD: `636ec2ebfb1d10a68b0d08904795d5bcc7b734f2` — «feat: add click language indicator, disable autocorrect by default, restrict suggestion acceptance to digits, and update app icon» (2026-11-02).
-- آخرین تگ: `v2.6.0` (نسخه pyproject نیز 2.6.0 — هم‌خوان).
+- شاخه: `main` — بدون تغییر کاری و هم‌گام با `origin/main`.
+- HEAD: `10f53692a24e55b24c7dabfb431bf102bcd1555e` — «chore(release): v2.7.0» (2026-11-05).
+- آخرین تگ: `v2.7.0` (نسخه pyproject نیز 2.7.0 — هم‌خوان).
 - مخزن: https://github.com/mohsen-niksirat/Ravaan
 
 ## وضعیت مشاهده‌شده
-- نسخه پایدار منتشرشده 2.6.0 با تمرکز روی بازطراحی Fluent 2 ویندوز ۱۱، فونت همراه Vazirmatn، نشانگر زبان با کلیک ماوس، پذیرش پیشنهاد فقط با ارقام ۱–۵ و غیرفعال‌بودن پیش‌فرض اصلاح خودکار (منبع: CHANGELOG.md).
-- فایل‌های untracked: هیچ (`.agents/` و `ravaan-agent-skill.md` عمداً gitignored هستند).
-- `AI_CONTEXT/` پیش از این بازرسی وجود نداشت؛ با همین نسخه ساخته شد.
+- نسخه 2.7.0: جای‌گذاری قابل‌تنظیم چیپ زبان (پیش‌فرض پایین-راست بالای تری، `lang_indicator_placement`)، ماندگاری sticky جعبه پیشنهاد (timeout 8s با مهاجرت از 4s)، رفع ریشه کندی تایپ (ذخیره تعلیقی مدل یادگیری/کلیپ‌بورد + throttle Tk update + dedup رندر)، استایل پیشنهاد `macos` با acrylic (پیش‌فرض جدید `prediction_ui_style`، مهاجرت از modern)، تنظیمات با پیش‌نمایش زنده + apply-on-change + save بدون بستن + close-with-change.
+- معماری `core/platform/ui` و قواعد `ravaan-agent-skill.md` پابرجاست؛ ماژول‌های جدیدی اضافه نشده.
+- فایل‌های untracked: `test.txt` (فایل خالی سرگردان در ریشه — متعلق به کاربر، کامیت نشده).
+- `AI_CONTEXT/` از v2.6.1 در گیت نگهداری می‌شود و با هر ریلیز refresh می‌گردد.
 
 ## بررسی‌های اجراشده در این بازرسی
 - `python -m ravan --version` → خروجی `2.6.0` ✅ (با `.venv` پروژه)
