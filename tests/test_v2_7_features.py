@@ -238,3 +238,43 @@ def test_settings_apply_on_change_and_close_with_change(monkeypatch):
     finally:
         if win._root is not None:
             win._close()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Tkinter settings window")
+def test_settings_preview_is_distinct_per_style(monkeypatch):
+    import ravan.core.user_dict as user_dict_mod
+    import ravan.ui.settings_save as settings_save_mod
+
+    monkeypatch.setattr(settings_save_mod, "save_config", lambda cfg: None)
+    monkeypatch.setattr(user_dict_mod, "save_user_words", lambda words: None)
+
+    from ravan.core.config import Config as Cfg
+    from ravan.ui.settings import SettingsWindow
+
+    cfg = Cfg()
+    win = SettingsWindow(cfg, on_saved=lambda c: None)
+    win.show()
+    try:
+        for _ in range(60):
+            win.tick()
+
+        mock_bgs: dict[str, str] = {}
+        for style in ("macos", "glass", "classic"):
+            win._prediction_ui_style_var.set(style)
+            win.on_prediction_style_changed()
+            win._root.update()
+            container = win._style_preview.winfo_children()[0]
+            mock = container.winfo_children()[1]  # [0] is the backdrop canvas
+            mock_bgs[style] = str(mock.cget("bg")).lower()
+
+        # The three translucent/opaque styles must render clearly different
+        # materials (macos tinted acrylic, glass strongly see-through, classic
+        # fully opaque) — previously the preview looked identical for every style.
+        assert mock_bgs["macos"] != mock_bgs["glass"]
+        assert mock_bgs["glass"] != mock_bgs["classic"]
+        assert mock_bgs["macos"] != mock_bgs["classic"]
+        # glass is the most see-through: its mock sits closest to the backdrop.
+        assert mock_bgs["glass"] != mock_bgs["macos"]
+    finally:
+        if win._root is not None:
+            win._close()

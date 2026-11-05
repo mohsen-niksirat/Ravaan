@@ -305,6 +305,37 @@ def _enable_acrylic_blur(hwnd: int, hex_color: str) -> bool:
         return False
 
 
+def _disable_acrylic_blur(hwnd: int) -> None:
+    """Remove any acrylic accent previously applied to the window."""
+    try:
+
+        class ACCENT_POLICY(ctypes.Structure):
+            _fields_ = [
+                ("AccentState", ctypes.c_int),
+                ("AccentFlags", ctypes.c_int),
+                ("GradientColor", ctypes.c_uint),
+                ("AnimationId", ctypes.c_int),
+            ]
+
+        class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
+            _fields_ = [
+                ("dwAttribute", ctypes.c_int),
+                ("pData", ctypes.c_void_p),
+                ("cbData", ctypes.c_size_t),
+            ]
+
+        disable = ACCENT_POLICY(0, 0, 0, 0)  # ACCENT_DISABLED
+        data = WINDOWCOMPOSITIONATTRIBDATA(
+            19,
+            ctypes.cast(ctypes.byref(disable), ctypes.c_void_p),
+            ctypes.sizeof(disable),
+        )
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def apply_popup_window_attributes(
     win: tk.Tk | tk.Toplevel,
     palette: Palette,
@@ -359,6 +390,8 @@ def apply_popup_window_attributes(
         # macOS-style acrylic material (falls back to plain window alpha)
         if acrylic:
             result["acrylic"] = _enable_acrylic_blur(root_hwnd, palette.bg)
+        else:
+            _disable_acrylic_blur(root_hwnd)
         return result
     except Exception:
         return result

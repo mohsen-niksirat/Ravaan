@@ -462,8 +462,30 @@ class SettingsWindow:
         if self.on_saved:
             self.on_saved(self.cfg)
 
+    _STYLE_TRAITS = {
+        "macos": ("متریال آکریلیک شیشه‌ای + حاشیه مویی — پیش‌فرض", 0.82),
+        "modern": ("فلوئنت ۲ ویندوز ۱۱", 0.96),
+        "compact": ("فشرده با فاصله کم", 0.96),
+        "glass": ("شیشه‌ای با شفافیت بالا", 0.55),
+        "classic": ("کلاسیک مات با قاب ضخیم", 1.0),
+    }
+    _PREVIEW_BACKDROP = "#4a6a8a"  # representative desktop color for translucency
+
+    @staticmethod
+    def _blend_hex(fg_hex: str, bg_hex: str, t: float) -> str:
+        """Blend two '#rrggbb' colors; t = share of bg_hex (0..1)."""
+        try:
+            a = int(fg_hex.lstrip("#"), 16)
+            b = int(bg_hex.lstrip("#"), 16)
+        except (ValueError, AttributeError):
+            return fg_hex
+        t = max(0.0, min(1.0, t))
+        ch = [round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t) for s in (16, 8, 0)]
+        return "#{:02x}{:02x}{:02x}".format(*ch)
+
     def _render_style_preview(self) -> None:
-        """Render a live mini suggestion-box inside Settings for the chosen style."""
+        """Render a live mini suggestion-box over a simulated desktop so each
+        design style (and its translucency) is visibly distinct."""
         from ravan.ui.theme import get_macos_palette, get_ui_font
 
         preview = getattr(self, "_style_preview", None)
@@ -475,18 +497,51 @@ class SettingsWindow:
         style = self._prediction_ui_style_var.get()
         mode = getattr(self.cfg, "theme_mode", "auto")
         palette = get_macos_palette(mode) if style == "macos" else get_active_palette(mode)
+        trait_text, alpha_eff = self._STYLE_TRAITS.get(style, self._STYLE_TRAITS["modern"])
         f_sz = int(getattr(self.cfg, "prediction_font_size", 12))
         pad_y = 2 if style == "compact" else (5 if style == "macos" else 4)
         pad_x = 8 if style == "compact" else (14 if style == "macos" else 10)
+        backdrop = self._PREVIEW_BACKDROP
+        see_through = 1.0 - alpha_eff  # share of the desktop showing through
 
-        box = tk.Frame(
-            preview,
-            bg=palette.bg,
-            highlightthickness=2 if style == "classic" else 1,
-            highlightbackground=palette.border,
-            bd=0,
+        container = tk.Frame(preview)
+        container.pack(fill="x")
+
+        # Simulated desktop (colored bands + window blocks) behind the mock.
+        backdrop_canvas = tk.Canvas(
+            container, height=126, highlightthickness=0, bd=0, bg="#31518a"
         )
-        box.pack(fill="x", padx=6, pady=4)
+        backdrop_canvas.pack(fill="both", expand=True)
+        backdrop_canvas.update_idletasks()
+        cw = max(backdrop_canvas.winfo_width(), 280)
+        band_colors = ["#2f6f4f", "#31518a", "#8a5131", "#5a3a6e", "#2b6d6d"]
+        band_h = 126 // len(band_colors) + 1
+        for i, color in enumerate(band_colors):
+            backdrop_canvas.create_rectangle(
+                0, i * band_h, cw, (i + 1) * band_h, fill=color, width=0
+            )
+        backdrop_canvas.create_rectangle(
+            cw - 90, 14, cw - 14, 58, fill="#c9cdd4", width=0
+        )
+        backdrop_canvas.create_rectangle(
+            18, 84, 120, 112, fill="#d8b24a", width=0
+        )
+
+        # The mock popup: blended colors make the style's translucency visible.
+        eff_bg = self._blend_hex(palette.bg, backdrop, see_through)
+        eff_row = self._blend_hex(
+            palette.card_bg if style == "macos" else palette.bg, backdrop, see_through
+        )
+        eff_border = self._blend_hex(palette.border, backdrop, see_through * 0.6)
+        eff_selected = self._blend_hex(palette.highlight, backdrop, see_through * 0.25)
+
+        mock = tk.Frame(
+            container,
+            bg=eff_bg,
+            highlightthickness=2 if style == "classic" else 1,
+            highlightbackground=eff_border,
+        )
+        mock.place(relx=0.5, rely=0.5, anchor="center")
 
         rows = [
             ("1   سلام", True),
@@ -495,13 +550,13 @@ class SettingsWindow:
         ]
         for text, selected in rows:
             if selected:
-                bg, fg, bold = palette.highlight, palette.highlight_fg, True
+                bg, fg, bold = eff_selected, palette.highlight_fg, True
             else:
-                bg = palette.bg
+                bg = eff_row
                 fg = palette.subtext if "[ادامه]" in text else palette.fg
                 bold = False
             tk.Label(
-                box,
+                mock,
                 text=text,
                 bg=bg,
                 fg=fg,
@@ -511,14 +566,20 @@ class SettingsWindow:
                 pady=pad_y,
             ).pack(fill="x")
         tk.Label(
-            box,
+            mock,
             text="↑↓ انتخاب  ·  Enter تأیید  ·  Esc بستن",
-            bg=palette.bg,
+            bg=eff_row,
             fg=palette.subtext,
             font=get_ui_font(size=max(8, f_sz - 3), rtl=True),
             padx=pad_x,
             pady=3,
         ).pack(fill="x")
+
+        ttk.Label(
+            preview,
+            text=f"{style} — {trait_text}",
+            foreground=palette.subtext if hasattr(palette, "subtext") else "gray",
+        ).pack(anchor="w", padx=8, pady=(2, 0))
 
     def _close(self) -> None:
         self._open = False
