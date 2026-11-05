@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-11-06 - Distinct Style Preview & Stale Acrylic Fix
+
+### Fixed
+- **Suggestion-Box Styles Looked Identical (ravan/ui/settings.py)**:
+  - The live preview rendered near-identical materials for every style — the macOS and Fluent dark palettes are almost the same, and glass translucency was invisible on the opaque Settings window. The preview now draws the mock popup over a simulated desktop and blends each style material with it (macos 0.82 acrylic tint, glass 0.55 see-through, classic fully opaque), with a per-style description caption — every style is now visibly distinct.
+- **Stale Acrylic After Style Switch (ravan/ui/theme.py)**:
+  - Switching away from the macOS style did not disable the previously-applied acrylic accent (`SetWindowCompositionAttribute`); the blur lingered behind other styles. The accent is now explicitly disabled whenever a non-acrylic style is active.
+
+### Added
+- **Regression Test**: `test_settings_preview_is_distinct_per_style` locks in distinct preview materials for macos / glass / classic.
+
 ## [2.7.0] - 2026-11-05 - Configurable Language Chip, Sticky Predictions, Typing Lag Fixes & macOS-Style Suggestion Box
 
 ### Added
