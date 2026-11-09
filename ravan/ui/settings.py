@@ -701,17 +701,14 @@ class SettingsWindow:
         palette = tokens.palette
         rtl_ui = is_rtl()
         traits_dict = self._STYLE_TRAITS if rtl_ui else self._STYLE_TRAITS_EN
-        trait_text, alpha_eff = traits_dict.get(style, traits_dict["modern"])
+        trait_text, _alpha_eff = traits_dict.get(style, traits_dict["modern"])
         style_icon = self._STYLE_ICONS.get(style, "✨")
-        f_sz = max(9, min(int(getattr(self.cfg, "prediction_font_size", 12)), 14))
-
-        see_through = max(0.0, min(1.0, 1.0 - alpha_eff))
 
         container = tk.Frame(preview)
         container.pack(fill="x")
 
         # Simulated modern desktop/editor canvas behind the mock popup
-        canvas_h = 124
+        canvas_h = 244
         is_dark_preview = mode == "dark" or (mode == "auto" and palette.name in ("dark", "high_contrast")) or style == "neon"
         canvas_bg = "#15161D" if is_dark_preview else "#F2F3F7"
         canvas_border = "#2A2B36" if is_dark_preview else "#D6D7DF"
@@ -726,256 +723,266 @@ class SettingsWindow:
             bg=canvas_bg,
         )
         backdrop_canvas.pack(fill="both", expand=True)
-        backdrop_canvas.update_idletasks()
-        cw = max(backdrop_canvas.winfo_width(), 320)
 
-        # Subtle simulated typing line context (VS Code / editor look)
-        typing_prompt = "متن در حال تایپ: سلام" if rtl_ui else "Typing: hello"
-        caret_char = " |"
-        f_sim = get_ui_font(size=9, rtl=rtl_ui)
-        sim_lead_x = cw - 18 if rtl_ui else 18
-        sim_anchor = "ne" if rtl_ui else "nw"
-        backdrop_canvas.create_text(
-            sim_lead_x,
-            10,
-            text=typing_prompt + caret_char,
-            anchor=sim_anchor,
-            fill=sim_text_fg,
-            font=f_sim,
+        from PIL import ImageTk
+
+        from ravan.ui.preview_graphics import render_style_chassis
+
+        card_w = 260
+        card_h = 216
+        chassis_img = render_style_chassis(
+            style=style,
+            width=card_w,
+            height=card_h,
+            is_dark=is_dark_preview,
+            custom_colors=custom_colors,
+            layout=layout,
         )
+        self._preview_chassis_photo = ImageTk.PhotoImage(chassis_img)
 
-        # Calculate effective colors with translucency
-        eff_bg = self._blend_hex(palette.bg, canvas_bg, see_through)
-        eff_card = self._blend_hex(palette.card_bg, canvas_bg, see_through)
-        eff_border = (
-            tokens.border_color
-            if tokens.name == "neon"
-            else self._blend_hex(tokens.border_color or palette.border, canvas_bg, see_through * 0.5)
-        )
-        eff_selected = (
-            tokens.palette.highlight
-            if tokens.name == "neon"
-            else self._blend_hex(palette.highlight, canvas_bg, see_through * 0.2)
-        )
+        def _draw_content(cw_in: int) -> None:
+            cw = max(cw_in, 300)
+            backdrop_canvas.delete("all")
 
-        # Mock frame placed cleanly at center
-        bd = tokens.border_width
-        relief = tokens.border_relief
-        mock = tk.Frame(
-            backdrop_canvas,
-            bg=eff_bg,
-            bd=bd,
-            relief=relief,
-            highlightthickness=bd,
-            highlightbackground=eff_border,
-        )
-        mock.place(relx=0.5, rely=0.58, anchor="center")
+            # Subtle simulated typing line context
+            typing_prompt = "متن در حال تایپ: سلام" if rtl_ui else "Typing: hello"
+            caret_char = " |"
+            f_sim = get_ui_font(size=8, rtl=rtl_ui)
+            sim_lead_x = cw - 18 if rtl_ui else 18
+            sim_anchor = "ne" if rtl_ui else "nw"
+            backdrop_canvas.create_text(
+                sim_lead_x,
+                7,
+                text=typing_prompt + caret_char,
+                anchor=sim_anchor,
+                fill=sim_text_fg,
+                font=f_sim,
+            )
 
-        pad_x = tokens.row_padding_x
-        pad_y = tokens.row_padding_y
-        is_horizontal = tokens.layout == "horizontal"
+            cx = cw // 2
+            cy = 20 + card_h // 2
+            backdrop_canvas.create_image(cx, cy, image=self._preview_chassis_photo)
 
-        # Header grip
-        if tokens.show_grip and style != "compact":
-            if is_horizontal:
-                tk.Label(
-                    mock,
-                    text="••",
-                    bg=eff_card if tokens.acrylic else eff_bg,
-                    fg=palette.subtext,
-                    font=get_ui_font(size=max(8, f_sz - 4)),
-                    padx=4,
-                    pady=2,
-                ).pack(side="right", fill="y", padx=(2, 0))
-            else:
-                if style == "macos":
-                    grip_txt = "🔴 🟡 🟢   روان"
-                elif style == "ios":
-                    grip_txt = "   روان"
+            x_left = cx - card_w // 2
+            x_right = cx + card_w // 2
+            y_top = cy - card_h // 2
+
+            # ── Header titles on the chassis ──
+            if style == "classic":
+                backdrop_canvas.create_text(
+                    x_left + 14,
+                    y_top + 10,
+                    text="روان - Ravaan",
+                    anchor="w",
+                    fill="#FFFFFF",
+                    font=get_ui_font(size=8, bold=True, rtl=True),
+                )
+            elif style == "modern":
+                backdrop_canvas.create_text(
+                    cx,
+                    y_top + 11,
+                    text="✦  روان  ✦",
+                    anchor="center",
+                    fill="#E9D5FF",
+                    font=get_ui_font(size=8, bold=True, rtl=True),
+                )
+            elif style == "fluent":
+                backdrop_canvas.create_text(
+                    x_left + 26,
+                    y_top + 10,
+                    text="روان",
+                    anchor="w",
+                    fill="#60CDFF",
+                    font=get_ui_font(size=8, bold=True, rtl=True),
+                )
+            elif style == "ios":
+                backdrop_canvas.create_text(
+                    x_left + 16,
+                    y_top + 11,
+                    text=" روان",
+                    anchor="w",
+                    fill="#D2D2D7",
+                    font=get_ui_font(size=8, bold=True, rtl=True),
+                )
+            elif style == "glass":
+                backdrop_canvas.create_text(
+                    cx,
+                    y_top + 11,
+                    text="💎  روان",
+                    anchor="center",
+                    fill="#A0D0FF",
+                    font=get_ui_font(size=8, bold=True, rtl=True),
+                )
+            elif style == "neon":
+                backdrop_canvas.create_text(
+                    cx,
+                    y_top + 11,
+                    text="// RAVAAN HUD //",
+                    anchor="center",
+                    fill="#FF007F",
+                    font=get_ui_font(size=8, bold=True),
+                )
+            elif style == "material":
+                backdrop_canvas.create_text(
+                    cx,
+                    y_top + 11,
+                    text="🎨 روان",
+                    anchor="center",
+                    fill="#D0BCFF",
+                    font=get_ui_font(size=8, bold=True, rtl=True),
+                )
+            elif style == "compact":
+                backdrop_canvas.create_text(
+                    x_left + 14,
+                    y_top + 8,
+                    text="روان",
+                    anchor="w",
+                    fill="#8E8E96",
+                    font=get_ui_font(size=8, bold=True, rtl=True),
+                )
+            elif style == "minimal":
+                backdrop_canvas.create_text(
+                    cx,
+                    y_top + 10,
+                    text="⋯ روان ⋯",
+                    anchor="center",
+                    fill="#808088",
+                    font=get_ui_font(size=8, bold=True, rtl=True),
+                )
+            elif style == "macos":
+                backdrop_canvas.create_text(
+                    cx,
+                    y_top + 11,
+                    text="روان",
+                    anchor="center",
+                    fill="#94949E",
+                    font=get_ui_font(size=8, bold=True, rtl=True),
+                )
+
+            # ── 5 Candidate Rows (matching user's reference mockup) ──
+            candidates = [
+                ("سلام علیکم", "1", True, "[ادامه]"),
+                ("سلام", "2", False, ""),
+                ("سلسفیلا", "3", False, ""),
+                ("سلیس", "4", False, ""),
+                ("سلاح", "5", False, ""),
+            ]
+
+            r1_y = y_top + 38
+            if style == "compact":
+                r1_y = y_top + 30
+            elif style == "classic":
+                r1_y = y_top + 34
+
+            for idx, (cand_text, badge_num, is_sel, tag) in enumerate(candidates):
+                row_y = r1_y + idx * 26
+                if style == "compact":
+                    row_y = r1_y + idx * 25
+
+                # Colors per style
+                if is_sel:
+                    fg_c = "#00FF66" if style == "neon" else "#FFFFFF"
+                    b_fg = "#FF007F" if style == "neon" else ("#60CDFF" if style == "fluent" else "#FFFFFF")
+                else:
+                    if style == "neon":
+                        fg_c, b_fg = "#00FF66", "#FF007F"
+                    elif style == "classic":
+                        fg_c, b_fg = "#000000", "#000000"
+                    elif style == "fluent":
+                        fg_c, b_fg = "#E0E0E0", "#60CDFF"
+                    elif style == "modern":
+                        fg_c, b_fg = "#F3E8FF", "#C77DFF"
+                    elif style == "glass":
+                        fg_c, b_fg = "#FFFFFF", "#8FA6BC"
+                    elif style == "material":
+                        fg_c, b_fg = "#E6E1E5", "#CAC4D0"
+                    else:
+                        fg_c, b_fg = "#C4C4CF", "#8C8C96"
+
+                # Text
+                f_row = get_ui_font(size=10 if is_sel else 9, bold=is_sel, rtl=True)
+                backdrop_canvas.create_text(
+                    x_right - 20,
+                    row_y,
+                    text=cand_text,
+                    anchor="e",
+                    fill=fg_c,
+                    font=f_row,
+                )
+
+                # Badge
+                b_x = x_left + 18
+                backdrop_canvas.create_text(
+                    b_x,
+                    row_y,
+                    text=badge_num,
+                    anchor="center" if style in ("material", "minimal") else "w",
+                    fill=b_fg,
+                    font=get_ui_font(size=8, bold=is_sel),
+                )
+
+                # Tag or meter for row 1
+                if is_sel:
+                    m_col = "#00FF66" if style == "neon" else ("#60CDFF" if style == "fluent" else "#FFFFFF")
+                    backdrop_canvas.create_text(
+                        x_right - 78,
+                        row_y,
+                        text="████" if style == "neon" else "█",
+                        anchor="e",
+                        fill=m_col,
+                        font=get_ui_font(size=8),
+                    )
+                    if tag:
+                        tag_col = "#546E7A" if style == "neon" else ("#D4D0C8" if style == "classic" else "#A0C0E0")
+                        backdrop_canvas.create_text(
+                            x_right - 92,
+                            row_y,
+                            text=tag,
+                            anchor="e",
+                            fill=tag_col,
+                            font=get_ui_font(size=7, rtl=True),
+                        )
+
+            # ── Hint Bar / Status ──
+            if tokens.show_hint_bar and style != "compact":
+                if style == "neon":
+                    hint_mock = "[ESC: CLOSE  |  ENTER: ACCEPT  |  1-5: QUICK PICK]"
+                    hint_fg = "#FF007F"
                 elif style == "classic":
-                    grip_txt = "روان           — □ ✕"
-                elif style == "neon":
-                    grip_txt = "// RAVAAN HUD //"
+                    hint_mock = "بستن: Esc  ·  تأیید: Enter  ·  انتخاب: ۱-۵ سریع" if rtl_ui else "Esc: Close  ·  Enter: Accept  ·  1-5: Pick"
+                    hint_fg = "#505050"
                 elif style == "fluent":
-                    grip_txt = "⊞  روان"
+                    hint_mock = "بستن: Esc  ·  تأیید: Enter  ·  انتخاب: ۱-۵ سریع" if rtl_ui else "Esc: Close  ·  Enter: Accept  ·  1-5: Pick"
+                    hint_fg = "#60CDFF"
                 elif style == "modern":
-                    grip_txt = "✦  روان  ✦"
-                elif style == "minimal":
-                    grip_txt = "⋯ روان ⋯"
+                    hint_mock = "بستن: Esc  ·  تأیید: Enter  ·  انتخاب: ۱-۵ سریع" if rtl_ui else "Esc: Close  ·  Enter: Accept  ·  1-5: Pick"
+                    hint_fg = "#A894C4"
+                elif style == "glass":
+                    hint_mock = "بستن: Esc  ·  تأیید: Enter  ·  انتخاب: ۱-۵ سریع" if rtl_ui else "Esc: Close  ·  Enter: Accept  ·  1-5: Pick"
+                    hint_fg = "#8AB4D8"
                 else:
-                    grip_txt = "•• روان ••"
-                tk.Label(
-                    mock,
-                    text=grip_txt,
-                    bg=eff_card if tokens.acrylic else eff_bg,
-                    fg=palette.subtext,
-                    font=get_ui_font(size=max(8, f_sz - 4)),
-                    pady=1,
-                ).pack(fill="x")
+                    hint_mock = "بستن: Esc  ·  تأیید: Enter  ·  انتخاب: ۱-۵ سریع" if rtl_ui else "Esc: Close  ·  Enter: Accept  ·  1-5: Pick"
+                    hint_fg = "#787884"
 
-        # Mock candidate rows (showing RTL Persian + LTR English without BiDi reversal)
-        row_specs = [
-            ("1", "سلام", "", "█" if tokens.name != "neon" else "████", True, True),
-            ("2", "سلام علیکم", "[ادامه]", "▅" if tokens.name != "neon" else "███░", False, True),
-            ("3", "hello world", "", "▂" if tokens.name != "neon" else "█░░░", False, False),
-        ]
-
-        lead_side = "right" if rtl_ui else "left"
-
-        for i, (num, cand_text, tag, meter, selected, is_rtl_cand) in enumerate(row_specs):
-            if selected:
-                if tokens.selected_row_style == "bold_only":
-                    r_bg = eff_card if tokens.acrylic else eff_bg
-                    r_fg = palette.accent
-                    bold = True
-                elif tokens.name == "neon":
-                    r_bg = eff_selected
-                    r_fg = "#FFFFFF"
-                    bold = True
-                elif tokens.selected_row_style == "leading_bar":
-                    r_bg = eff_selected
-                    r_fg = palette.highlight_fg
-                    bold = True
-                else:
-                    r_bg = eff_selected
-                    r_fg = palette.highlight_fg
-                    bold = True
-            else:
-                r_bg = eff_card if tokens.acrylic else eff_bg
-                if tokens.name == "neon":
-                    r_fg = "#00FF66"
-                elif tokens.name == "classic":
-                    r_fg = "#000000"
-                else:
-                    r_fg = palette.subtext if "[ادامه]" in cand_text else palette.fg
-                bold = False
-
-            row_frame = tk.Frame(mock, bg=r_bg, padx=pad_x, pady=pad_y)
-            row_lead = "right" if is_rtl_cand else "left"
-            row_trail = "left" if is_rtl_cand else "right"
-
-            # 1. Accent bar (for styles that use leading accent line)
-            has_accent_bar = (
-                selected
-                and bool(tokens.accent_bar_color)
-                and tokens.selected_row_style in ("leading_bar", "neon")
-            )
-            if has_accent_bar:
-                bar_col = tokens.accent_bar_color or palette.accent
-                bar = tk.Frame(row_frame, width=3, bg=bar_col)
-                bar.pack(side=row_lead, fill="y", padx=(0, 4) if is_rtl_cand else (4, 0))
-
-            # 2. Number badge
-            if tokens.badge_style == "circle":
-                badge_str = ("❶", "❷", "❸")[i]
-            elif tokens.badge_style in ("cyan", "keycap"):
-                badge_str = f"[{num}]"
-            elif tokens.badge_style == "none":
-                badge_str = ""
-            else:
-                badge_str = num
-
-            if badge_str:
-                badge_fg = (
-                    "#FF007F"
-                    if tokens.name == "neon"
-                    else (palette.accent if selected and tokens.selected_row_style == "bold_only" else (palette.highlight_fg if selected else palette.subtext))
+                backdrop_canvas.create_text(
+                    cx,
+                    y_top + card_h - 10,
+                    text=hint_mock,
+                    anchor="center",
+                    fill=hint_fg,
+                    font=get_ui_font(size=7, rtl=rtl_ui),
                 )
-                b_lbl = tk.Label(
-                    row_frame,
-                    text=badge_str,
-                    bg=r_bg,
-                    fg=badge_fg,
-                    font=get_ui_font(size=max(8, f_sz - 2), bold=selected),
-                    bd=0,
-                    padx=0,
-                    pady=0,
-                )
-                b_lbl.pack(side=row_lead, padx=(2, 4) if is_rtl_cand else (4, 2))
 
-            # 3. Candidate text
-            t_lbl = tk.Label(
-                row_frame,
-                text=cand_text,
-                bg=r_bg,
-                fg=r_fg,
-                font=get_ui_font(size=f_sz, bold=bold, rtl=is_rtl_cand),
-                bd=0,
-                padx=0,
-                pady=0,
-            )
-            t_lbl.pack(side=row_lead)
-
-            # 4. Confidence meter
-            if meter and (tokens.confidence_meter_always or selected):
-                meter_fg = "#00FF66" if tokens.name == "neon" else (palette.highlight_fg if selected else palette.subtext)
-                m_lbl = tk.Label(
-                    row_frame,
-                    text=f" {meter}",
-                    bg=r_bg,
-                    fg=meter_fg,
-                    font=get_ui_font(size=max(8, f_sz - 3)),
-                    bd=0,
-                    padx=0,
-                    pady=0,
-                )
-                m_lbl.pack(side=row_trail, padx=(4, 2) if is_rtl_cand else (2, 4))
-
-            # 5. Meta tag (e.g. [ادامه])
-            if tag:
-                tag_fg = palette.subtext if not selected else (palette.highlight_fg if tokens.name != "neon" else "#546E7A")
-                tag_lbl = tk.Label(
-                    row_frame,
-                    text=f" {tag}",
-                    bg=r_bg,
-                    fg=tag_fg,
-                    font=get_ui_font(size=max(8, f_sz - 3), rtl=True),
-                    bd=0,
-                    padx=0,
-                    pady=0,
-                )
-                tag_lbl.pack(side=row_trail, padx=2)
-
-            # Pack row
-            if is_horizontal:
-                row_frame.pack(side=lead_side, padx=3, pady=2)
-                if tokens.show_separators and i < len(row_specs) - 1:
-                    tk.Frame(
-                        mock,
-                        width=1,
-                        height=18,
-                        bg=tokens.separator_color or palette.border,
-                    ).pack(side=lead_side, fill="y", padx=1, pady=3)
-            else:
-                row_frame.pack(fill="x")
-                if tokens.show_separators and i < len(row_specs) - 1:
-                    tk.Frame(
-                        mock,
-                        height=1,
-                        bg=tokens.separator_color or palette.border,
-                    ).pack(fill="x")
-
-        # Hint bar
-        if tokens.show_hint_bar and not is_horizontal:
-            hint_mock = (
-                "↑↓ انتخاب  ·  Enter تأیید  ·  Esc بستن"
-                if rtl_ui
-                else "↑↓ Select  ·  Tab/Enter Accept  ·  Esc Close"
-            )
-            tk.Label(
-                mock,
-                text=hint_mock,
-                bg=eff_card if tokens.acrylic else eff_bg,
-                fg=palette.subtext,
-                font=get_ui_font(size=max(8, f_sz - 3), rtl=rtl_ui),
-                padx=pad_x,
-                pady=2,
-            ).pack(fill="x")
+        backdrop_canvas.update_idletasks()
+        init_w = backdrop_canvas.winfo_width()
+        _draw_content(init_w if init_w > 50 else 320)
+        backdrop_canvas.bind("<Configure>", lambda e: _draw_content(e.width))
 
         # Bottom info pill banner
         info_bar = tk.Frame(preview, bg=palette.card_bg, padx=8, pady=3)
         info_bar.pack(fill="x", pady=(2, 0))
 
+        is_horizontal = tokens.layout == "horizontal"
         if rtl_ui:
             layout_txt = "افقی (رو‌به‌روی هم)" if is_horizontal else "عمودی (زیر هم)"
             custom_txt = " · رنگ‌های سفارشی" if use_custom else ""

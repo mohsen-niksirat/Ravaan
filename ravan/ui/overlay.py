@@ -66,6 +66,21 @@ class CandidateRow(tk.Frame):
                 row_fg = p.accent or p.highlight_fg
             elif tokens.name == "neon":
                 row_bg = p.highlight
+                row_fg = "#00FF66"
+            elif tokens.name == "classic":
+                row_bg = "#0A246A"
+                row_fg = "#FFFFFF"
+            elif tokens.name == "fluent":
+                row_bg = "#2D323A"
+                row_fg = "#FFFFFF"
+            elif tokens.name == "modern":
+                row_bg = "#8A2BE2"
+                row_fg = "#FFFFFF"
+            elif tokens.name == "glass":
+                row_bg = "#3B6E9C"
+                row_fg = "#FFFFFF"
+            elif tokens.name == "material":
+                row_bg = "#4A4458"
                 row_fg = "#FFFFFF"
             else:
                 row_bg = p.highlight
@@ -75,7 +90,16 @@ class CandidateRow(tk.Frame):
             row_fg = p.subtext
         else:
             row_bg = getattr(self.master, "_row_bg", p.bg)
-            row_fg = "#00FF66" if tokens.name == "neon" else p.fg
+            if tokens.name == "neon":
+                row_fg = "#00FF66"
+            elif tokens.name == "classic":
+                row_fg = "#000000"
+            elif tokens.name == "fluent":
+                row_fg = "#E0E0E0"
+            elif tokens.name == "modern":
+                row_fg = "#F3E8FF"
+            else:
+                row_fg = p.fg
 
         self._current_bg = row_bg
         super().config(bg=row_bg)
@@ -101,15 +125,20 @@ class CandidateRow(tk.Frame):
         else:
             badge_txt = str(index + 1)
 
-        badge_fg = (
-            "#FF007F"
-            if tokens.name == "neon"
-            else (
+        if tokens.name == "neon":
+            badge_fg = "#FF007F"
+        elif tokens.name == "classic":
+            badge_fg = "#FFFFFF" if selected else "#000000"
+        elif tokens.name == "fluent":
+            badge_fg = "#60CDFF" if selected else p.subtext
+        elif tokens.name == "modern":
+            badge_fg = "#E9D5FF" if selected else p.subtext
+        else:
+            badge_fg = (
                 p.accent
                 if selected and tokens.selected_row_style == "bold_only"
                 else (p.highlight_fg if selected else p.subtext)
             )
-        )
         f_badge = get_ui_font(size=max(8, f_sz - 2), bold=selected)
         self._badge.config(text=badge_txt, bg=row_bg, fg=badge_fg, font=f_badge)
 
@@ -346,6 +375,51 @@ class OverlayWindow:
                 pass
         self._row_bg = self.palette.card_bg if self._acrylic_active else bg
 
+        grip_bg = "#0A246A" if self._ui_style == "classic" else self._row_bg
+        grip_fg = (
+            "#FFFFFF"
+            if self._ui_style == "classic"
+            else (
+                "#4CC2FF"
+                if self._ui_style == "fluent"
+                else (
+                    "#FF007F"
+                    if self._ui_style == "neon"
+                    else (
+                        "#E9D5FF"
+                        if self._ui_style == "modern"
+                        else (
+                            "#8AB4D8"
+                            if self._ui_style == "glass"
+                            else (
+                                "#D0BCFF"
+                                if self._ui_style == "material"
+                                else self.palette.subtext
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        hint_bg = "#D4D0C8" if self._ui_style == "classic" else self._row_bg
+        hint_fg = (
+            "#404040"
+            if self._ui_style == "classic"
+            else (
+                "#FF007F"
+                if self._ui_style == "neon"
+                else (
+                    "#60CDFF"
+                    if self._ui_style == "fluent"
+                    else (
+                        "#A894C4"
+                        if self._ui_style == "modern"
+                        else self.palette.subtext
+                    )
+                )
+            )
+        )
+
         if hasattr(self, "_frame"):
             self._frame.config(
                 bg=bg,
@@ -356,8 +430,8 @@ class OverlayWindow:
             )
             if hasattr(self, "_grip"):
                 grip_text = self._get_grip_text(self._ui_style)
-                self._grip.config(text=grip_text, bg=self._row_bg, fg=self.palette.subtext)
-            self._hint.config(bg=self._row_bg, fg=self.palette.subtext)
+                self._grip.config(text=grip_text, bg=grip_bg, fg=grip_fg)
+            self._hint.config(bg=hint_bg, fg=hint_fg)
             self._lang_label.config(bg=self.palette.card_bg, fg=self.palette.accent)
         else:
             self._frame = tk.Frame(
@@ -375,8 +449,8 @@ class OverlayWindow:
             self._grip = tk.Label(
                 self._frame,
                 text=grip_text,
-                bg=self._row_bg,
-                fg=self.palette.subtext,
+                bg=grip_bg,
+                fg=grip_fg,
                 font=f_grip,
                 cursor="fleur",
                 padx=8,
@@ -390,8 +464,8 @@ class OverlayWindow:
             self._hint = tk.Label(
                 self._frame,
                 text=_HINT_TEXT,
-                bg=self._row_bg,
-                fg=self.palette.subtext,
+                bg=hint_bg,
+                fg=hint_fg,
                 font=f_hint,
                 justify="left",
                 padx=10,
@@ -907,10 +981,18 @@ class OverlayWindow:
                 self._grip.pack(side=pack_side, fill="y", padx=(2, 0))
             else:
                 grip_txt = self._get_grip_text(ui_style)
+                grip_bg = "#0A246A" if ui_style == "classic" else getattr(self, "_row_bg", p.bg)
+                grip_fg = "#FFFFFF" if ui_style == "classic" else (
+                    "#FF007F" if ui_style == "neon" else (
+                        "#60CDFF" if ui_style == "fluent" else (
+                            "#D8B4FE" if ui_style == "modern" else p.subtext
+                        )
+                    )
+                )
                 self._grip.config(
                     text=grip_txt,
-                    bg=getattr(self, "_row_bg", p.bg),
-                    fg=p.subtext,
+                    bg=grip_bg,
+                    fg=grip_fg,
                     padx=8,
                     pady=2,
                 )

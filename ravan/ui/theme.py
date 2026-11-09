@@ -575,8 +575,8 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
 
     if raw_name == "fluent":
         pal = get_fluent_palette(mode)
-        sep = "#3A3A3A" if is_dark else "#E8E8E8"
-        border_col = "#454545" if is_dark else "#E5E5E5"
+        sep = "#35373E" if is_dark else "#E8E8E8"
+        border_col = "#4CC2FF" if is_dark else "#0078D4"
         return PredictionStyleTokens(
             name="fluent",
             palette=pal,
@@ -587,12 +587,12 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
             separator_color=sep,
             badge_style="plain",
             selected_row_style="leading_bar",
-            accent_bar_color=pal.accent,
+            accent_bar_color="#4CC2FF",
             show_hint_bar=True,
             show_grip=True,
             text_align="w",
             confidence_meter_always=False,
-            border_width=1,
+            border_width=2 if is_dark else 1,
             border_color=border_col,
             border_relief="flat",
             alpha=pal.alpha,
@@ -713,8 +713,8 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
             show_grip=True,
             text_align="w",
             confidence_meter_always=False,
-            border_width=1,
-            border_color=pal.border,
+            border_width=2,
+            border_color="#8A2BE2",
             border_relief="flat",
             alpha=pal.alpha,
             acrylic=False,
@@ -761,8 +761,8 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
             show_grip=True,
             text_align="w",
             confidence_meter_always=False,
-            border_width=1,
-            border_color=pal.border,
+            border_width=2,
+            border_color="#8AB4D8",
             border_relief="flat",
             alpha=pal.alpha,
             acrylic=True,
@@ -786,8 +786,8 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
             text_align="w",
             confidence_meter_always=False,
             border_width=2,
-            border_color=pal.border,
-            border_relief="solid",
+            border_color="#808080",
+            border_relief="raised",
             alpha=1.0,
             acrylic=False,
         )
