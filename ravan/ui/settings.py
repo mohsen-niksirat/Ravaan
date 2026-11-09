@@ -480,6 +480,9 @@ class SettingsWindow:
         """Apply-on-change: live-update the suggestion box design (no disk write)."""
         if hasattr(self, "_prediction_ui_style_var"):
             self.cfg.prediction_ui_style = self._prediction_ui_style_var.get()
+        if hasattr(self, "_prediction_use_custom_colors_var"):
+            self._prediction_use_custom_colors_var.set(False)
+            self.cfg.prediction_use_custom_colors = False
         self._render_style_preview()
         if self.on_saved:
             self.on_saved(self.cfg)

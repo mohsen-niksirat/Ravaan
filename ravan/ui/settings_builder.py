@@ -601,7 +601,7 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
         (t("settings.preset_ocean", "🌊 اقیانوسی"), ("#0D1B2A", "#E0E1DD", "#00A8E8", "#1B263B", "#00A8E8")),
         (t("settings.preset_emerald", "🌲 زمردی"), ("#132A13", "#ECF39E", "#52B788", "#31572C", "#52B788")),
         (t("settings.preset_sunset", "🌅 غروب"), ("#240046", "#E0AAFF", "#9D4EDD", "#3C096C", "#C77DFF")),
-        (t("settings.preset_neon", "⚡ سایبر نئون"), ("#080811", "#F0F6FC", "#00F5D4", "#00F5D4", "#00F5D4")),
+        (t("settings.preset_neon", "⚡ سایبر نئون"), ("#080410", "#00FF66", "#FF007F", "#FF007F", "#2A0820")),
         (t("settings.preset_dark", "🌙 تاریک تمیز"), ("#1E1E2E", "#CDD6F4", "#89B4FA", "#313244", "#89B4FA")),
     ]
 
