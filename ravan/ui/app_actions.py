@@ -19,7 +19,7 @@ class AppActionsMixin:
     """Mixin containing user action implementations for RavanApp."""
 
     def _convert_selection_or_last_word(self: Any) -> None:
-        """Convert selected text if any exists; otherwise convert the last typed word(s)."""
+        """Convert selected text if any exists; otherwise convert the last typed sentence or word(s)."""
         from ravan.platform.clipboard import try_convert_selection
 
         self._suppress_until = time.monotonic() + 0.03
@@ -27,9 +27,24 @@ class AppActionsMixin:
             log.info("Converted selected text layout")
             self._f12_last_converted = None
             self._f12_repeat_count = 0
+            from ravan.core.layout import is_persian_or_arabic
+            from ravan.platform.clipboard import get_clipboard_text
+
+            clip_now = get_clipboard_text() or ""
+            if any(is_persian_or_arabic(c) for c in clip_now):
+                self._maybe_switch_keyboard_layout("fa")
+            elif any("a" <= c.lower() <= "z" for c in clip_now):
+                self._maybe_switch_keyboard_layout("en")
             return
 
         now = time.monotonic()
+        convert_scope = getattr(self.cfg, "convert_scope", "sentence")
+
+        if convert_scope == "sentence":
+            self._convert_last_sentence()
+            return
+
+        # Word-by-word expansion mode
         if (
             hasattr(self, "_f12_last_converted")
             and self._f12_last_converted is not None
@@ -48,6 +63,70 @@ class AppActionsMixin:
 
         self._last_f12_time = time.monotonic()
         self._convert_last_n_words(self._f12_repeat_count)
+
+    def _convert_last_sentence(self: Any) -> None:
+        """Convert the last typed sentence/phrase in the active line with instant toggle-back."""
+        now = time.monotonic()
+        # Toggle back (instant undo / redo) if pressed repeatedly within 2.0 seconds
+        if (
+            hasattr(self, "_f12_last_converted")
+            and self._f12_last_converted is not None
+            and now - getattr(self, "_last_f12_time", 0.0) < 2.0
+        ):
+            prev_conv_len, prev_orig_text = self._f12_last_converted
+            self._suppress_until = now + 0.03
+            replace_last_n_with(prev_conv_len, prev_orig_text)
+            self.journal.pop_last_n_chars(prev_conv_len)
+            for ch in prev_orig_text:
+                self.journal.push(ch)
+            self._last_f12_time = now
+            from ravan.core.layout import is_persian_or_arabic
+
+            target_lang = "fa" if any(is_persian_or_arabic(c) for c in prev_orig_text) else "en"
+            self._maybe_switch_keyboard_layout(target_lang)
+            self._f12_last_converted = None
+            log.info("Toggled last sentence back to: %r", prev_orig_text)
+            return
+
+        span_text, span_len = (
+            self.journal.last_sentence_span()
+            if hasattr(self.journal, "last_sentence_span")
+            else self.journal.last_n_words_span(1)
+        )
+        if not span_text or span_len <= 0:
+            self._f12_last_converted = None
+            return
+
+        converted = self.mapper.convert_text(span_text)
+        if not converted or converted == span_text:
+            log.info("No conversion for sentence %r", span_text)
+            self._f12_last_converted = None
+            return
+
+        log.info("Convert sentence: %r → %r", span_text, converted)
+        self._suppress_until = time.monotonic() + 0.03
+        replace_last_n_with(span_len, converted)
+        self.journal.pop_last_n_chars(span_len)
+        for ch in converted:
+            self.journal.push(ch)
+        self._f12_last_converted = (len(converted), span_text)
+        self._last_f12_time = now
+
+        # Switch keyboard layout to match converted text
+        from ravan.core.layout import is_persian_or_arabic
+
+        target_lang = "fa" if any(is_persian_or_arabic(c) for c in converted) else "en"
+        self._maybe_switch_keyboard_layout(target_lang)
+
+    def _maybe_switch_keyboard_layout(self: Any, lang_tag: str) -> bool:
+        """Switch active Windows keyboard layout to 'fa' or 'en'."""
+        try:
+            from ravan.platform.lang import switch_to_language
+
+            return switch_to_language(lang_tag)
+        except Exception:
+            log.debug("Failed switching keyboard layout to %s", lang_tag, exc_info=True)
+            return False
 
     def _convert_last_word(self: Any) -> None:
         self._convert_last_n_words(1)
@@ -72,6 +151,12 @@ class AppActionsMixin:
         for ch in converted:
             self.journal.push(ch)
         self._f12_last_converted = (len(converted), span_text)
+
+        # Switch keyboard layout to match converted text
+        from ravan.core.layout import is_persian_or_arabic
+
+        target_lang = "fa" if any(is_persian_or_arabic(c) for c in converted) else "en"
+        self._maybe_switch_keyboard_layout(target_lang)
 
     def _normalize_selection_or_last_word(self: Any) -> None:
         """Normalize Persian text in selection or the last typed word."""
@@ -396,7 +481,10 @@ class AppActionsMixin:
     def _auto_disable_power_mode(self: Any) -> None:
         """Callback when Power Mode duration timer expires."""
         if getattr(self, "power_mode_active", False):
-            self.toggle_power_mode()
+            if hasattr(self, "_ui_queue") and self._ui_queue is not None:
+                self._ui_queue.put(("toggle_power_mode", None))
+            else:
+                self.toggle_power_mode()
 
     def start_macro_recording(self: Any) -> None:
         """Start recording user keystrokes for a macro snippet."""

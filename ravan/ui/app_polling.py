@@ -203,6 +203,20 @@ class AppPollingMixin:
         self._last_key_time = time.monotonic()
         self._pending_predict = True
 
+    def _effective_swallow_arrow(self: Any) -> str | None:
+        """Compute which horizontal arrow key(s) WH_KEYBOARD_LL should swallow while popup is visible."""
+        if getattr(self.cfg, "prediction_layout", "vertical") == "horizontal":
+            return "both"
+        arrow_cfg = getattr(self.cfg, "suggestion_accept_arrow", "right")
+        if arrow_cfg == "none":
+            return None
+        if arrow_cfg == "left":
+            return "left"
+        if arrow_cfg in ("auto", "auto_rtl"):
+            lang = current_language()
+            return "left" if (lang and lang.is_persian) else "right"
+        return "right"
+
     def _maybe_predict(self: Any) -> None:
         if not self._pending_predict or not self.cfg.prediction_enabled:
             return
@@ -238,7 +252,12 @@ class AppPollingMixin:
         )
 
         if len(prefix) < self.cfg.min_prefix_len:
-            if self.cfg.next_word_prediction and context_word and prefix == "":
+            if (
+                self.cfg.next_word_prediction
+                and context_word
+                and prefix == ""
+                and not getattr(self, "_last_key_was_backspace", False)
+            ):
                 cands = self.predictor.predict(
                     "", context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
                 )
@@ -255,6 +274,7 @@ class AppPollingMixin:
                     set_popup_visible(
                         True,
                         swallow_digits=self.cfg.quickpick_digits,
+                        swallow_arrow=self._effective_swallow_arrow(),
                         swallow_enter=swallow_enter,
                     )
                     self._popup_shown_at = time.monotonic()
@@ -273,7 +293,7 @@ class AppPollingMixin:
             prefix, context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
         )
         if not cands:
-            if self.overlay.predicting:
+            if self.overlay.predicting and not getattr(self, "_last_key_was_backspace", False):
                 # Sticky popup: keep the current suggestion box visible until the
                 # next keystroke refreshes it, a word completes, or the timeout
                 # fires — a mid-word candidate gap must not flicker it away.
@@ -294,6 +314,7 @@ class AppPollingMixin:
         set_popup_visible(
             True,
             swallow_digits=self.cfg.quickpick_digits,
+            swallow_arrow=self._effective_swallow_arrow(),
             swallow_enter=swallow_enter,
         )
         self._popup_shown_at = time.monotonic()
@@ -347,9 +368,14 @@ class AppPollingMixin:
         self._pending_sync_queued = False
         self._last_sync_attempt = now
 
+        from ravan.core.sync import snippet_to_dict
+
+        local_snips = [snippet_to_dict(s) for s in list(self.cfg.snippets)]
+
         def _bg_worker() -> None:
-            from ravan.core.config import Snippet, save_config
+            from ravan.core.config import save_config
             from ravan.core.sync import (
+                dict_to_snippet,
                 merge_dictionaries,
                 merge_snippets,
                 pull_sync,
@@ -359,10 +385,6 @@ class AppPollingMixin:
 
             try:
                 local_words = load_user_words()
-                local_snips = [
-                    {"trigger": s.trigger, "replacement": s.replacement, "enabled": s.enabled}
-                    for s in self.cfg.snippets
-                ]
                 res = pull_sync(self.cfg, current_words=local_words, current_snippets=local_snips)
                 if not res.get("ok"):
                     log.warning(
@@ -384,18 +406,22 @@ class AppPollingMixin:
                 if push_res.get("ok"):
                     self._sync_backoff_delay = 0.0
                     save_user_words(merged_words)
-                    self.cfg.snippets = [
-                        Snippet(
-                            trigger=str(s["trigger"]),
-                            replacement=str(s["replacement"]),
-                            enabled=bool(s.get("enabled", True)),
-                        )
+                    new_snippets = [
+                        dict_to_snippet(s)
                         for s in merged_snips
-                        if isinstance(s, dict) and s.get("trigger")
+                        if isinstance(s, dict) and str(s.get("trigger", "")).strip()
                     ]
-                    self.cfg.last_sync_time = push_res.get("timestamp", "")
-                    save_config(self.cfg)
-                    log.info("Background sync succeeded at %s", self.cfg.last_sync_time)
+                    ts = push_res.get("timestamp", "")
+                    if hasattr(self, "_ui_queue") and self._ui_queue is not None:
+                        self._ui_queue.put(("apply_bg_sync", (new_snippets, ts)))
+                    else:
+                        from ravan.core.snippet import SnippetEngine
+
+                        self.cfg.snippets = new_snippets
+                        self.cfg.last_sync_time = ts
+                        self.snippets = SnippetEngine.from_config(self.cfg)
+                        save_config(self.cfg)
+                    log.info("Background sync succeeded at %s", ts)
                 else:
                     log.warning("Background sync push failed: %s", push_res.get("error"))
                     self._sync_backoff_delay = min(
@@ -413,17 +439,42 @@ class AppPollingMixin:
         threading.Thread(target=_bg_worker, name="ravan-bg-sync", daemon=True).start()
 
     def _poll_mouse_click(self: Any) -> None:
-        """Detect mouse click in an input area and show language indicator before typing."""
+        """Detect mouse click in an input area and show language indicator before typing.
+
+        Protects laptop touchpad and mouse double-clicks: if a second tap/click arrives
+        within the double-click threshold (~220ms), any pending single-click indicator is
+        aborted immediately so double-clicks and double-taps remain 100% responsive and
+        never interrupted by window creation or input inspection.
+        """
         if not getattr(self.cfg, "show_lang_on_click", True):
+            self._pending_click_time = None
             return
 
-        is_down = bool(w.user32.GetAsyncKeyState(0x01) & 0x8000)  # VK_LBUTTON
         now = time.monotonic()
+
+        # Check if a pending single-click has settled (no second click arrived)
+        pending_time = getattr(self, "_pending_click_time", None)
+        if pending_time is not None:
+            # 220ms debounce: provides an immediate window for touchpad double-taps
+            # (which occur within 80-200ms) to cancel without interference, while
+            # remaining instantaneous to human perception when starting to type.
+            if now - pending_time >= 0.22:
+                self._pending_click_time = None
+                self._dispatch_mouse_click_indicator()
+
+        is_down = bool(w.user32.GetAsyncKeyState(0x01) & 0x8000)  # VK_LBUTTON
         last_down = getattr(self, "_mouse_left_down", False)
 
         if is_down and not last_down:
             self._mouse_left_down = True
             self._mouse_down_time = now
+
+            # If a single-click was pending, a second tap/click has started -> DOUBLE-CLICK!
+            if getattr(self, "_pending_click_time", None) is not None:
+                self._pending_click_time = None
+                self._last_double_click_time = now
+                return
+
             try:
                 from ravan.platform.caret import _cursor_position
 
@@ -434,9 +485,14 @@ class AppPollingMixin:
 
         if not is_down and last_down:
             self._mouse_left_down = False
+
+            # If this release is the tail end of a double-click, ignore it completely
+            if now - getattr(self, "_last_double_click_time", 0.0) < 0.45:
+                return
+
             down_time = getattr(self, "_mouse_down_time", 0.0)
             elapsed = now - down_time
-            if elapsed > 0.45:
+            if elapsed > 0.45:  # Held down too long (drag or long press)
                 return
 
             down_pos = getattr(self, "_mouse_down_pos", None)
@@ -447,7 +503,7 @@ class AppPollingMixin:
                     cur = _cursor_position()
                     dx = abs(cur.x - down_pos.x)
                     dy = abs(cur.y - down_pos.y)
-                    if dx > 15 or dy > 15:
+                    if dx > 15 or dy > 15:  # Dragged
                         return
                 except Exception:
                     pass
@@ -459,9 +515,27 @@ class AppPollingMixin:
             if self._is_excluded() or self._is_foreground_self():
                 return
 
-            if self.overlay.predicting:
-                self.overlay.hide()
-                set_popup_visible(False)
+            # Schedule single-click verification to ensure it's not the first tap of a double-tap
+            self._pending_click_time = now
 
-            self._last_mouse_lang_shown = now
-            self._show_lang_indicator(use_mouse_pos=True)
+    def _dispatch_mouse_click_indicator(self: Any) -> None:
+        """Fires the language indicator after confirming a single click in an active text field."""
+        if self._is_excluded() or self._is_foreground_self():
+            return
+
+        from ravan.platform.caret import is_text_caret_active
+
+        if not is_text_caret_active():
+            return
+
+        self._pending_predict = False
+        if hasattr(self, "journal"):
+            self.journal.clear()
+        self._last_autocorrect = None
+
+        if self.overlay.visible or self.overlay.predicting:
+            self.overlay.hide()
+            set_popup_visible(False)
+
+        self._last_mouse_lang_shown = time.monotonic()
+        self._show_lang_indicator(use_mouse_pos=True)

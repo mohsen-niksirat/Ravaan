@@ -276,3 +276,210 @@ def test_overlay_clamping_and_sentence_rendering():
             assert "[ادامه]" in text
     finally:
         overlay.destroy()
+
+
+def test_new_prediction_styles_resolve_different_palettes():
+    """Verify all new styles resolve to visually distinct palettes and tokens."""
+    from ravan.ui.theme import get_prediction_style
+
+    new_styles = ["fluent", "material", "ios", "minimal", "neon"]
+
+    for mode in ("dark", "light"):
+        tokens_list = [get_prediction_style(st, mode=mode) for st in new_styles]
+
+        # 1. Names match
+        for st, tok in zip(new_styles, tokens_list, strict=True):
+            assert tok.name == st
+
+        # 2. Palettes are distinct across styles
+        palettes = [tok.palette for tok in tokens_list]
+        bg_colors = [p.bg for p in palettes]
+        card_colors = [p.card_bg for p in palettes]
+
+        # Each style has a distinct combination of bg + card_bg
+        bg_card_pairs = list(zip(bg_colors, card_colors, strict=True))
+        assert len(set(bg_card_pairs)) == len(new_styles), f"Duplicate palette in mode {mode}"
+
+        # 3. Tokens differ across styles (radius, padding, separators, badges)
+        radii = {tok.name: tok.corner_radius for tok in tokens_list}
+        assert radii["material"] == 20.0
+        assert radii["minimal"] == 4.0
+        assert radii["fluent"] == 8.0
+
+        # Neon confidence meter always visible
+        neon_tok = next(t for t in tokens_list if t.name == "neon")
+        assert neon_tok.confidence_meter_always is True
+        assert neon_tok.border_color in ("#00E5FF", "#FF007F")
+
+        # Material pill badge style
+        mat_tok = next(t for t in tokens_list if t.name == "material")
+        assert mat_tok.badge_style == "circle"
+        assert mat_tok.selected_row_style == "pill"
+
+        # iOS MacBook squircle, acrylic, pill selection, circular badges
+        ios_tok = next(t for t in tokens_list if t.name == "ios")
+        assert ios_tok.corner_radius == 16.0
+        assert ios_tok.acrylic is True
+        assert ios_tok.selected_row_style == "pill"
+        assert ios_tok.badge_style == "circle"
+        assert ios_tok.show_hint_bar is True
+
+
+def test_overlay_renders_all_styles_without_raising():
+    """Verify OverlayWindow applies and renders all 10 styles without raising exceptions."""
+    import tkinter as tk
+
+    import pytest
+
+    from ravan.ui.overlay import OverlayWindow
+
+    try:
+        cfg = Config()
+        overlay = OverlayWindow(cfg=cfg)
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
+
+    try:
+        styles = [
+            "macos", "modern", "compact", "glass", "classic",
+            "fluent", "material", "ios", "minimal", "neon"
+        ]
+        cands = [
+            Candidate(text="سلام", score=100.0, kind=CandidateKind.COMPLETION),
+            Candidate(text="سلام وقت بخیر", score=80.0, kind=CandidateKind.SENTENCE),
+            Candidate(text="english", score=60.0, kind=CandidateKind.COMPLETION),
+        ]
+
+        with patch("ravan.platform.winapi.get_monitor_work_area", return_value=(0, 0, 1920, 1080)):
+            for st in styles:
+                cfg.prediction_ui_style = st
+                overlay.apply_config(cfg)
+                assert overlay._ui_style == st
+                overlay.show_predictions(cands, x=200, y=200, height=20)
+                assert overlay.predicting
+                assert len(overlay._rows) >= len(cands)
+                # Verify row texts generated without error for both RTL and LTR
+                r0 = overlay._row_text(0, cands[0], selected=True)
+                r1 = overlay._row_text(1, cands[1], selected=False)
+                r2 = overlay._row_text(2, cands[2], selected=False)
+                assert len(r0) > 0 and len(r1) > 0 and len(r2) > 0
+                assert "سلام" in r0
+                assert "[ادامه]" in r1
+                assert "english" in r2
+    finally:
+        overlay.destroy()
+
+
+def test_invalid_style_falls_back_to_macos():
+    """Verify unknown style name gracefully resolves to macos design tokens."""
+    from ravan.ui.theme import get_prediction_style
+
+    tok = get_prediction_style("non_existent_fancy_style", mode="dark")
+    assert tok.name == "macos"
+    assert tok.corner_radius == 12.0
+    assert tok.acrylic is True
+
+
+def test_prediction_style_custom_colors_and_layout():
+    """Verify get_prediction_style respects custom color schemes and horizontal layout adjustments."""
+    from ravan.ui.theme import get_prediction_style
+
+    # Test layout=horizontal modifies tokens
+    tok_horiz = get_prediction_style("macos", mode="dark", layout="horizontal")
+    assert tok_horiz.layout == "horizontal"
+    assert tok_horiz.row_padding_y == 5
+    assert tok_horiz.row_padding_x == 14
+    assert tok_horiz.show_separators is True
+
+    # Test custom colors override palette and border
+    custom = {
+        "bg": "#123456",
+        "fg": "#ABCDEF",
+        "highlight": "#FF007F",
+        "border": "#778899",
+        "accent": "#00FFCC",
+    }
+    tok_custom = get_prediction_style("ios", mode="dark", custom_colors=custom)
+    assert tok_custom.palette.bg == "#123456"
+    assert tok_custom.palette.fg == "#ABCDEF"
+    assert tok_custom.palette.highlight == "#FF007F"
+    assert tok_custom.palette.accent == "#00FFCC"
+    assert tok_custom.border_color == "#778899"
+    # Preserves style geometry
+    assert tok_custom.corner_radius == 16.0
+    assert tok_custom.badge_style == "circle"
+
+
+def test_overlay_horizontal_mode_and_custom_colors():
+    """Verify OverlayWindow renders properly in horizontal ribbon mode with custom colors."""
+    import tkinter as tk
+
+    import pytest
+
+    from ravan.ui.overlay import OverlayWindow
+
+    try:
+        cfg = Config()
+        cfg.prediction_layout = "horizontal"
+        cfg.prediction_use_custom_colors = True
+        cfg.prediction_custom_bg = "#112233"
+        cfg.prediction_custom_fg = "#EAEAEA"
+        cfg.prediction_custom_highlight = "#00CC88"
+        overlay = OverlayWindow(cfg=cfg)
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
+
+    try:
+        cands = [
+            Candidate(text="سلام", score=100.0, kind=CandidateKind.COMPLETION),
+            Candidate(text="علیکم", score=90.0, kind=CandidateKind.COMPLETION),
+            Candidate(text="hello", score=80.0, kind=CandidateKind.COMPLETION),
+        ]
+        with patch("ravan.platform.winapi.get_monitor_work_area", return_value=(0, 0, 1920, 1080)):
+            overlay.show_predictions(cands, x=300, y=300, height=20)
+            assert overlay.predicting
+            assert overlay._is_horizontal is True
+            assert len(overlay._rows) == 3
+            # In horizontal ribbon mode, rows are packed horizontally side-by-side
+            # Navigation works with step +1 / -1
+            overlay.move_selection(1)
+            assert overlay._selected == 1
+            overlay.move_selection(-1)
+            assert overlay._selected == 0
+    finally:
+        overlay.destroy()
+
+
+def test_settings_render_style_preview_all_styles():
+    """Verify SettingsWindow._render_style_preview renders all styles cleanly without raising."""
+    import tkinter as tk
+
+    import pytest
+
+    from ravan.ui.settings import SettingsWindow
+
+    try:
+        cfg = Config()
+        win = SettingsWindow(cfg=cfg)
+    except (tk.TclError, Exception) as exc:
+        pytest.skip(f"Tkinter display not available: {exc}")
+
+    try:
+        styles = [
+            "macos", "modern", "compact", "glass", "classic",
+            "fluent", "material", "ios", "minimal", "neon"
+        ]
+        win.show()
+        win.tick()
+        assert hasattr(win, "_prediction_ui_style_var")
+        for st in styles:
+            win._prediction_ui_style_var.set(st)
+            win._render_style_preview()
+            preview = win._style_preview
+            # Verify container and children were rendered cleanly
+            children = preview.winfo_children()
+            assert len(children) >= 2  # Container + info_bar
+    finally:
+        win._close()
+
+

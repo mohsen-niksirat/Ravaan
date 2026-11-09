@@ -29,6 +29,7 @@ class KeyHandlerMixin:
             event = self.hook.poll()
             if event is None:
                 break
+            self._pending_click_time = None
             if not event.is_key_down:
                 if hasattr(self, "_on_key_up"):
                     self._on_key_up(event)
@@ -124,17 +125,37 @@ class KeyHandlerMixin:
 
         # ── Prediction popup navigation ──
         elif self.overlay.predicting:
+            is_horizontal = getattr(self.cfg, "prediction_layout", "vertical") == "horizontal"
             if vk == w.VK_ESCAPE:
                 self.overlay.hide()
                 set_popup_visible(False)
                 log.info("Prediction popup dismissed by Esc")
                 return
-            if vk == w.VK_UP:
-                self.overlay.move_selection(-1)
-                return
-            if vk == w.VK_DOWN:
-                self.overlay.move_selection(1)
-                return
+            if is_horizontal:
+                # In horizontal mode: Left/Right moves between columns; Up/Down accepts the selected word!
+                if vk in (w.VK_LEFT, w.VK_RIGHT):
+                    cands = getattr(self.overlay, "_candidates", [])
+                    if cands:
+                        is_rtl = any(ord(ch) > 127 for cand in cands for ch in cand.text[:2])
+                    else:
+                        lang = current_language()
+                        is_rtl = bool(lang and lang.is_persian)
+                    step = -1 if (vk == w.VK_RIGHT if is_rtl else vk == w.VK_LEFT) else 1
+                    self.overlay.move_selection(step)
+                    return
+                if vk in (w.VK_UP, w.VK_DOWN):
+                    cand = self.overlay.accept_selected()
+                    if cand:
+                        self._accept_candidate(cand)
+                    set_popup_visible(False)
+                    return
+            else:
+                if vk == w.VK_UP:
+                    self.overlay.move_selection(-1)
+                    return
+                if vk == w.VK_DOWN:
+                    self.overlay.move_selection(1)
+                    return
             if vk in (w.VK_RETURN, w.VK_TAB):
                 if vk == w.VK_RETURN:
                     if not getattr(self.cfg, "suggestion_accept_enter", False) or _is_shift_pressed():
@@ -153,23 +174,24 @@ class KeyHandlerMixin:
                     self._accept_candidate(cand)
                 set_popup_visible(False)
                 return
-            arrow_cfg = getattr(self.cfg, "suggestion_accept_arrow", "right")
-            if arrow_cfg != "none":
-                is_rtl = False
-                if arrow_cfg in ("auto", "auto_rtl"):
-                    lang = current_language()
-                    is_rtl = bool(lang and lang.is_persian)
-                accept_vk = (
-                    w.VK_LEFT
-                    if (arrow_cfg == "left" or (arrow_cfg in ("auto", "auto_rtl") and is_rtl))
-                    else w.VK_RIGHT
-                )
-                if vk == accept_vk:
-                    cand = self.overlay.accept_selected()
-                    if cand:
-                        self._accept_candidate(cand)
-                    set_popup_visible(False)
-                    return
+            if not is_horizontal:
+                arrow_cfg = getattr(self.cfg, "suggestion_accept_arrow", "right")
+                if arrow_cfg != "none":
+                    is_rtl = False
+                    if arrow_cfg in ("auto", "auto_rtl"):
+                        lang = current_language()
+                        is_rtl = bool(lang and lang.is_persian)
+                    accept_vk = (
+                        w.VK_LEFT
+                        if (arrow_cfg == "left" or (arrow_cfg in ("auto", "auto_rtl") and is_rtl))
+                        else w.VK_RIGHT
+                    )
+                    if vk == accept_vk:
+                        cand = self.overlay.accept_selected()
+                        if cand:
+                            self._accept_candidate(cand)
+                        set_popup_visible(False)
+                        return
             if self.cfg.quickpick_digits and ord("1") <= vk <= ord("5"):
                 cand = self.overlay.accept_index(vk - ord("1"))
                 if cand:
@@ -240,7 +262,69 @@ class KeyHandlerMixin:
         if is_modifier(vk):
             return
 
+        from ravan.platform.keys import modifiers_down
+
+        is_ctrl = modifiers_down(["ctrl"], exact=False)
+        is_alt = modifiers_down(["alt"], exact=False)
+        is_shift = _is_shift_pressed()
+
+        # Handle Ctrl-based shortcuts and clipboard operations (Copy, Cut, Paste, Select All)
+        if is_ctrl and not is_alt:
+            # Dismiss any active prediction overlay for application-level Ctrl shortcuts
+            if self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
+            self._pending_predict = False
+
+            if vk == ord("A"):
+                # Ctrl+A (Select All)
+                self._select_all_pending = True
+                return
+
+            if vk in (ord("V"), ord("X")):
+                # Ctrl+V (Paste) or Ctrl+X (Cut)
+                # Invalidate linear journal because external text was pasted or selection was cut
+                self._select_all_pending = False
+                self._last_autocorrect = None
+                self.journal.clear()
+                return
+
+            if vk == ord("C"):
+                # Ctrl+C (Copy)
+                self._select_all_pending = False
+                return
+
+            # All other Ctrl shortcuts (Ctrl+Z, Ctrl+S, Ctrl+F, etc.)
+            self._select_all_pending = False
+            if vk in (ord("Z"), ord("Y")):
+                self._last_autocorrect = None
+                self.journal.clear()
+            return
+
+        # Handle Shift+Insert (Standard Windows Paste shortcut)
+        if vk == w.VK_INSERT and is_shift and not is_ctrl and not is_alt:
+            if self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
+            self._pending_predict = False
+            self._select_all_pending = False
+            self._last_autocorrect = None
+            self.journal.clear()
+            return
+
+        # Caret movement / Forward Delete keys invalidate the linear journal buffer
+        if vk in (w.VK_DELETE, w.VK_HOME, w.VK_END, w.VK_PRIOR, w.VK_NEXT, w.VK_LEFT, w.VK_RIGHT, w.VK_UP, w.VK_DOWN):
+            self._select_all_pending = False
+            self._last_autocorrect = None
+            self.journal.clear()
+            self._pending_predict = False
+            if self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
+            return
+
         if vk == w.VK_ESCAPE:
+            self._select_all_pending = False
             if self._last_autocorrect is not None:
                 orig, corrected, t_done, delim = self._last_autocorrect
                 if time.monotonic() - t_done < 4.0 and self._undo_last_autocorrect():
@@ -249,22 +333,46 @@ class KeyHandlerMixin:
             return
 
         if vk == w.VK_BACK:
-            if hasattr(self, "_undo_last_correction_from_backspace"):
-                if self._undo_last_correction_from_backspace():
-                    return
-            if self._last_autocorrect is not None:
-                orig, corrected, t_done, delim = self._last_autocorrect
-                if time.monotonic() - t_done < 4.0 and self._undo_last_autocorrect():
-                    return
-            self._last_autocorrect = None
-            self.journal.push("\b")
-            # If buffer becomes empty after backspace, immediately dismiss any active popup
-            if not self.journal.last_word():
+            self._last_key_was_backspace = True
+            if getattr(self, "_select_all_pending", False):
+                self._select_all_pending = False
+                self._last_autocorrect = None
+                self.journal.clear()
+                self._pending_predict = False
                 if self.overlay.visible:
                     self.overlay.hide()
                     set_popup_visible(False)
+                return
+            if modifiers_down(["ctrl"], exact=False):
+                self._last_autocorrect = None
+                self.journal.pop_last_word_info(allow_trailing_spaces=True)
+            else:
+                if hasattr(self, "_undo_last_correction_from_backspace"):
+                    if self._undo_last_correction_from_backspace():
+                        return
+                if self._last_autocorrect is not None:
+                    orig, corrected, t_done, delim = self._last_autocorrect
+                    if time.monotonic() - t_done < 4.0 and self._undo_last_autocorrect():
+                        return
+                self._last_autocorrect = None
+                self.journal.push("\b")
+            # Check remaining prefix of the current word after backspace:
+            # If the word is now empty or shorter than min_prefix_len, immediately hide popup
+            # and DO NOT trigger next-word prediction on Backspace!
+            rem_word = self.journal.last_word()
+            if len(rem_word) < self.cfg.min_prefix_len:
+                self._pending_predict = False
+                if self.overlay.visible:
+                    self.overlay.hide()
+                    set_popup_visible(False)
+                return
             self._schedule_predict()
             return
+
+        self._last_key_was_backspace = False
+        if getattr(self, "_select_all_pending", False):
+            self._select_all_pending = False
+            self.journal.clear()
 
         if vk == w.VK_RETURN:
             self._last_autocorrect = None

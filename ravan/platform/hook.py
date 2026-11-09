@@ -238,10 +238,10 @@ class KeyboardHook:
                 if vk in _NAV_VKS or (swallow_digits_snap and vk in _DIGIT_VKS):
                     self._emit(event)
                     return 1  # swallow — target app must not see these
-                if swallow_arrow_snap == "right" and vk == w.VK_RIGHT:
+                if swallow_arrow_snap in ("right", "both") and vk == w.VK_RIGHT:
                     self._emit(event)
                     return 1
-                if swallow_arrow_snap == "left" and vk == w.VK_LEFT:
+                if swallow_arrow_snap in ("left", "both") and vk == w.VK_LEFT:
                     self._emit(event)
                     return 1
 

@@ -29,8 +29,16 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._startup_var.set(d.launch_at_startup)
         if hasattr(win, "_sound_var"):
             win._sound_var.set(d.sound_feedback_enabled)
+        if hasattr(win, "_cliphist_var"):
+            win._cliphist_var.set(d.clipboard_history_enabled)
         if hasattr(win, "_calc_var"):
             win._calc_var.set(d.inline_calc_enabled)
+        if hasattr(win, "_zwnj_var"):
+            win._zwnj_var.set(d.auto_zwnj_enabled)
+        if hasattr(win, "_shift_space_var"):
+            win._shift_space_var.set(d.shift_space_zwnj)
+        if hasattr(win, "_punct_spacing_var"):
+            win._punct_spacing_var.set(d.fix_punctuation_spacing)
         if hasattr(win, "_hints_var"):
             win._hints_var.set(d.enable_feature_hints)
         if hasattr(win, "_theme_mode_var"):
@@ -39,9 +47,21 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._translit_var.set(d.translit_enabled)
         if hasattr(win, "_show_lang_on_click_var"):
             win._show_lang_on_click_var.set(d.show_lang_on_click)
+        if hasattr(win, "_lang_placement_var"):
+            placement_map = getattr(win, "_lang_placement_map", {})
+            code_to_label = {v: k for k, v in placement_map.items()}
+            default_lbl = code_to_label.get(d.lang_indicator_placement)
+            if default_lbl:
+                win._lang_placement_var.set(default_lbl)
+            if hasattr(win, "cfg") and callable(getattr(win, "on_lang_placement_changed", None)):
+                win.on_lang_placement_changed()
     elif tab_name == "prediction":
         if hasattr(win, "_prediction_var"):
             win._prediction_var.set(d.prediction_enabled)
+        if hasattr(win, "_learning_enabled_var"):
+            win._learning_enabled_var.set(d.learning_enabled)
+        if hasattr(win, "_prediction_auto_space_var"):
+            win._prediction_auto_space_var.set(d.prediction_auto_space)
         if hasattr(win, "_suggestion_accept_enter_var"):
             win._suggestion_accept_enter_var.set(d.suggestion_accept_enter)
         if hasattr(win, "_autocorrect_var"):
@@ -50,12 +70,38 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._autocorrect_mode_var.set(d.autocorrect_mode)
         if hasattr(win, "_digits_var"):
             win._digits_var.set(d.quickpick_digits)
-        if hasattr(win, "_zwnj_var"):
-            win._zwnj_var.set(d.auto_zwnj_enabled)
-        if hasattr(win, "_shift_space_var"):
-            win._shift_space_var.set(d.shift_space_zwnj)
-        if hasattr(win, "_punct_spacing_var"):
-            win._punct_spacing_var.set(d.fix_punctuation_spacing)
+        if hasattr(win, "_prediction_ui_style_var"):
+            win._prediction_ui_style_var.set(d.prediction_ui_style)
+        if hasattr(win, "_prediction_layout_var"):
+            win._prediction_layout_var.set(d.prediction_layout)
+        if hasattr(win, "_prediction_layout_display_var"):
+            win._prediction_layout_display_var.set(
+                t("settings.layout_vertical", "زیر هم (عمودی — پیش‌فرض)")
+            )
+        if hasattr(win, "_prediction_use_custom_colors_var"):
+            win._prediction_use_custom_colors_var.set(d.prediction_use_custom_colors)
+        for field_name, default_col in (
+            ("prediction_custom_bg", d.prediction_custom_bg),
+            ("prediction_custom_fg", d.prediction_custom_fg),
+            ("prediction_custom_accent", d.prediction_custom_accent),
+            ("prediction_custom_border", d.prediction_custom_border),
+            ("prediction_custom_highlight", d.prediction_custom_highlight),
+        ):
+            var = getattr(win, f"_{field_name}_var", None)
+            if var is not None:
+                var.set(default_col)
+            btn = getattr(win, f"_{field_name}_btn", None)
+            if btn is not None:
+                try:
+                    btn.config(bg=default_col, activebackground=default_col)
+                except Exception:
+                    pass
+        if hasattr(win, "_prediction_font_size_var"):
+            win._prediction_font_size_var.set(d.prediction_font_size)
+        if hasattr(win, "_prediction_opacity_var"):
+            win._prediction_opacity_var.set(int(d.prediction_opacity * 100))
+        if hasattr(win, "_overlay_custom_pos_var"):
+            win._overlay_custom_pos_var.set(d.overlay_custom_pos)
         if hasattr(win, "_en_dict_var"):
             win._en_dict_var.set(d.english_dict_enabled)
         if hasattr(win, "_fa_dict_var"):
@@ -66,9 +112,30 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._maxcand_var.set(d.prediction_max_candidates)
         if hasattr(win, "_minlen_var"):
             win._minlen_var.set(d.min_prefix_len)
+        if hasattr(win, "cfg"):
+            win.cfg.prediction_ui_style = d.prediction_ui_style
+            win.cfg.prediction_layout = d.prediction_layout
+            win.cfg.prediction_use_custom_colors = d.prediction_use_custom_colors
+            win.cfg.prediction_custom_bg = d.prediction_custom_bg
+            win.cfg.prediction_custom_fg = d.prediction_custom_fg
+            win.cfg.prediction_custom_accent = d.prediction_custom_accent
+            win.cfg.prediction_custom_border = d.prediction_custom_border
+            win.cfg.prediction_custom_highlight = d.prediction_custom_highlight
+            if callable(getattr(win, "_render_style_preview", None)):
+                win._render_style_preview()
+            if getattr(win, "on_saved", None):
+                win.on_saved(win.cfg)
     elif tab_name == "hotkeys":
         if hasattr(win, "_convert_var"):
             win._convert_var.set(hotkey_to_text(d.convert_hotkey))
+        if hasattr(win, "_convert_scope_var"):
+            win._convert_scope_var.set(d.convert_scope)
+            if hasattr(win, "_convert_scope_display_var"):
+                inv_map = {
+                    "sentence": t("settings.convert_scope_sentence", "Last sentence / phrase (Default)"),
+                    "word": t("settings.convert_scope_word", "Last word only"),
+                }
+                win._convert_scope_display_var.set(inv_map.get(d.convert_scope, inv_map["sentence"]))
         if hasattr(win, "_lang_var"):
             win._lang_var.set(hotkey_to_text(d.lang_indicator_hotkey))
         if hasattr(win, "_clip_var"):
@@ -118,6 +185,8 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._webdav_password_var.set(d.webdav_password)
         if hasattr(win, "_cloud_sync_var"):
             win._cloud_sync_var.set(d.cloud_sync_enabled)
+        if hasattr(win, "_sync_learning_var"):
+            win._sync_learning_var.set(d.sync_learning_profile)
         if hasattr(win, "_sync_interval_var"):
             win._sync_interval_var.set(str(d.sync_interval_min))
         if hasattr(win, "_sync_status_var"):

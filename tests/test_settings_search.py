@@ -75,7 +75,10 @@ def test_settings_save_and_cancel_callbacks():
 
         win._save()
         assert on_saved.called
+        # In v2.6.1+, _save() keeps window open and flashes saved
+        assert win._root is not None
+        win._close()
         assert win._root is None
-    except (tk.TclError, Exception) as exc:
+    except tk.TclError as exc:
         pytest.skip(f"Tkinter display not available: {exc}")
 

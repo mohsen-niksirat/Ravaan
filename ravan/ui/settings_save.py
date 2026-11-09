@@ -88,6 +88,8 @@ def save_settings_window(win: Any) -> None:
         return
 
     cfg = win.cfg
+    if hasattr(win, "_convert_scope_var"):
+        cfg.convert_scope = win._convert_scope_var.get()
     if convert:
         cfg.convert_hotkey = convert
     if lang:
@@ -141,6 +143,20 @@ def save_settings_window(win: Any) -> None:
         cfg.overlay_custom_pos = win._overlay_custom_pos_var.get()
     if hasattr(win, "_prediction_ui_style_var"):
         cfg.prediction_ui_style = win._prediction_ui_style_var.get()
+    if hasattr(win, "_prediction_layout_var"):
+        cfg.prediction_layout = win._prediction_layout_var.get()
+    if hasattr(win, "_prediction_use_custom_colors_var"):
+        cfg.prediction_use_custom_colors = win._prediction_use_custom_colors_var.get()
+    if hasattr(win, "_prediction_custom_bg_var"):
+        cfg.prediction_custom_bg = win._prediction_custom_bg_var.get()
+    if hasattr(win, "_prediction_custom_fg_var"):
+        cfg.prediction_custom_fg = win._prediction_custom_fg_var.get()
+    if hasattr(win, "_prediction_custom_accent_var"):
+        cfg.prediction_custom_accent = win._prediction_custom_accent_var.get()
+    if hasattr(win, "_prediction_custom_border_var"):
+        cfg.prediction_custom_border = win._prediction_custom_border_var.get()
+    if hasattr(win, "_prediction_custom_highlight_var"):
+        cfg.prediction_custom_highlight = win._prediction_custom_highlight_var.get()
     if hasattr(win, "_prediction_font_size_var"):
         cfg.prediction_font_size = _safe_int(win._prediction_font_size_var, 12, 9, 24)
     if hasattr(win, "_prediction_opacity_var"):
@@ -171,7 +187,7 @@ def save_settings_window(win: Any) -> None:
 
     cfg.prediction_debounce_ms = _safe_int(win._debounce_var, 50, 0, 5000)
     cfg.prediction_max_candidates = _safe_int(win._maxcand_var, 5, 1, 9)
-    cfg.min_prefix_len = _safe_int(win._minlen_var, 2, 1, 6)
+    cfg.min_prefix_len = _safe_int(win._minlen_var, 1, 1, 6)
 
     excl = [
         ln.strip().lower()

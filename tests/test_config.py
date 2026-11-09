@@ -176,4 +176,84 @@ def test_settings_save_duplicate_hotkey_prevention():
         assert "Duplicate hotkeys" in mock_warn.call_args[0][1]
 
 
+def test_prediction_ui_style_roundtrip_and_fallback():
+    from ravan.core.config import VALID_PREDICTION_UI_STYLES, Config, config_from_dict
+
+    new_styles = ["fluent", "material", "ios", "minimal", "neon"]
+
+    # 1. All new styles are in VALID_PREDICTION_UI_STYLES
+    for st in new_styles:
+        assert st in VALID_PREDICTION_UI_STYLES
+
+    # 2. Roundtrip through config_from_dict
+    for st in new_styles:
+        cfg = config_from_dict({"prediction_ui_style": st})
+        assert cfg.prediction_ui_style == st
+
+    # 3. Unknown / invalid values fall back to "macos"
+    invalid_examples = ["", "invalid", "unknown", "windows95", None, 123]
+    for bad in invalid_examples:
+        cfg = config_from_dict({"prediction_ui_style": bad})
+        assert cfg.prediction_ui_style == "macos"
+
+    # 4. Default config uses "macos"
+    default_cfg = Config()
+    assert default_cfg.prediction_ui_style == "macos"
+
+
+def test_prediction_layout_and_custom_colors_config():
+    from ravan.core.config import (
+        VALID_PREDICTION_LAYOUTS,
+        Config,
+        config_from_dict,
+        config_to_dict,
+    )
+
+    # 1. Layout options
+    assert "vertical" in VALID_PREDICTION_LAYOUTS
+    assert "horizontal" in VALID_PREDICTION_LAYOUTS
+
+    cfg = Config()
+    assert cfg.prediction_layout == "vertical"
+    assert cfg.prediction_use_custom_colors is False
+
+    # 2. Config roundtrip with horizontal layout
+    cfg_h = config_from_dict({"prediction_layout": "horizontal"})
+    assert cfg_h.prediction_layout == "horizontal"
+
+    # Fallback on invalid layout
+    cfg_bad = config_from_dict({"prediction_layout": "circular"})
+    assert cfg_bad.prediction_layout == "vertical"
+
+    # 3. Custom color customization roundtrip & sanitization
+    custom_dict = {
+        "prediction_use_custom_colors": True,
+        "prediction_custom_bg": "#101014",
+        "prediction_custom_fg": "#EAEAEA",
+        "prediction_custom_accent": "#00E5FF",
+        "prediction_custom_border": "#282830",
+        "prediction_custom_highlight": "#FF2A85",
+        "prediction_custom_highlight_fg": "#FFFFFF",
+    }
+    cfg_colors = config_from_dict(custom_dict)
+    assert cfg_colors.prediction_use_custom_colors is True
+    assert cfg_colors.prediction_custom_bg == "#101014"
+    assert cfg_colors.prediction_custom_fg == "#EAEAEA"
+    assert cfg_colors.prediction_custom_accent == "#00E5FF"
+    assert cfg_colors.prediction_custom_border == "#282830"
+    assert cfg_colors.prediction_custom_highlight == "#FF2A85"
+    assert cfg_colors.prediction_custom_highlight_fg == "#FFFFFF"
+
+    # Invalid hex falls back to default
+    cfg_invalid_hex = config_from_dict({"prediction_custom_bg": "not-a-color"})
+    assert cfg_invalid_hex.prediction_custom_bg == "#202024"
+
+    # Serialization roundtrip
+    out_dict = config_to_dict(cfg_colors)
+    assert out_dict["prediction_layout"] == "vertical"
+    assert out_dict["prediction_use_custom_colors"] is True
+    assert out_dict["prediction_custom_bg"] == "#101014"
+
+
+
 

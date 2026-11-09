@@ -99,7 +99,17 @@ class AppAutofixMixin:
                     height=caret.height,
                     on_accept=_on_pick,
                 )
-                set_popup_visible(True, swallow_digits=self.cfg.quickpick_digits)
+                swallow_arrow = (
+                    self._effective_swallow_arrow()
+                    if hasattr(self, "_effective_swallow_arrow")
+                    else None
+                )
+                set_popup_visible(
+                    True,
+                    swallow_digits=self.cfg.quickpick_digits,
+                    swallow_arrow=swallow_arrow,
+                    swallow_enter=bool(getattr(self.cfg, "suggestion_accept_enter", False)),
+                )
 
         return True
 

@@ -295,3 +295,34 @@ def test_caret_caching():
         assert mock_raw.call_count == 1
 
 
+def test_is_text_caret_active_mock():
+    from ravan.platform import caret
+
+    caret.set_mock_caret(None)
+    caret.reset_caret_cache()
+
+    # Mocked caret sources
+    caret.set_mock_caret(caret.CaretRect(50, 60, 2, 16), "UIA")
+    assert caret.is_text_caret_active() is True
+
+    caret.set_mock_caret(caret.CaretRect(50, 60, 2, 16), "GetGUIThreadInfo")
+    assert caret.is_text_caret_active() is True
+
+    caret.set_mock_caret(caret.CaretRect(50, 60, 2, 16), "cursor")
+    assert caret.is_text_caret_active() is False
+
+    caret.set_mock_caret(None)
+    # When UIA returns a valid rect
+    with patch.object(caret, "_try_uia_caret", return_value=caret.CaretRect(100, 200, 2, 16)), \
+         patch.object(caret, "_get_active_pid", return_value=5678):
+        assert caret.is_text_caret_active(force_fresh=True) is True
+
+    # When clicking on empty background (no UIA, no Win32 caret)
+    caret.reset_caret_cache()
+    with patch.object(caret, "_try_uia_caret", return_value=None), \
+         patch.object(caret, "_try_gui_thread_info", return_value=None), \
+         patch.object(caret, "_cursor_position", return_value=caret.CaretRect(300, 400, 2, 16)):
+        assert caret.is_text_caret_active(force_fresh=True) is False
+
+
+

@@ -183,13 +183,39 @@ class RavanApp(
         )
 
     def _on_settings_saved(self, cfg: Config) -> None:
+        old_predictor = getattr(self, "predictor", None)
+        session_suppressed: set[str] = set()
+        selection_counts: dict[str, int] = {}
+        if old_predictor is not None:
+            if hasattr(old_predictor, "flush_learning"):
+                try:
+                    old_predictor.flush_learning()
+                except Exception:  # noqa: BLE001
+                    log.debug("Failed flushing learning before settings update", exc_info=True)
+            session_suppressed = set(getattr(old_predictor, "session_suppressed", set()))
+            selection_counts = dict(getattr(old_predictor, "_selection_counts", {}))
+
         self.cfg = cfg
         self.predictor = DictPredictor.from_config(cfg)
+        self.predictor.session_suppressed.update(session_suppressed)
+        self.predictor._selection_counts.update(selection_counts)
         self.snippets = SnippetEngine.from_config(cfg)
         if hasattr(self.overlay, "apply_config"):
             self.overlay.apply_config(cfg)
         elif hasattr(self.overlay, "set_theme_mode"):
             self.overlay.set_theme_mode(cfg.theme_mode)
+        if getattr(self.overlay, "predicting", False):
+            swallow_arrow = (
+                self._effective_swallow_arrow()
+                if hasattr(self, "_effective_swallow_arrow")
+                else None
+            )
+            set_popup_visible(
+                True,
+                swallow_digits=cfg.quickpick_digits,
+                swallow_arrow=swallow_arrow,
+                swallow_enter=bool(getattr(cfg, "suggestion_accept_enter", False)),
+            )
         if hasattr(self, "autofix") and self.autofix is not None:
             self.autofix.mode = getattr(cfg, "autofix_mode", "safe")
             self.autofix.load_blacklist(getattr(cfg, "autofix_blacklist", []))

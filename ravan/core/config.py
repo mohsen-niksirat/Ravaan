@@ -23,9 +23,29 @@ from ravan.core.config_types import (
 log = logging.getLogger(__name__)
 
 
+VALID_PREDICTION_UI_STYLES: tuple[str, ...] = (
+    "macos",
+    "modern",
+    "compact",
+    "glass",
+    "classic",
+    "fluent",
+    "material",
+    "ios",
+    "minimal",
+    "neon",
+)
+
+VALID_PREDICTION_LAYOUTS: tuple[str, ...] = (
+    "vertical",
+    "horizontal",
+)
+
+
 @dataclass
 class Config:
     convert_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Pause", []))
+    convert_scope: str = "sentence"  # "sentence" | "word"
     lang_indicator_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("L", ["Alt"]))
     autocorrect_enabled: bool = False
     prediction_enabled: bool = True
@@ -45,7 +65,15 @@ class Config:
     overlay_custom_pos: bool = False
     overlay_pos_x: int = -1
     overlay_pos_y: int = -1
-    prediction_ui_style: str = "macos"  # "macos" | "modern" | "compact" | "glass" | "classic"
+    prediction_ui_style: str = "macos"  # "macos" | "modern" | "compact" | "glass" | "classic" | "fluent" | "material" | "ios" | "minimal" | "neon"
+    prediction_layout: str = "vertical"  # "vertical" | "horizontal"
+    prediction_use_custom_colors: bool = False
+    prediction_custom_bg: str = "#202024"
+    prediction_custom_fg: str = "#F5F5F7"
+    prediction_custom_accent: str = "#0A84FF"
+    prediction_custom_border: str = "#3A3A42"
+    prediction_custom_highlight: str = "#0A84FF"
+    prediction_custom_highlight_fg: str = "#FFFFFF"
     prediction_font_size: int = 12
     prediction_opacity: float = 0.95
     excluded_apps: list[str] = field(default_factory=lambda: list(DEFAULT_EXCLUDED_APPS))
@@ -340,6 +368,16 @@ def _bounded_float(data: dict[str, Any], key: str, default: float, low: float, h
         return default
 
 
+def _valid_hex(val: Any, default: str) -> str:
+    if isinstance(val, str) and val.startswith("#") and len(val) in (4, 7, 9):
+        try:
+            int(val.lstrip("#"), 16)
+            return val
+        except ValueError:
+            pass
+    return default
+
+
 def config_from_dict(raw_data: dict[str, Any]) -> Config:
     data = migrate_config_dict(dict(raw_data))
     snippets = [
@@ -436,6 +474,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
 
     cfg = Config(
         convert_hotkey=_hotkey_from_dict(data.get("convert_hotkey"), HotkeySpec("Pause")),
+        convert_scope=str(data.get("convert_scope", "sentence")),
         lang_indicator_hotkey=_hotkey_from_dict(data.get("lang_indicator_hotkey"), HotkeySpec("L", ["Alt"])),
         autocorrect_enabled=bool(data.get("autocorrect_enabled", False)),
         prediction_enabled=bool(data.get("prediction_enabled", True)),
@@ -460,10 +499,21 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         overlay_pos_y=_bounded_int(data, "overlay_pos_y", -1, -1, 30000),
         prediction_ui_style=(
             data.get("prediction_ui_style", "macos")
-            if data.get("prediction_ui_style", "macos")
-            in ("macos", "modern", "compact", "glass", "classic")
+            if data.get("prediction_ui_style", "macos") in VALID_PREDICTION_UI_STYLES
             else "macos"
         ),
+        prediction_layout=(
+            data.get("prediction_layout", "vertical")
+            if data.get("prediction_layout", "vertical") in VALID_PREDICTION_LAYOUTS
+            else "vertical"
+        ),
+        prediction_use_custom_colors=bool(data.get("prediction_use_custom_colors", False)),
+        prediction_custom_bg=_valid_hex(data.get("prediction_custom_bg"), "#202024"),
+        prediction_custom_fg=_valid_hex(data.get("prediction_custom_fg"), "#F5F5F7"),
+        prediction_custom_accent=_valid_hex(data.get("prediction_custom_accent"), "#0A84FF"),
+        prediction_custom_border=_valid_hex(data.get("prediction_custom_border"), "#3A3A42"),
+        prediction_custom_highlight=_valid_hex(data.get("prediction_custom_highlight"), "#0A84FF"),
+        prediction_custom_highlight_fg=_valid_hex(data.get("prediction_custom_highlight_fg"), "#FFFFFF"),
         prediction_font_size=_bounded_int(data, "prediction_font_size", 12, 9, 24),
         prediction_opacity=_bounded_float(data, "prediction_opacity", 0.95, 0.5, 1.0),
         excluded_apps=[str(x).strip().lower() for x in excluded if str(x).strip()],

@@ -148,6 +148,15 @@ class AppDialogsMixin:
                     self._show_toast_sync(str(arg))
                 elif hasattr(self, "_show_toast"):
                     self._show_toast(str(arg))
+            elif action == "apply_bg_sync":
+                from ravan.core.config import save_config
+                from ravan.core.snippet import SnippetEngine
+
+                new_snippets, ts = arg
+                self.cfg.snippets = new_snippets
+                self.cfg.last_sync_time = ts
+                self.snippets = SnippetEngine.from_config(self.cfg)
+                save_config(self.cfg)
 
     def set_prediction_enabled(self: Any, enabled: bool) -> None:
         self.cfg.prediction_enabled = enabled

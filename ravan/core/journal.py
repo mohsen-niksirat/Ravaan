@@ -117,6 +117,32 @@ class KeystrokeJournal:
         span_text = text[start:end]
         return span_text, len(span_text)
 
+    def last_sentence_span(self) -> tuple[str, int]:
+        """Return (span_text, total_chars) for the last typed sentence/phrase in the journal.
+
+        A sentence boundary is defined by a newline (\\n, \\r) or a sentence terminator
+        (. , ! , ? , ؟ , ; , ؛) followed by whitespace.
+        If no terminator is present in the journal buffer, returns the entire un-punctuated typed span.
+        """
+        text = self.text()
+        if not text:
+            return "", 0
+
+        end = len(text)
+        start = 0
+        for i in range(end - 1, -1, -1):
+            ch = text[i]
+            if ch in ("\n", "\r"):
+                start = i + 1
+                break
+            if ch in (".", "!", "?", "؟", ";", "؛"):
+                start = i + 1
+                while start < end and text[start].isspace() and text[start] not in ("\n", "\r"):
+                    start += 1
+                break
+        span_text = text[start:end]
+        return span_text, len(span_text)
+
     def pop_last_n_chars(self, count: int) -> str:
         """Pop and return the last count characters from the journal."""
         popped = []

@@ -10,7 +10,7 @@ import urllib.request
 from datetime import datetime
 from typing import Any
 
-from ravan.core.sync import _sanitize_error, make_local_backup
+from ravan.core.sync import _sanitize_error, make_local_backup, snippet_to_dict
 
 log = logging.getLogger(__name__)
 
@@ -141,14 +141,9 @@ class WebDAVClient:
                 if resp.status == 200:
                     raw = json.loads(resp.read().decode("utf-8"))
                     snippets = [
-                        {
-                            **s,
-                            "trigger": str(s.get("trigger", "")).strip(),
-                            "replacement": str(s.get("replacement", "")),
-                            "enabled": bool(s.get("enabled", True)),
-                        }
+                        snippet_to_dict(s)
                         for s in raw
-                        if isinstance(s, dict) and s.get("trigger")
+                        if isinstance(s, dict) and str(s.get("trigger", "")).strip()
                     ]
         except urllib.error.HTTPError as err:
             if err.code != 404:

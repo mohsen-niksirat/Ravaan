@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.2] - 2026-11-09
+
+### Added
+- **Smart Last-Sentence Layout Toggle (`convert_hotkey`)**:
+  - Enhanced layout conversion hotkey (default: `Pause`) to convert the entire last typed sentence/phrase in the active line when no text is selected, automatically detecting sentence terminators (`.`, `!`, `?`, `؟`, `\n`).
+  - Added rapid 2.0s toggle-back (instant undo/redo) on repeated hotkey press.
+  - Added automatic keyboard layout switching to the target language (`switch_to_language`) after converting selection or sentence.
+  - Added `convert_scope` setting in Hotkeys tab to choose between "Last sentence / phrase" and "Last word only".
+- **CandidateRow Architecture for Prediction Overlay**:
+  - Isolated multi-widget layout for candidate rows in `overlay.py` to permanently eliminate Uniscribe BiDi glyph reversals and unmapped boxes (`█`).
+
+### Fixed
+- **Prediction Suppression on Copy/Paste and Application Shortcuts**:
+  - Suppressed prediction popup and cancelled pending predictions on `Ctrl+V`, `Shift+Insert` (Paste), `Ctrl+C` (Copy), and `Ctrl+X` (Cut).
+  - Cleared keystroke journal on paste and cut to prevent stale prediction suggestions over external text.
+  - Repositioning caret via mouse click now resets the keystroke journal.
+- **Settings Preview Cleanup**:
+  - Replaced glitchy backdrop canvas with a clean simulated editor canvas and live typing caret.
+  - Optimized vertical spacing to eliminate unnecessary scrollbars.
+
+
 ## [2.7.1] - 2026-11-06 - Distinct Style Preview & Stale Acrylic Fix
 
 ### Fixed

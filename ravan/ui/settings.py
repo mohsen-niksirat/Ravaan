@@ -12,11 +12,13 @@ from ravan.core.config import (
     Config,
     Snippet,
 )
+from ravan.core.i18n import is_rtl, t
 from ravan.ui.theme import (
     Palette,
     apply_theme_to_ttk,
     apply_window_decorations,
     get_active_palette,
+    get_ui_font,
 )
 
 log = logging.getLogger(__name__)
@@ -171,7 +173,6 @@ class SettingsWindow:
     def _render_ui(self) -> None:
         if self._root is None:
             return
-        from ravan.core.i18n import is_rtl, t
 
         rtl = is_rtl()
         self._root.title(t("settings.title", "Ravaan — Settings"))
@@ -185,19 +186,50 @@ class SettingsWindow:
         frm.pack(fill="both", expand=True)
 
         # ── Buttons: Pinned at bottom so they are NEVER cut off ──
+        ttk.Separator(frm, orient="horizontal").pack(side="bottom", fill="x", pady=(6, 6))
         btns = ttk.Frame(frm)
-        btns.pack(side="bottom", fill="x", pady=(6, 0))
+        btns.pack(side="bottom", fill="x", pady=(0, 4))
         btn_side = "left" if rtl else "right"
-        self._saved_label = ttk.Label(btns, text="", foreground=palette.success)
+        self._saved_label = ttk.Label(btns, text="", foreground=palette.success, font=get_ui_font(size=9, bold=True, rtl=rtl))
         self._saved_label.pack(side=btn_side, padx=8)
-        ttk.Button(btns, text=t("settings.btn_cancel", "Cancel"), command=self._close).pack(side=btn_side, padx=4)
+        ttk.Button(btns, text=t("settings.btn_close", "Close"), command=self._close).pack(side=btn_side, padx=4)
         ttk.Button(btns, text=t("settings.btn_save", "Save Settings"), style="Accent.TButton", command=self._save).pack(side=btn_side, padx=4)
+
+        # ── Header: App Brand Banner ──
+        header_frm = ttk.Frame(frm)
+        header_frm.pack(side="top", fill="x", pady=(0, 6))
+        h_pack = "right" if rtl else "left"
+        h_badge_pack = "left" if rtl else "right"
+
+        title_lbl = ttk.Label(
+            header_frm,
+            text="🪶 روان — Ravaan",
+            font=get_ui_font(size=12, bold=True, rtl=rtl),
+            foreground=palette.accent,
+        )
+        title_lbl.pack(side=h_pack, padx=(0, 6) if not rtl else (6, 0))
+
+        sub_desc = "دستیار هوشمند تایپ و پیش‌بینی فارسی" if rtl else "Smart Persian Typing & Word Prediction"
+        ttk.Label(
+            header_frm,
+            text=sub_desc,
+            style="Sub.TLabel",
+        ).pack(side=h_pack, pady=(2, 0))
+
+        from ravan import __version__
+
+        ttk.Label(
+            header_frm,
+            text=f"v{__version__}",
+            style="CardSub.TLabel",
+            padding=[6, 2],
+        ).pack(side=h_badge_pack)
 
         # ── Search Bar: Top ──
         search_frm = ttk.Frame(frm)
-        search_frm.pack(side="top", fill="x", pady=(0, 6))
+        search_frm.pack(side="top", fill="x", pady=(0, 8))
         pack_side = "right" if rtl else "left"
-        ttk.Label(search_frm, text=t("settings.search_label", "🔍 Search:")).pack(
+        ttk.Label(search_frm, text=t("settings.search_label", "🔍 Search:"), font=get_ui_font(size=9, bold=True, rtl=rtl)).pack(
             side=pack_side, padx=(0, 6) if not rtl else (6, 0)
         )
         self._search_var = tk.StringVar(value="")
@@ -452,6 +484,105 @@ class SettingsWindow:
         if self.on_saved:
             self.on_saved(self.cfg)
 
+    def on_prediction_layout_changed(self) -> None:
+        """Apply-on-change: live-update suggestion box layout (vertical vs horizontal)."""
+        if hasattr(self, "_prediction_layout_var"):
+            self.cfg.prediction_layout = self._prediction_layout_var.get()
+        self._render_style_preview()
+        if self.on_saved:
+            self.on_saved(self.cfg)
+
+    def on_prediction_colors_changed(self) -> None:
+        """Apply-on-change: live-update custom prediction colors."""
+        if hasattr(self, "_prediction_use_custom_colors_var"):
+            self.cfg.prediction_use_custom_colors = self._prediction_use_custom_colors_var.get()
+        if hasattr(self, "_prediction_custom_bg_var"):
+            self.cfg.prediction_custom_bg = self._prediction_custom_bg_var.get()
+        if hasattr(self, "_prediction_custom_fg_var"):
+            self.cfg.prediction_custom_fg = self._prediction_custom_fg_var.get()
+        if hasattr(self, "_prediction_custom_accent_var"):
+            self.cfg.prediction_custom_accent = self._prediction_custom_accent_var.get()
+        if hasattr(self, "_prediction_custom_border_var"):
+            self.cfg.prediction_custom_border = self._prediction_custom_border_var.get()
+        if hasattr(self, "_prediction_custom_highlight_var"):
+            self.cfg.prediction_custom_highlight = self._prediction_custom_highlight_var.get()
+        self._render_style_preview()
+        if self.on_saved:
+            self.on_saved(self.cfg)
+
+    def pick_prediction_color(self, field_name: str) -> None:
+        """Open native color picker and update color swatch and preview."""
+        import tkinter.colorchooser as cc
+
+        var = getattr(self, f"_{field_name}_var", None)
+        btn = getattr(self, f"_{field_name}_btn", None)
+        if not var:
+            return
+        curr = var.get()
+        picker_title = "انتخاب رنگ" if is_rtl() else "Choose Color"
+        chosen = cc.askcolor(color=curr, parent=self._root, title=picker_title)
+        if chosen and chosen[1]:
+            hex_col = chosen[1].upper()
+            var.set(hex_col)
+            if btn:
+                btn.config(bg=hex_col, activebackground=hex_col)
+            if hasattr(self, "_prediction_use_custom_colors_var"):
+                self._prediction_use_custom_colors_var.set(True)
+            self.on_prediction_colors_changed()
+
+    def reset_prediction_colors_to_style(self) -> None:
+        """Reset custom color variables to match the currently selected style's palette."""
+        from ravan.ui.theme import get_prediction_style
+
+        style = (
+            self._prediction_ui_style_var.get()
+            if hasattr(self, "_prediction_ui_style_var")
+            else "macos"
+        )
+        mode = getattr(self.cfg, "theme_mode", "auto")
+        tokens = get_prediction_style(style, mode)
+        pal = tokens.palette
+
+        color_map = {
+            "prediction_custom_bg": pal.bg,
+            "prediction_custom_fg": pal.fg,
+            "prediction_custom_accent": pal.accent,
+            "prediction_custom_border": tokens.border_color or pal.border,
+            "prediction_custom_highlight": pal.highlight,
+        }
+        for field, col in color_map.items():
+            var = getattr(self, f"_{field}_var", None)
+            btn = getattr(self, f"_{field}_btn", None)
+            if var:
+                var.set(col)
+            if btn:
+                btn.config(bg=col, activebackground=col)
+
+        self.on_prediction_colors_changed()
+
+    def apply_color_preset(
+        self, bg: str, fg: str, accent: str, border: str, highlight: str
+    ) -> None:
+        """Apply a curated color preset and update preview immediately."""
+        color_map = {
+            "prediction_custom_bg": bg,
+            "prediction_custom_fg": fg,
+            "prediction_custom_accent": accent,
+            "prediction_custom_border": border,
+            "prediction_custom_highlight": highlight,
+        }
+        for field, col in color_map.items():
+            var = getattr(self, f"_{field}_var", None)
+            btn = getattr(self, f"_{field}_btn", None)
+            if var:
+                var.set(col)
+            if btn:
+                btn.config(bg=col, activebackground=col)
+
+        if hasattr(self, "_prediction_use_custom_colors_var"):
+            self._prediction_use_custom_colors_var.set(True)
+        self.on_prediction_colors_changed()
+
     def on_lang_placement_changed(self) -> None:
         """Apply-on-change: live-update the language chip placement."""
         mapping = getattr(self, "_lang_placement_map", {})
@@ -463,13 +594,42 @@ class SettingsWindow:
             self.on_saved(self.cfg)
 
     _STYLE_TRAITS = {
-        "macos": ("متریال آکریلیک شیشه‌ای + حاشیه مویی — پیش‌فرض", 0.82),
-        "modern": ("فلوئنت ۲ ویندوز ۱۱", 0.96),
-        "compact": ("فشرده با فاصله کم", 0.96),
-        "glass": ("شیشه‌ای با شفافیت بالا", 0.55),
-        "classic": ("کلاسیک مات با قاب ضخیم", 1.0),
+        "macos": ("مک‌اواس با چراغ‌های راهنما 🔴🟡🟢، شیشه آکریلیک و انتخاب آبی اپل", 0.85),
+        "modern": ("مدرن بنفش کیهانی با هایلایت بنفش درخشان و انحنای نرم", 0.96),
+        "compact": ("فشرده و بهینه با پدینگ حداقلی و بیشترین بهره‌وری از فضا", 0.96),
+        "glass": ("شیشه‌ای ارو با لبه بازتاب نور، شفافیت بالا و سطح نیمه‌مات", 0.68),
+        "classic": ("کلاسیک سنتی با کادر پنجره — □ ✕ و هایلایت سرمه‌ای ویندوز", 1.0),
+        "fluent": ("ویندوز ۱۱ فلوئنت میکا با لوگوی ویندوز و نوار تأکید آبی", 0.96),
+        "material": ("گوگل متریال یو با نشان‌های دایره‌ای توپر و کپسول‌های نرم ۲۰px", 0.96),
+        "ios": ("آیفون و آی‌اواس با آیکون اپل  و کپسول آبی الکتریک", 0.94),
+        "minimal": ("مینیمال زن Linear با کلیدهای میانبر کیبورد و تمرکز خالص", 0.98),
+        "neon": ("سایبرپانک HUD با کادر نئون سرخابی و متن‌های سبز درخشان", 0.98),
     }
-    _PREVIEW_BACKDROP = "#4a6a8a"  # representative desktop color for translucency
+    _STYLE_TRAITS_EN = {
+        "macos": ("macOS with traffic lights 🔴🟡🟢, acrylic blur and Apple blue selection", 0.85),
+        "modern": ("Cosmic deep violet with vibrant purple pill highlight", 0.96),
+        "compact": ("Ultra-compact list with minimal padding and maximum efficiency", 0.96),
+        "glass": ("Frosted Aero glass with specular light refraction rim", 0.68),
+        "classic": ("Traditional retro frame with — □ ✕ title bar and classic navy selection", 1.0),
+        "fluent": ("Windows 11 Fluent Mica with Windows logo and accent bar", 0.96),
+        "material": ("Google Material You with filled circular badges and 20px pill", 0.96),
+        "ios": ("Apple iOS with  icon and electric blue pill selection", 0.94),
+        "minimal": ("Linear Minimal Zen with keyboard keycaps and zero chrome", 0.98),
+        "neon": ("Cyberpunk HUD with glowing magenta border and electric green text", 0.98),
+    }
+    _STYLE_ICONS = {
+        "macos": "🍎",
+        "modern": "🔮",
+        "compact": "📐",
+        "glass": "💎",
+        "classic": "🗔",
+        "fluent": "🪟",
+        "material": "🎨",
+        "ios": "📱",
+        "minimal": "⬛",
+        "neon": "⚡",
+    }
+    _PREVIEW_BACKDROP = "#3c5068"  # representative desktop color for translucency
 
     @staticmethod
     def _blend_hex(fg_hex: str, bg_hex: str, t: float) -> str:
@@ -485,8 +645,8 @@ class SettingsWindow:
 
     def _render_style_preview(self) -> None:
         """Render a live mini suggestion-box over a simulated desktop so each
-        design style (and its translucency) is visibly distinct."""
-        from ravan.ui.theme import get_macos_palette, get_ui_font
+        design style (and its geometry, tokens, translucency) is visibly distinct."""
+        from ravan.ui.theme import get_prediction_style, get_ui_font
 
         preview = getattr(self, "_style_preview", None)
         if preview is None:
@@ -496,90 +656,345 @@ class SettingsWindow:
 
         style = self._prediction_ui_style_var.get()
         mode = getattr(self.cfg, "theme_mode", "auto")
-        palette = get_macos_palette(mode) if style == "macos" else get_active_palette(mode)
-        trait_text, alpha_eff = self._STYLE_TRAITS.get(style, self._STYLE_TRAITS["modern"])
-        f_sz = int(getattr(self.cfg, "prediction_font_size", 12))
-        pad_y = 2 if style == "compact" else (5 if style == "macos" else 4)
-        pad_x = 8 if style == "compact" else (14 if style == "macos" else 10)
-        backdrop = self._PREVIEW_BACKDROP
-        see_through = 1.0 - alpha_eff  # share of the desktop showing through
+        layout = (
+            self._prediction_layout_var.get()
+            if hasattr(self, "_prediction_layout_var")
+            else getattr(self.cfg, "prediction_layout", "vertical")
+        )
+        use_custom = (
+            self._prediction_use_custom_colors_var.get()
+            if hasattr(self, "_prediction_use_custom_colors_var")
+            else getattr(self.cfg, "prediction_use_custom_colors", False)
+        )
+        custom_colors = None
+        if use_custom:
+            custom_colors = {
+                "bg": (
+                    self._prediction_custom_bg_var.get()
+                    if hasattr(self, "_prediction_custom_bg_var")
+                    else getattr(self.cfg, "prediction_custom_bg", "#202024")
+                ),
+                "fg": (
+                    self._prediction_custom_fg_var.get()
+                    if hasattr(self, "_prediction_custom_fg_var")
+                    else getattr(self.cfg, "prediction_custom_fg", "#F5F5F7")
+                ),
+                "accent": (
+                    self._prediction_custom_accent_var.get()
+                    if hasattr(self, "_prediction_custom_accent_var")
+                    else getattr(self.cfg, "prediction_custom_accent", "#0A84FF")
+                ),
+                "border": (
+                    self._prediction_custom_border_var.get()
+                    if hasattr(self, "_prediction_custom_border_var")
+                    else getattr(self.cfg, "prediction_custom_border", "#3A3A42")
+                ),
+                "highlight": (
+                    self._prediction_custom_highlight_var.get()
+                    if hasattr(self, "_prediction_custom_highlight_var")
+                    else getattr(self.cfg, "prediction_custom_highlight", "#0A84FF")
+                ),
+            }
+        tokens = get_prediction_style(
+            style, mode, custom_colors=custom_colors, layout=layout
+        )
+        palette = tokens.palette
+        rtl_ui = is_rtl()
+        traits_dict = self._STYLE_TRAITS if rtl_ui else self._STYLE_TRAITS_EN
+        trait_text, alpha_eff = traits_dict.get(style, traits_dict["modern"])
+        style_icon = self._STYLE_ICONS.get(style, "✨")
+        f_sz = max(9, min(int(getattr(self.cfg, "prediction_font_size", 12)), 14))
+
+        see_through = max(0.0, min(1.0, 1.0 - alpha_eff))
 
         container = tk.Frame(preview)
         container.pack(fill="x")
 
-        # Simulated desktop (colored bands + window blocks) behind the mock.
+        # Simulated modern desktop/editor canvas behind the mock popup
+        canvas_h = 124
+        is_dark_preview = mode == "dark" or (mode == "auto" and palette.name in ("dark", "high_contrast")) or style == "neon"
+        canvas_bg = "#15161D" if is_dark_preview else "#F2F3F7"
+        canvas_border = "#2A2B36" if is_dark_preview else "#D6D7DF"
+        sim_text_fg = "#6E7681" if is_dark_preview else "#71767B"
+
         backdrop_canvas = tk.Canvas(
-            container, height=126, highlightthickness=0, bd=0, bg="#31518a"
+            container,
+            height=canvas_h,
+            highlightthickness=1,
+            highlightbackground=canvas_border,
+            bd=0,
+            bg=canvas_bg,
         )
         backdrop_canvas.pack(fill="both", expand=True)
         backdrop_canvas.update_idletasks()
-        cw = max(backdrop_canvas.winfo_width(), 280)
-        band_colors = ["#2f6f4f", "#31518a", "#8a5131", "#5a3a6e", "#2b6d6d"]
-        band_h = 126 // len(band_colors) + 1
-        for i, color in enumerate(band_colors):
-            backdrop_canvas.create_rectangle(
-                0, i * band_h, cw, (i + 1) * band_h, fill=color, width=0
-            )
-        backdrop_canvas.create_rectangle(
-            cw - 90, 14, cw - 14, 58, fill="#c9cdd4", width=0
-        )
-        backdrop_canvas.create_rectangle(
-            18, 84, 120, 112, fill="#d8b24a", width=0
+        cw = max(backdrop_canvas.winfo_width(), 320)
+
+        # Subtle simulated typing line context (VS Code / editor look)
+        typing_prompt = "متن در حال تایپ: سلام" if rtl_ui else "Typing: hello"
+        caret_char = " |"
+        f_sim = get_ui_font(size=9, rtl=rtl_ui)
+        sim_lead_x = cw - 18 if rtl_ui else 18
+        sim_anchor = "ne" if rtl_ui else "nw"
+        backdrop_canvas.create_text(
+            sim_lead_x,
+            10,
+            text=typing_prompt + caret_char,
+            anchor=sim_anchor,
+            fill=sim_text_fg,
+            font=f_sim,
         )
 
-        # The mock popup: blended colors make the style's translucency visible.
-        eff_bg = self._blend_hex(palette.bg, backdrop, see_through)
-        eff_row = self._blend_hex(
-            palette.card_bg if style == "macos" else palette.bg, backdrop, see_through
+        # Calculate effective colors with translucency
+        eff_bg = self._blend_hex(palette.bg, canvas_bg, see_through)
+        eff_card = self._blend_hex(palette.card_bg, canvas_bg, see_through)
+        eff_border = (
+            tokens.border_color
+            if tokens.name == "neon"
+            else self._blend_hex(tokens.border_color or palette.border, canvas_bg, see_through * 0.5)
         )
-        eff_border = self._blend_hex(palette.border, backdrop, see_through * 0.6)
-        eff_selected = self._blend_hex(palette.highlight, backdrop, see_through * 0.25)
+        eff_selected = (
+            tokens.palette.highlight
+            if tokens.name == "neon"
+            else self._blend_hex(palette.highlight, canvas_bg, see_through * 0.2)
+        )
 
+        # Mock frame placed cleanly at center
+        bd = tokens.border_width
+        relief = tokens.border_relief
         mock = tk.Frame(
-            container,
+            backdrop_canvas,
             bg=eff_bg,
-            highlightthickness=2 if style == "classic" else 1,
+            bd=bd,
+            relief=relief,
+            highlightthickness=bd,
             highlightbackground=eff_border,
         )
-        mock.place(relx=0.5, rely=0.5, anchor="center")
+        mock.place(relx=0.5, rely=0.58, anchor="center")
 
-        rows = [
-            ("1   سلام", True),
-            ("2   سلام علیکم   [ادامه]", False),
-            ("3   سلامتی", False),
-        ]
-        for text, selected in rows:
-            if selected:
-                bg, fg, bold = eff_selected, palette.highlight_fg, True
+        pad_x = tokens.row_padding_x
+        pad_y = tokens.row_padding_y
+        is_horizontal = tokens.layout == "horizontal"
+
+        # Header grip
+        if tokens.show_grip and style != "compact":
+            if is_horizontal:
+                tk.Label(
+                    mock,
+                    text="••",
+                    bg=eff_card if tokens.acrylic else eff_bg,
+                    fg=palette.subtext,
+                    font=get_ui_font(size=max(8, f_sz - 4)),
+                    padx=4,
+                    pady=2,
+                ).pack(side="right", fill="y", padx=(2, 0))
             else:
-                bg = eff_row
-                fg = palette.subtext if "[ادامه]" in text else palette.fg
+                if style == "macos":
+                    grip_txt = "🔴 🟡 🟢   روان"
+                elif style == "ios":
+                    grip_txt = "   روان"
+                elif style == "classic":
+                    grip_txt = "روان           — □ ✕"
+                elif style == "neon":
+                    grip_txt = "// RAVAAN HUD //"
+                elif style == "fluent":
+                    grip_txt = "⊞  روان"
+                elif style == "modern":
+                    grip_txt = "✦  روان  ✦"
+                elif style == "minimal":
+                    grip_txt = "⋯ روان ⋯"
+                else:
+                    grip_txt = "•• روان ••"
+                tk.Label(
+                    mock,
+                    text=grip_txt,
+                    bg=eff_card if tokens.acrylic else eff_bg,
+                    fg=palette.subtext,
+                    font=get_ui_font(size=max(8, f_sz - 4)),
+                    pady=1,
+                ).pack(fill="x")
+
+        # Mock candidate rows (showing RTL Persian + LTR English without BiDi reversal)
+        row_specs = [
+            ("1", "سلام", "", "█" if tokens.name != "neon" else "████", True, True),
+            ("2", "سلام علیکم", "[ادامه]", "▅" if tokens.name != "neon" else "███░", False, True),
+            ("3", "hello world", "", "▂" if tokens.name != "neon" else "█░░░", False, False),
+        ]
+
+        lead_side = "right" if rtl_ui else "left"
+
+        for i, (num, cand_text, tag, meter, selected, is_rtl_cand) in enumerate(row_specs):
+            if selected:
+                if tokens.selected_row_style == "bold_only":
+                    r_bg = eff_card if tokens.acrylic else eff_bg
+                    r_fg = palette.accent
+                    bold = True
+                elif tokens.name == "neon":
+                    r_bg = eff_selected
+                    r_fg = "#FFFFFF"
+                    bold = True
+                elif tokens.selected_row_style == "leading_bar":
+                    r_bg = eff_selected
+                    r_fg = palette.highlight_fg
+                    bold = True
+                else:
+                    r_bg = eff_selected
+                    r_fg = palette.highlight_fg
+                    bold = True
+            else:
+                r_bg = eff_card if tokens.acrylic else eff_bg
+                if tokens.name == "neon":
+                    r_fg = "#00FF66"
+                elif tokens.name == "classic":
+                    r_fg = "#000000"
+                else:
+                    r_fg = palette.subtext if "[ادامه]" in cand_text else palette.fg
                 bold = False
+
+            row_frame = tk.Frame(mock, bg=r_bg, padx=pad_x, pady=pad_y)
+            row_lead = "right" if is_rtl_cand else "left"
+            row_trail = "left" if is_rtl_cand else "right"
+
+            # 1. Accent bar (for styles that use leading accent line)
+            has_accent_bar = (
+                selected
+                and bool(tokens.accent_bar_color)
+                and tokens.selected_row_style in ("leading_bar", "neon")
+            )
+            if has_accent_bar:
+                bar_col = tokens.accent_bar_color or palette.accent
+                bar = tk.Frame(row_frame, width=3, bg=bar_col)
+                bar.pack(side=row_lead, fill="y", padx=(0, 4) if is_rtl_cand else (4, 0))
+
+            # 2. Number badge
+            if tokens.badge_style == "circle":
+                badge_str = ("❶", "❷", "❸")[i]
+            elif tokens.badge_style in ("cyan", "keycap"):
+                badge_str = f"[{num}]"
+            elif tokens.badge_style == "none":
+                badge_str = ""
+            else:
+                badge_str = num
+
+            if badge_str:
+                badge_fg = (
+                    "#FF007F"
+                    if tokens.name == "neon"
+                    else (palette.accent if selected and tokens.selected_row_style == "bold_only" else (palette.highlight_fg if selected else palette.subtext))
+                )
+                b_lbl = tk.Label(
+                    row_frame,
+                    text=badge_str,
+                    bg=r_bg,
+                    fg=badge_fg,
+                    font=get_ui_font(size=max(8, f_sz - 2), bold=selected),
+                    bd=0,
+                    padx=0,
+                    pady=0,
+                )
+                b_lbl.pack(side=row_lead, padx=(2, 4) if is_rtl_cand else (4, 2))
+
+            # 3. Candidate text
+            t_lbl = tk.Label(
+                row_frame,
+                text=cand_text,
+                bg=r_bg,
+                fg=r_fg,
+                font=get_ui_font(size=f_sz, bold=bold, rtl=is_rtl_cand),
+                bd=0,
+                padx=0,
+                pady=0,
+            )
+            t_lbl.pack(side=row_lead)
+
+            # 4. Confidence meter
+            if meter and (tokens.confidence_meter_always or selected):
+                meter_fg = "#00FF66" if tokens.name == "neon" else (palette.highlight_fg if selected else palette.subtext)
+                m_lbl = tk.Label(
+                    row_frame,
+                    text=f" {meter}",
+                    bg=r_bg,
+                    fg=meter_fg,
+                    font=get_ui_font(size=max(8, f_sz - 3)),
+                    bd=0,
+                    padx=0,
+                    pady=0,
+                )
+                m_lbl.pack(side=row_trail, padx=(4, 2) if is_rtl_cand else (2, 4))
+
+            # 5. Meta tag (e.g. [ادامه])
+            if tag:
+                tag_fg = palette.subtext if not selected else (palette.highlight_fg if tokens.name != "neon" else "#546E7A")
+                tag_lbl = tk.Label(
+                    row_frame,
+                    text=f" {tag}",
+                    bg=r_bg,
+                    fg=tag_fg,
+                    font=get_ui_font(size=max(8, f_sz - 3), rtl=True),
+                    bd=0,
+                    padx=0,
+                    pady=0,
+                )
+                tag_lbl.pack(side=row_trail, padx=2)
+
+            # Pack row
+            if is_horizontal:
+                row_frame.pack(side=lead_side, padx=3, pady=2)
+                if tokens.show_separators and i < len(row_specs) - 1:
+                    tk.Frame(
+                        mock,
+                        width=1,
+                        height=18,
+                        bg=tokens.separator_color or palette.border,
+                    ).pack(side=lead_side, fill="y", padx=1, pady=3)
+            else:
+                row_frame.pack(fill="x")
+                if tokens.show_separators and i < len(row_specs) - 1:
+                    tk.Frame(
+                        mock,
+                        height=1,
+                        bg=tokens.separator_color or palette.border,
+                    ).pack(fill="x")
+
+        # Hint bar
+        if tokens.show_hint_bar and not is_horizontal:
+            hint_mock = (
+                "↑↓ انتخاب  ·  Enter تأیید  ·  Esc بستن"
+                if rtl_ui
+                else "↑↓ Select  ·  Tab/Enter Accept  ·  Esc Close"
+            )
             tk.Label(
                 mock,
-                text=text,
-                bg=bg,
-                fg=fg,
-                font=get_ui_font(size=f_sz, bold=bold, rtl=True),
-                anchor="w",
+                text=hint_mock,
+                bg=eff_card if tokens.acrylic else eff_bg,
+                fg=palette.subtext,
+                font=get_ui_font(size=max(8, f_sz - 3), rtl=rtl_ui),
                 padx=pad_x,
-                pady=pad_y,
+                pady=2,
             ).pack(fill="x")
-        tk.Label(
-            mock,
-            text="↑↓ انتخاب  ·  Enter تأیید  ·  Esc بستن",
-            bg=eff_row,
-            fg=palette.subtext,
-            font=get_ui_font(size=max(8, f_sz - 3), rtl=True),
-            padx=pad_x,
-            pady=3,
-        ).pack(fill="x")
+
+        # Bottom info pill banner
+        info_bar = tk.Frame(preview, bg=palette.card_bg, padx=8, pady=3)
+        info_bar.pack(fill="x", pady=(2, 0))
+
+        if rtl_ui:
+            layout_txt = "افقی (رو‌به‌روی هم)" if is_horizontal else "عمودی (زیر هم)"
+            custom_txt = " · رنگ‌های سفارشی" if use_custom else ""
+        else:
+            layout_txt = "Horizontal Ribbon" if is_horizontal else "Vertical Stack"
+            custom_txt = " · Custom Colors" if use_custom else ""
 
         ttk.Label(
-            preview,
-            text=f"{style} — {trait_text}",
-            foreground=palette.subtext if hasattr(palette, "subtext") else "gray",
-        ).pack(anchor="w", padx=8, pady=(2, 0))
+            info_bar,
+            text=f"{style_icon}  {style.upper()} ({layout_txt}{custom_txt})",
+            font=get_ui_font(size=9, bold=True),
+            foreground=palette.accent,
+        ).pack(side="left", padx=(4, 8))
+
+        ttk.Label(
+            info_bar,
+            text=trait_text,
+            style="Sub.TLabel",
+        ).pack(side="left", fill="x", expand=True)
 
     def _close(self) -> None:
         self._open = False

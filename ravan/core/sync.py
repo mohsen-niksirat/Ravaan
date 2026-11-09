@@ -23,6 +23,69 @@ def _sanitize_error(err_str: str, token: str) -> str:
     return err_str
 
 
+def snippet_to_dict(s: Any) -> dict[str, Any]:
+    """Serialize a Snippet dataclass or dict preserving all Snippets 3.0 metadata.
+
+    Omits optional Snippets 3.0 keys when they match their empty/False defaults
+    (unless already present on an input dict) so minimal v1/v2 snippet payloads
+    stay compact and backward-compatible.
+    """
+    if isinstance(s, dict):
+        out: dict[str, Any] = {
+            **s,
+            "trigger": str(s.get("trigger", "")).strip(),
+            "replacement": str(s.get("replacement", "")),
+            "enabled": bool(s.get("enabled", True)),
+        }
+        if "is_regex" in s or s.get("is_regex"):
+            out["is_regex"] = bool(s.get("is_regex", False))
+        if "app_filter" in s or s.get("app_filter"):
+            out["app_filter"] = str(s.get("app_filter", ""))
+        if "is_image" in s or s.get("is_image"):
+            out["is_image"] = bool(s.get("is_image", False))
+        if "groups" in s or s.get("groups"):
+            raw_groups = s.get("groups", [])
+            out["groups"] = (
+                [str(g) for g in raw_groups if str(g).strip()]
+                if isinstance(raw_groups, list)
+                else []
+            )
+        return out
+
+    out = {
+        "trigger": str(getattr(s, "trigger", "")).strip(),
+        "replacement": str(getattr(s, "replacement", "")),
+        "enabled": bool(getattr(s, "enabled", True)),
+    }
+    if getattr(s, "is_regex", False):
+        out["is_regex"] = True
+    app_filter = str(getattr(s, "app_filter", "") or "")
+    if app_filter:
+        out["app_filter"] = app_filter
+    if getattr(s, "is_image", False):
+        out["is_image"] = True
+    groups = [str(g) for g in (getattr(s, "groups", None) or []) if str(g).strip()]
+    if groups:
+        out["groups"] = groups
+    return out
+
+
+def dict_to_snippet(s: dict[str, Any]) -> Any:
+    """Deserialize a dict into a Snippet dataclass with full Snippets 3.0 metadata."""
+    from ravan.core.config import Snippet
+
+    norm = snippet_to_dict(s)
+    return Snippet(
+        trigger=norm["trigger"],
+        replacement=norm["replacement"],
+        enabled=norm["enabled"],
+        is_regex=bool(norm.get("is_regex", False)),
+        app_filter=str(norm.get("app_filter", "")),
+        is_image=bool(norm.get("is_image", False)),
+        groups=list(norm.get("groups", [])),
+    )
+
+
 def make_local_backup(
     user_words: list[str] | None = None,
     snippets: list[dict[str, Any]] | None = None,
@@ -43,22 +106,16 @@ def make_local_backup(
 
     snips_to_save: list[dict[str, Any]] = []
     if snippets is not None:
-        snips_to_save = list(snippets)
+        snips_to_save = [
+            snippet_to_dict(s)
+            for s in snippets
+            if (isinstance(s, dict) and s.get("trigger")) or getattr(s, "trigger", "")
+        ]
     else:
         from ravan.core.config import load_config
 
         cfg = load_config()
-        snips_to_save = [
-            {
-                "trigger": s.trigger,
-                "replacement": s.replacement,
-                "enabled": s.enabled,
-                "is_regex": getattr(s, "is_regex", False),
-                "app_filter": getattr(s, "app_filter", ""),
-                "is_image": getattr(s, "is_image", False),
-            }
-            for s in cfg.snippets
-        ]
+        snips_to_save = [snippet_to_dict(s) for s in cfg.snippets]
 
 
     data = {
@@ -100,22 +157,15 @@ def restore_backup(
         data = json.loads(backup_file.read_text(encoding="utf-8"))
         words = list(data.get("user_words", []))
         snips = list(data.get("snippets", []))
-        from ravan.core.config import Snippet, load_config, save_config
+        from ravan.core.config import load_config, save_config
         from ravan.core.user_dict import save_user_words
 
         save_user_words(words)
         cfg = load_config()
         cfg.snippets = [
-            Snippet(
-                trigger=str(s.get("trigger", "")),
-                replacement=str(s.get("replacement", "")),
-                enabled=bool(s.get("enabled", True)),
-                is_regex=bool(s.get("is_regex", False)),
-                app_filter=str(s.get("app_filter", "")),
-                is_image=bool(s.get("is_image", False)),
-            )
+            dict_to_snippet(s)
             for s in snips
-            if isinstance(s, dict) and s.get("trigger")
+            if isinstance(s, dict) and str(s.get("trigger", "")).strip()
         ]
 
         save_config(cfg)
@@ -238,13 +288,9 @@ def pull_from_gist(
     try:
         raw_snippets = json.loads(snip_content)
         snippets = [
-            {
-                "trigger": str(s.get("trigger", "")).strip(),
-                "replacement": str(s.get("replacement", "")),
-                "enabled": bool(s.get("enabled", True)),
-            }
+            snippet_to_dict(s)
             for s in raw_snippets
-            if isinstance(s, dict) and s.get("trigger")
+            if isinstance(s, dict) and str(s.get("trigger", "")).strip()
         ]
     except Exception:  # noqa: BLE001
         snippets = []

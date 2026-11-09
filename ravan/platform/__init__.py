@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 
 if sys.platform == "win32":
-    from .caret import CaretRect, get_caret_rect
+    from .caret import CaretRect, get_caret_rect, is_text_caret_active
     from .focus import foreground_exe, window_title
     from .hook import HookEvent, KeyboardHook, set_popup_visible
     from .inject import inject_backspaces, inject_text, replace_last_n_with
@@ -16,6 +16,7 @@ if sys.platform == "win32":
     __all__ = [
         "CaretRect",
         "get_caret_rect",
+        "is_text_caret_active",
         "HookEvent",
         "KeyboardHook",
         "set_popup_visible",

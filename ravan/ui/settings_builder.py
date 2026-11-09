@@ -65,6 +65,35 @@ def build_hotkeys_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
         ttk.Label(frm, text=hint, foreground="gray").grid(row=row, column=2, sticky="w", **pad)
         row += 1
 
+        if var_attr == "_convert_var":
+            ttk.Label(frm, text=t("settings.convert_scope_label", "  ↳ Scope without selection:")).grid(
+                row=row, column=0, sticky=align, **pad
+            )
+            scope_cur = getattr(win.cfg, "convert_scope", "sentence")
+            scope_var = tk.StringVar(value=scope_cur)
+            win._convert_scope_var = scope_var
+            scope_map = {
+                t("settings.convert_scope_sentence", "Last sentence / phrase (Default)"): "sentence",
+                t("settings.convert_scope_word", "Last word only"): "word",
+            }
+            inv_scope = {v: k for k, v in scope_map.items()}
+            display_var = tk.StringVar(value=inv_scope.get(scope_cur, inv_scope["sentence"]))
+            win._convert_scope_display_var = display_var
+
+            def _on_scope_change(*_, sv=scope_var, dv=display_var, sm=scope_map):
+                sv.set(sm.get(dv.get(), "sentence"))
+
+            display_var.trace_add("write", _on_scope_change)
+            scope_combo = ttk.Combobox(
+                frm,
+                textvariable=display_var,
+                values=list(scope_map.keys()),
+                state="readonly",
+                width=24,
+            )
+            scope_combo.grid(row=row, column=1, columnspan=2, sticky="w", **pad)
+            row += 1
+
     ttk.Separator(frm, orient="horizontal").grid(
         row=row, column=0, columnspan=3, sticky="we", pady=6
     )
@@ -430,12 +459,58 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     ui_box = ttk.Combobox(
         frm,
         textvariable=win._prediction_ui_style_var,
-        values=["macos", "modern", "compact", "glass", "classic"],
+        values=[
+            "macos",
+            "modern",
+            "compact",
+            "glass",
+            "classic",
+            "fluent",
+            "material",
+            "ios",
+            "minimal",
+            "neon",
+        ],
         state="readonly",
-        width=12,
+        width=14,
     )
     ui_box.grid(row=row, column=1, sticky="w", **pad)
     ui_box.bind("<<ComboboxSelected>>", lambda _e: win.on_prediction_style_changed())
+    row += 1
+
+    # Suggestion box layout: vertical (stacked) vs horizontal (ribbon)
+    ttk.Label(
+        frm,
+        text=t("settings.prediction_layout", "چیدمان پیشنهادها:"),
+    ).grid(row=row, column=0, sticky=align, **pad)
+
+    layout_val = getattr(win.cfg, "prediction_layout", "vertical")
+    layout_map = {
+        t("settings.layout_vertical", "زیر هم (عمودی — پیش‌فرض)"): "vertical",
+        t("settings.layout_horizontal", "رو‌به‌روی هم (افقی / نواری)"): "horizontal",
+    }
+    rev_layout_map = {v: k for k, v in layout_map.items()}
+
+    win._prediction_layout_var = tk.StringVar(value=layout_val)
+    win._prediction_layout_display_var = tk.StringVar(
+        value=rev_layout_map.get(layout_val, rev_layout_map.get("vertical", "vertical"))
+    )
+
+    def _on_layout_selected(_e: object = None) -> None:
+        selected_text = win._prediction_layout_display_var.get()
+        chosen = layout_map.get(selected_text, "vertical")
+        win._prediction_layout_var.set(chosen)
+        win.on_prediction_layout_changed()
+
+    layout_cb = ttk.Combobox(
+        frm,
+        textvariable=win._prediction_layout_display_var,
+        values=list(layout_map.keys()),
+        state="readonly",
+        width=24,
+    )
+    layout_cb.grid(row=row, column=1, sticky="w", **pad)
+    layout_cb.bind("<<ComboboxSelected>>", _on_layout_selected)
     row += 1
 
     # Live preview: shows exactly how the suggestion box will look with the
@@ -448,6 +523,102 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     win._style_preview.grid(row=row, column=1, columnspan=2, sticky="ew", **pad)
     win._render_style_preview()
     row += 1
+
+    # Custom color palette section
+    color_card = ttk.LabelFrame(
+        frm,
+        text=t("settings.custom_colors_title", "🎨 سفارشی‌سازی رنگ‌بندی جعبه پیشنهاد"),
+    )
+    color_card.grid(
+        row=row, column=0, columnspan=3, sticky="ew", padx=pad.get("padx", 10), pady=(3, 4)
+    )
+    row += 1
+
+    win._prediction_use_custom_colors_var = tk.BooleanVar(
+        value=getattr(win.cfg, "prediction_use_custom_colors", False)
+    )
+    ttk.Checkbutton(
+        color_card,
+        text=t(
+            "settings.use_custom_colors",
+            "فعال‌سازی رنگ‌بندی دلخواه (جایگزینی پالت استایل انتخابی)",
+        ),
+        variable=win._prediction_use_custom_colors_var,
+        command=win.on_prediction_colors_changed,
+    ).pack(anchor=align, padx=10, pady=(6, 4))
+
+    # Swatches row
+    swatches_frame = ttk.Frame(color_card)
+    swatches_frame.pack(fill="x", padx=10, pady=(2, 6))
+
+    color_fields = [
+        ("prediction_custom_bg", t("settings.color_bg", "پس‌زمینه")),
+        ("prediction_custom_fg", t("settings.color_fg", "متن")),
+        ("prediction_custom_highlight", t("settings.color_highlight", "انتخاب")),
+        ("prediction_custom_border", t("settings.color_border", "حاشیه")),
+        ("prediction_custom_accent", t("settings.color_accent", "تأکید")),
+    ]
+
+    for field_name, label_text in color_fields:
+        item_frame = ttk.Frame(swatches_frame)
+        item_frame.pack(side="right" if rtl else "left", padx=8, pady=2)
+
+        ttk.Label(item_frame, text=label_text, font=("Segoe UI", 8)).pack(anchor="center")
+
+        initial_color = getattr(
+            win.cfg,
+            field_name,
+            "#202024" if "bg" in field_name else ("#F5F5F7" if "fg" in field_name else "#0A84FF"),
+        )
+        var = tk.StringVar(value=initial_color)
+        setattr(win, f"_{field_name}_var", var)
+
+        btn = tk.Button(
+            item_frame,
+            bg=initial_color,
+            activebackground=initial_color,
+            width=3,
+            height=1,
+            relief="groove",
+            bd=1,
+            cursor="hand2",
+            command=lambda fn=field_name: win.pick_prediction_color(fn),
+        )
+        btn.pack(anchor="center", pady=(2, 0))
+        setattr(win, f"_{field_name}_btn", btn)
+
+    # Preset palettes and reset row
+    actions_frame = ttk.Frame(color_card)
+    actions_frame.pack(fill="x", padx=10, pady=(2, 4))
+
+    ttk.Label(
+        actions_frame,
+        text=t("settings.presets_label", "پالت‌های آماده:"),
+        font=("Segoe UI", 8, "bold"),
+    ).pack(side="right" if rtl else "left", padx=(0, 6))
+
+    presets = [
+        (t("settings.preset_ocean", "🌊 اقیانوسی"), ("#0D1B2A", "#E0E1DD", "#00A8E8", "#1B263B", "#00A8E8")),
+        (t("settings.preset_emerald", "🌲 زمردی"), ("#132A13", "#ECF39E", "#52B788", "#31572C", "#52B788")),
+        (t("settings.preset_sunset", "🌅 غروب"), ("#240046", "#E0AAFF", "#9D4EDD", "#3C096C", "#C77DFF")),
+        (t("settings.preset_neon", "⚡ سایبر نئون"), ("#080811", "#F0F6FC", "#00F5D4", "#00F5D4", "#00F5D4")),
+        (t("settings.preset_dark", "🌙 تاریک تمیز"), ("#1E1E2E", "#CDD6F4", "#89B4FA", "#313244", "#89B4FA")),
+    ]
+
+    for p_name, p_cols in presets:
+        btn_preset = ttk.Button(
+            actions_frame,
+            text=p_name,
+            command=lambda cols=p_cols: win.apply_color_preset(*cols),
+        )
+        btn_preset.pack(side="right" if rtl else "left", padx=3)
+
+    btn_reset = ttk.Button(
+        actions_frame,
+        text=t("settings.reset_colors_btn", "↺ بازنشانی به پالت استایل"),
+        command=win.reset_prediction_colors_to_style,
+    )
+    btn_reset.pack(side="left" if rtl else "right", padx=(8, 0))
 
     ttk.Label(
         frm,

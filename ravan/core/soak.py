@@ -79,6 +79,13 @@ def run_soak_test(
     journal = KeystrokeJournal(maxlen=256)
     target_apps = list(apps or DEFAULT_QA_APPS)
 
+    # Pre-warm lazy dictionary mmap caches for both scripts before timing starts
+    # so one-time table scans do not skew mid-run latency drift measurements.
+    predictor.predict("a", context="", limit=5, app_name=target_apps[0])
+    predictor.predict("س", context="", limit=5, app_name=target_apps[0])
+    autofix.detect("sghl", active_layout="en", app_name=target_apps[0])
+    d_fa.fuzzy_matches("سلام", max_dist=1, limit=3)
+
     initial_rss = get_current_process_rss_mb()
     peak_rss = initial_rss
     latencies_ms: list[float] = []
@@ -102,11 +109,12 @@ def run_soak_test(
         # Rotate through tested applications to simulate active OS window switching
         current_app = target_apps[current_app_idx % len(target_apps)]
 
-        # Pick next character from corpus
+        # Pick next character from corpus (include trailing space between sentences)
         sentence = _SAMPLE_SENTENCES[sentence_idx % len(_SAMPLE_SENTENCES)]
-        ch = sentence[char_idx % len(sentence)]
+        stream = sentence + " "
+        ch = stream[char_idx % len(stream)]
         char_idx += 1
-        if char_idx >= len(sentence):
+        if char_idx >= len(stream):
             char_idx = 0
             sentence_idx += 1
 
@@ -114,18 +122,22 @@ def run_soak_test(
         if keystrokes_count % 25 == 0:
             current_app_idx += 1
 
+        prev_word = journal.last_word()
+
         # Feed to journal
         journal.push(ch)
         keystrokes_count += 1
 
         # Measure predictor and autofix latency
         prefix = journal.last_word()
-        if len(prefix) >= 1:
+        if ch in (" ", "\n", "\t") and prev_word:
+            t_op_start = time.perf_counter()
+            _ = autofix.detect(prev_word, active_layout="en", app_name=current_app)
+            t_op_end = time.perf_counter()
+            latencies_ms.append((t_op_end - t_op_start) * 1000.0)
+        elif len(prefix) >= 1:
             t_op_start = time.perf_counter()
             cands = predictor.predict(prefix, context="", limit=5, app_name=current_app)
-            # Evaluate wrong-layout auto-fix on word boundaries
-            if ch in (" ", "\n", "\t"):
-                _ = autofix.detect(prefix, active_layout="en", app_name=current_app)
             t_op_end = time.perf_counter()
 
             op_ms = (t_op_end - t_op_start) * 1000.0

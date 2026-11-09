@@ -146,20 +146,101 @@ class DummyPollingApp(AppPollingMixin, AppActionsMixin):
 def test_poll_mouse_click_triggers_lang_indicator():
     app = DummyPollingApp()
     app.cfg.show_lang_on_click = True
+    base_t = 1000.0
 
     # 1. Mouse button goes down
     with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0x8000), \
-         patch("ravan.platform.caret._cursor_position", return_value=CaretRect(200, 300, 2, 16)):
+         patch("ravan.platform.caret._cursor_position", return_value=CaretRect(200, 300, 2, 16)), \
+         patch("time.monotonic", return_value=base_t):
         app._poll_mouse_click()
         assert app._mouse_left_down is True
 
-    # 2. Mouse button released after 0.1s at same position
+    # 2. Mouse button released -> pending single click scheduled
     with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0), \
-         patch("ravan.platform.caret._cursor_position", return_value=CaretRect(201, 301, 2, 16)):
+         patch("ravan.platform.caret._cursor_position", return_value=CaretRect(201, 301, 2, 16)), \
+         patch("time.monotonic", return_value=base_t + 0.05):
         app._poll_mouse_click()
         assert app._mouse_left_down is False
+        assert getattr(app, "_pending_click_time", None) == base_t + 0.05
+        assert len(app._shown_langs) == 0  # not yet, awaiting settle to protect double-clicks
+
+    # 3. Settling time elapsed without second click (single click confirmed, caret active)
+    with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0), \
+         patch("time.monotonic", return_value=base_t + 0.30), \
+         patch("ravan.platform.caret.is_text_caret_active", return_value=True):
+        app._poll_mouse_click()
+        assert getattr(app, "_pending_click_time", None) is None
         assert len(app._shown_langs) == 1
         assert app._shown_langs[0] is True  # use_mouse_pos
+
+
+def test_poll_mouse_click_ignores_empty_background_when_no_caret():
+    app = DummyPollingApp()
+    app.cfg.show_lang_on_click = True
+    base_t = 1000.0
+
+    # Mouse down
+    with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0x8000), \
+         patch("ravan.platform.caret._cursor_position", return_value=CaretRect(200, 300, 2, 16)), \
+         patch("time.monotonic", return_value=base_t):
+        app._poll_mouse_click()
+        assert app._mouse_left_down is True
+
+    # Mouse up
+    with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0), \
+         patch("ravan.platform.caret._cursor_position", return_value=CaretRect(200, 300, 2, 16)), \
+         patch("time.monotonic", return_value=base_t + 0.05):
+        app._poll_mouse_click()
+        assert app._mouse_left_down is False
+
+    # Settling time elapsed on empty page/wallpaper (no text caret)
+    with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0), \
+         patch("time.monotonic", return_value=base_t + 0.30), \
+         patch("ravan.platform.caret.is_text_caret_active", return_value=False):
+        app._poll_mouse_click()
+        # Indicator MUST NOT be shown on empty canvas/desktop
+        assert len(app._shown_langs) == 0
+
+
+def test_poll_mouse_click_aborts_on_double_click_or_touchpad_double_tap():
+    """Touchpad double-tap or mouse double-click must abort single-click indicator cleanly."""
+    app = DummyPollingApp()
+    app.cfg.show_lang_on_click = True
+    base_t = 1000.0
+
+    # 1. Tap 1 down
+    with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0x8000), \
+         patch("ravan.platform.caret._cursor_position", return_value=CaretRect(200, 300, 2, 16)), \
+         patch("time.monotonic", return_value=base_t):
+        app._poll_mouse_click()
+        assert app._mouse_left_down is True
+
+    # 2. Tap 1 up (40ms later)
+    with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0), \
+         patch("ravan.platform.caret._cursor_position", return_value=CaretRect(200, 300, 2, 16)), \
+         patch("time.monotonic", return_value=base_t + 0.04):
+        app._poll_mouse_click()
+        assert app._mouse_left_down is False
+        assert getattr(app, "_pending_click_time", None) == base_t + 0.04
+
+    # 3. Tap 2 down (120ms after Tap 1 up -> double-tap in progress!)
+    with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0x8000), \
+         patch("time.monotonic", return_value=base_t + 0.16):
+        app._poll_mouse_click()
+        assert app._mouse_left_down is True
+        # Pending click must be ABORTED immediately so double-click is never blocked!
+        assert getattr(app, "_pending_click_time", None) is None
+        assert getattr(app, "_last_double_click_time", 0.0) == base_t + 0.16
+        assert len(app._shown_langs) == 0
+
+    # 4. Tap 2 up (40ms later) -> recognized as part of double-click
+    with patch("ravan.platform.winapi.user32.GetAsyncKeyState", return_value=0), \
+         patch("time.monotonic", return_value=base_t + 0.20):
+        app._poll_mouse_click()
+        assert app._mouse_left_down is False
+        assert getattr(app, "_pending_click_time", None) is None
+        assert len(app._shown_langs) == 0
+
 
 
 def test_app_icon_validity():

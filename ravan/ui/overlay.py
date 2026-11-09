@@ -15,7 +15,7 @@ from ravan.ui.theme import (
     apply_popup_window_attributes,
     confidence_bar,
     get_active_palette,
-    get_macos_palette,
+    get_prediction_style,
     get_ui_font,
 )
 
@@ -24,8 +24,187 @@ log = logging.getLogger(__name__)
 _HINT_TEXT = "↑↓ انتخاب  ·  Enter تأیید  ·  1-5 سریع  ·  Esc بستن"
 
 
+class CandidateRow(tk.Frame):
+    """Structured candidate row with dedicated accent bar, badge chip, text, and metadata."""
+
+    def __init__(self, master, row_index: int = 0, **kwargs):
+        self.row_index = row_index
+        super().__init__(master, **kwargs)
+        self._current_bg = self.cget("bg")
+        self._formatted_text = ""
+
+        # 1. Accent bar (leading edge)
+        self._accent_bar = tk.Frame(self, width=0, bg=self._current_bg)
+
+        # 2. Number badge
+        self._badge = tk.Label(self, bg=self._current_bg, bd=0, padx=0, pady=0)
+
+        # 3. Candidate text
+        self._text = tk.Label(self, bg=self._current_bg, bd=0, padx=0, pady=0)
+
+        # 4. Meta tag (e.g. [ادامه])
+        self._tag = tk.Label(self, bg=self._current_bg, bd=0, padx=0, pady=0)
+
+        # 5. Confidence meter (e.g. █)
+        self._meter = tk.Label(self, bg=self._current_bg, bd=0, padx=0, pady=0)
+
+    def set_candidate(
+        self,
+        candidate: Candidate,
+        index: int,
+        selected: bool,
+        tokens,
+        f_sz: int,
+        is_horizontal: bool = False,
+    ) -> None:
+        p = tokens.palette
+        is_rtl = any(ord(ch) > 127 for ch in candidate.text[:2])
+
+        if selected:
+            if tokens.selected_row_style == "bold_only":
+                row_bg = getattr(self.master, "_row_bg", p.bg)
+                row_fg = p.accent or p.highlight_fg
+            elif tokens.name == "neon":
+                row_bg = p.highlight
+                row_fg = "#FFFFFF"
+            else:
+                row_bg = p.highlight
+                row_fg = p.highlight_fg
+        elif getattr(candidate, "kind", None) and candidate.kind.name == "SENTENCE":
+            row_bg = getattr(self.master, "_row_bg", p.bg)
+            row_fg = p.subtext
+        else:
+            row_bg = getattr(self.master, "_row_bg", p.bg)
+            row_fg = "#00FF66" if tokens.name == "neon" else p.fg
+
+        self._current_bg = row_bg
+        super().config(bg=row_bg)
+
+        # 1. Accent bar (leading edge)
+        has_accent_bar = (
+            selected
+            and bool(tokens.accent_bar_color)
+            and tokens.selected_row_style in ("leading_bar", "neon")
+        )
+        bar_color = tokens.accent_bar_color if has_accent_bar else row_bg
+        self._accent_bar.config(bg=bar_color, width=3 if has_accent_bar else 0)
+
+        # 2. Badge setup
+        badge_style = tokens.badge_style
+        if badge_style == "circle":
+            circles = ("❶", "❷", "❸", "❹", "❺", "❻", "❼", "❽", "❾")
+            badge_txt = circles[index] if index < len(circles) else str(index + 1)
+        elif badge_style in ("cyan", "keycap"):
+            badge_txt = f"[{index + 1}]"
+        elif badge_style == "none":
+            badge_txt = ""
+        else:
+            badge_txt = str(index + 1)
+
+        badge_fg = (
+            "#FF007F"
+            if tokens.name == "neon"
+            else (
+                p.accent
+                if selected and tokens.selected_row_style == "bold_only"
+                else (p.highlight_fg if selected else p.subtext)
+            )
+        )
+        f_badge = get_ui_font(size=max(8, f_sz - 2), bold=selected)
+        self._badge.config(text=badge_txt, bg=row_bg, fg=badge_fg, font=f_badge)
+
+        # 3. Candidate text
+        f_text = get_ui_font(size=f_sz, bold=selected, rtl=is_rtl)
+        self._text.config(text=candidate.text, bg=row_bg, fg=row_fg, font=f_text)
+
+        # 4. Meta tag setup
+        tags = {"SENTENCE": " [ادامه]", "NEXT_WORD": " [بعدی]", "AUTOCORRECT": " ≈"}
+        tag_txt = tags.get(getattr(candidate.kind, "name", ""), "")
+        tag_fg = p.subtext if not selected else (p.highlight_fg if tokens.name != "neon" else "#546E7A")
+        f_tag = get_ui_font(size=max(8, f_sz - 3), rtl=True)
+        self._tag.config(text=tag_txt, bg=row_bg, fg=tag_fg, font=f_tag)
+
+        # 5. Meter setup
+        always = bool(getattr(tokens, "confidence_meter_always", False))
+        if always or candidate.score > 0:
+            meter_txt = f" {confidence_bar(candidate.score)}"
+        else:
+            meter_txt = ""
+
+        meter_fg = "#00FF66" if tokens.name == "neon" else (p.highlight_fg if selected else p.subtext)
+        self._meter.config(text=meter_txt, bg=row_bg, fg=meter_fg, font=f_badge)
+
+        # Layout packing
+        for w in (self._accent_bar, self._badge, self._text, self._tag, self._meter):
+            w.pack_forget()
+
+        lead_side = "right" if is_rtl else "left"
+        trail_side = "left" if is_rtl else "right"
+
+        if has_accent_bar:
+            self._accent_bar.pack(side=lead_side, fill="y", padx=(0, 3) if is_rtl else (3, 0))
+
+        if badge_txt:
+            self._badge.pack(side=lead_side, padx=(3, 5) if is_rtl else (5, 3))
+
+        self._text.pack(side=lead_side, fill="x", expand=True)
+
+        if meter_txt:
+            self._meter.pack(side=trail_side, padx=(4, 2) if is_rtl else (2, 4))
+
+        if tag_txt:
+            self._tag.pack(side=trail_side, padx=2)
+
+    def config(self, cnf=None, **kwargs):
+        if cnf is None:
+            cnf = {}
+        if isinstance(cnf, dict):
+            kwargs = {**cnf, **kwargs}
+        if "text" in kwargs:
+            self._formatted_text = kwargs.pop("text")
+        if "bg" in kwargs:
+            bg_col = kwargs["bg"]
+            self._current_bg = bg_col
+            super().config(bg=bg_col)
+            for w in (self._badge, self._text, self._tag, self._meter):
+                try:
+                    w.config(bg=bg_col)
+                except Exception:
+                    pass
+        passthrough = {k: v for k, v in kwargs.items() if k not in ("text", "anchor", "justify", "font")}
+        if passthrough:
+            super().config(**passthrough)
+
+    configure = config
+
+    def cget(self, key):
+        if key == "text":
+            return self._formatted_text or self._text.cget("text")
+        return super().cget(key)
+
+    __getitem__ = cget
+
+
 class OverlayWindow:
     """Always-on-top overlay that never steals focus (best-effort)."""
+
+    @staticmethod
+    def _get_grip_text(style: str) -> str:
+        if style == "macos":
+            return "🔴 🟡 🟢   روان"
+        if style == "ios":
+            return "   روان"
+        if style == "classic":
+            return "روان           — □ ✕"
+        if style == "neon":
+            return "// RAVAAN HUD //"
+        if style == "fluent":
+            return "⊞  روان"
+        if style == "modern":
+            return "✦  روان  ✦"
+        if style == "minimal":
+            return "⋯ روان ⋯"
+        return "•• روان ••"
 
     def __init__(
         self,
@@ -85,6 +264,7 @@ class OverlayWindow:
         self._apply_theme()
 
         self._rows: list[tk.Label] = []
+        self._separators: list[tk.Frame] = []
 
         self._candidates: list[Candidate] = []
         self._clip_items: list[str] = []
@@ -101,18 +281,29 @@ class OverlayWindow:
         self._ui_style = (
             getattr(self.cfg, "prediction_ui_style", "macos") if self.cfg else "macos"
         )
-        ui_style = self._ui_style
-        if ui_style == "macos":
-            self.palette = get_macos_palette(mode)
-        else:
-            self.palette = get_active_palette(mode)
+        layout = getattr(self.cfg, "prediction_layout", "vertical") if self.cfg else "vertical"
+        custom_colors = None
+        if self.cfg and getattr(self.cfg, "prediction_use_custom_colors", False):
+            custom_colors = {
+                "bg": getattr(self.cfg, "prediction_custom_bg", "#202024"),
+                "fg": getattr(self.cfg, "prediction_custom_fg", "#F5F5F7"),
+                "accent": getattr(self.cfg, "prediction_custom_accent", "#0A84FF"),
+                "border": getattr(self.cfg, "prediction_custom_border", "#3A3A42"),
+                "highlight": getattr(self.cfg, "prediction_custom_highlight", "#0A84FF"),
+                "highlight_fg": getattr(self.cfg, "prediction_custom_highlight_fg", "#FFFFFF"),
+            }
+        self.style_tokens = get_prediction_style(
+            self._ui_style, mode, custom_colors=custom_colors, layout=layout
+        )
+        self.palette = self.style_tokens.palette
+        tokens = self.style_tokens
         bg = self.palette.bg
-        border = self.palette.border
+        border = tokens.border_color or self.palette.border
 
         opacity = (
-            float(getattr(self.cfg, "prediction_opacity", self.palette.alpha))
+            float(getattr(self.cfg, "prediction_opacity", tokens.alpha))
             if self.cfg
-            else self.palette.alpha
+            else tokens.alpha
         )
         f_sz = (
             int(getattr(self.cfg, "prediction_font_size", int(self.theme.font_size)))
@@ -120,9 +311,9 @@ class OverlayWindow:
             else int(self.theme.font_size)
         )
 
-        if ui_style == "glass":
+        if self._ui_style == "glass":
             opacity = min(opacity, 0.72)
-        elif ui_style == "classic":
+        elif self._ui_style == "classic":
             opacity = 1.0
 
         self._target_alpha = opacity
@@ -134,12 +325,10 @@ class OverlayWindow:
         # the new palette (the dedup must not keep stale colors on screen).
         self._last_render_key = None
 
-        bd = 2 if ui_style == "classic" else 1
-        relief = "solid" if ui_style == "classic" else "flat"
+        bd = tokens.border_width
+        relief = tokens.border_relief
 
-        # macOS material: acrylic blur-behind + crisp hairline border. The Tk
-        # background is used as transparency key ONLY when the OS accepted the
-        # acrylic accent, otherwise a translucent solid fallback is used.
+        # Acrylic blur-behind: enabled only when style tokens allow it.
         attrs = self._apply_noactivate()
         self._acrylic_active = bool(attrs.get("acrylic")) if isinstance(attrs, dict) else False
         if self._acrylic_active:
@@ -150,21 +339,24 @@ class OverlayWindow:
             except Exception:  # noqa: BLE001
                 self._acrylic_active = False
         elif hasattr(self, "_frame"):
-            # Leaving the macos style: neutralize any leftover transparency key.
+            # Leaving the acrylic style: neutralize any leftover transparency key.
             try:
                 self._root.attributes("-transparentcolor", "#010101")
             except Exception:  # noqa: BLE001
                 pass
-        # Windows makes colorkeyed pixels click-through: interactive surfaces
-        # (candidate rows, grip, hint) must use a NON-keyed material color, so
-        # the acrylic shows only through the frame margins while the popup stays
-        # fully draggable and clickable.
         self._row_bg = self.palette.card_bg if self._acrylic_active else bg
 
         if hasattr(self, "_frame"):
-            self._frame.config(bg=bg, highlightbackground=border, bd=bd, relief=relief)
+            self._frame.config(
+                bg=bg,
+                highlightbackground=border,
+                highlightthickness=bd,
+                bd=bd,
+                relief=relief,
+            )
             if hasattr(self, "_grip"):
-                self._grip.config(bg=self._row_bg, fg=self.palette.subtext)
+                grip_text = self._get_grip_text(self._ui_style)
+                self._grip.config(text=grip_text, bg=self._row_bg, fg=self.palette.subtext)
             self._hint.config(bg=self._row_bg, fg=self.palette.subtext)
             self._lang_label.config(bg=self.palette.card_bg, fg=self.palette.accent)
         else:
@@ -173,13 +365,13 @@ class OverlayWindow:
                 bg=bg,
                 bd=bd,
                 relief=relief,
-                highlightthickness=1,
+                highlightthickness=bd,
                 highlightbackground=border,
             )
             self._frame.pack(fill="both", expand=True)
 
             f_grip = get_ui_font(size=max(8, f_sz - 4))
-            grip_text = "⋯  روان  ⋯" if ui_style == "macos" else "•• روان ••"
+            grip_text = self._get_grip_text(self._ui_style)
             self._grip = tk.Label(
                 self._frame,
                 text=grip_text,
@@ -203,7 +395,7 @@ class OverlayWindow:
                 font=f_hint,
                 justify="left",
                 padx=10,
-                pady=4 if ui_style == "compact" else 6,
+                pady=tokens.row_padding_y,
             )
             self._bind_drag(self._hint)
 
@@ -249,12 +441,22 @@ class OverlayWindow:
         self.custom_y = -1
 
     def _bind_drag(self, widget: tk.Widget, row_index: int = -1) -> None:
-        widget.bind("<Button-1>", lambda e, r=row_index: self._on_mouse_down(e, r))
-        widget.bind("<B1-Motion>", self._on_mouse_drag)
-        widget.bind("<ButtonRelease-1>", lambda e, r=row_index: self._on_mouse_up(e, r))
-        if row_index >= 0:
-            widget.bind("<Enter>", lambda _e, r=row_index: self._on_row_enter(r))
-            widget.bind("<Leave>", lambda _e, r=row_index: self._on_row_leave(r))
+        targets: list[tk.Widget] = [widget]
+        if isinstance(widget, CandidateRow):
+            targets.extend([
+                widget._accent_bar,
+                widget._badge,
+                widget._text,
+                widget._tag,
+                widget._meter,
+            ])
+        for w in targets:
+            w.bind("<Button-1>", lambda e, r=row_index: self._on_mouse_down(e, r))
+            w.bind("<B1-Motion>", self._on_mouse_drag)
+            w.bind("<ButtonRelease-1>", lambda e, r=row_index: self._on_mouse_up(e, r))
+            if row_index >= 0:
+                w.bind("<Enter>", lambda _e, r=row_index: self._on_row_enter(r))
+                w.bind("<Leave>", lambda _e, r=row_index: self._on_row_leave(r))
 
     def _on_row_enter(self, idx: int) -> None:
         if idx < len(self._candidates) and idx != self._selected and idx < len(self._rows):
@@ -339,14 +541,18 @@ class OverlayWindow:
             return None
 
     def _apply_noactivate(self, show: bool = False) -> dict[str, bool]:
+        tokens = getattr(self, "style_tokens", None)
         palette = getattr(self, "palette", get_active_palette())
-        acrylic = getattr(self, "_ui_style", "modern") == "macos"
+        acrylic = tokens.acrylic if tokens else (getattr(self, "_ui_style", "modern") == "macos")
+        border_col = (tokens.border_color or palette.border) if (tokens and tokens.border_width > 0) else None
+        radius = tokens.corner_radius if tokens else 8.0
         return apply_popup_window_attributes(
             self._root,
             palette,
             show=show,
             acrylic=acrylic,
-            border_color=palette.border if acrylic else None,
+            border_color=border_col,
+            corner_radius=radius,
         )
 
     def _fade_in(self) -> None:
@@ -462,6 +668,8 @@ class OverlayWindow:
     def _clear_rows(self) -> None:
         for row in self._rows:
             row.pack_forget()
+        for sep in getattr(self, "_separators", []):
+            sep.pack_forget()
 
     @staticmethod
     def _format_lang_label(label: str) -> str:
@@ -577,8 +785,16 @@ class OverlayWindow:
 
     def _show_candidates_popup(self, x: int, y: int, height: int, is_rtl: bool) -> None:
         self._root.update_idletasks()
-        popup_w = max(self._root.winfo_reqwidth(), 180)
-        popup_h = max(self._root.winfo_reqheight(), 28 * len(self._candidates) + 28)
+        tokens = getattr(self, "style_tokens", None)
+        is_horizontal = (tokens and tokens.layout == "horizontal") or (
+            getattr(self.cfg, "prediction_layout", "vertical") == "horizontal"
+        )
+        if is_horizontal:
+            popup_w = max(self._root.winfo_reqwidth(), 160)
+            popup_h = max(self._root.winfo_reqheight(), 34)
+        else:
+            popup_w = max(self._root.winfo_reqwidth(), 180)
+            popup_h = max(self._root.winfo_reqheight(), 28 * len(self._candidates) + 28)
         eff_h = max(height, 22)
         from ravan.platform import winapi as wapi
 
@@ -607,74 +823,163 @@ class OverlayWindow:
         selected: bool,
         show_meter: bool | None = None,
     ) -> str:
-        prefix = f"{index + 1}  "
-        mark = "▶ " if selected else "   "
+        tokens = getattr(self, "style_tokens", None)
+        badge_style = tokens.badge_style if tokens else "plain"
+        sel_style = tokens.selected_row_style if tokens else "fill"
+
+        if badge_style == "circle":
+            circles = ("❶", "❷", "❸", "❹", "❺", "❻", "❼", "❽", "❾")
+            prefix = f"{circles[index]} " if index < len(circles) else f"{index + 1} "
+        elif badge_style == "cyan":
+            prefix = f"[{index + 1}] "
+        elif badge_style == "none":
+            prefix = ""
+        else:
+            prefix = f"{index + 1}  "
+
+        if sel_style in ("leading_bar", "neon"):
+            mark = "▌ " if selected else "  "
+        elif sel_style in ("bold_only", "pill"):
+            mark = ""
+        else:
+            mark = "▶ " if selected else "   "
+
         tags = {"SENTENCE": "  [ادامه]", "NEXT_WORD": "  [بعدی]", "AUTOCORRECT": "  ≈"}
         tag = tags.get(candidate.kind.name, "")
 
         if show_meter is None:
-            show_meter = bool(self is not None and getattr(self, "_mode", "") == "predict")
+            always = bool(tokens and getattr(tokens, "confidence_meter_always", False))
+            show_meter = bool(always or (self is not None and getattr(self, "_mode", "") == "predict"))
 
-        meter = f" {confidence_bar(candidate.score)}" if (show_meter and candidate.score > 0) else ""
+        if show_meter and (candidate.score > 0 or getattr(tokens, "confidence_meter_always", False)):
+            meter = f" {confidence_bar(candidate.score)}"
+        else:
+            meter = ""
+
+        if tokens and tokens.text_align == "center":
+            return f"{candidate.text}{tag}{meter}"
+
         return f"{mark}{prefix}{candidate.text}{tag}{meter}"
 
     def _render_candidates(self) -> None:
-        p = getattr(self, "palette", get_active_palette())
-        ui_style = getattr(self.cfg, "prediction_ui_style", "modern") if self.cfg else "modern"
+        ui_style = getattr(self.cfg, "prediction_ui_style", "macos") if self.cfg else "macos"
+        mode = getattr(self, "theme_mode", "auto")
+        layout = getattr(self.cfg, "prediction_layout", "vertical") if self.cfg else "vertical"
+        custom_colors = None
+        if self.cfg and getattr(self.cfg, "prediction_use_custom_colors", False):
+            custom_colors = {
+                "bg": getattr(self.cfg, "prediction_custom_bg", "#202024"),
+                "fg": getattr(self.cfg, "prediction_custom_fg", "#F5F5F7"),
+                "accent": getattr(self.cfg, "prediction_custom_accent", "#0A84FF"),
+                "border": getattr(self.cfg, "prediction_custom_border", "#3A3A42"),
+                "highlight": getattr(self.cfg, "prediction_custom_highlight", "#0A84FF"),
+                "highlight_fg": getattr(self.cfg, "prediction_custom_highlight_fg", "#FFFFFF"),
+            }
+        tokens = get_prediction_style(
+            ui_style, mode, custom_colors=custom_colors, layout=layout
+        )
+        self.style_tokens = tokens
+
+        p = tokens.palette
+        self.palette = p
+        ui_style = tokens.name
         f_sz = (
             int(getattr(self.cfg, "prediction_font_size", int(self.theme.font_size)))
             if self.cfg
             else int(self.theme.font_size)
         )
 
-        pad_y = 2 if ui_style == "compact" else (5 if ui_style == "macos" else 4)
-        pad_x = 8 if ui_style == "compact" else (14 if ui_style == "macos" else 10)
+        pad_y = tokens.row_padding_y
+        pad_x = tokens.row_padding_x
+        is_horizontal = tokens.layout == "horizontal"
+        is_rtl = any(ord(ch) > 127 for cand in self._candidates for ch in cand.text[:2])
+        pack_side = "right" if is_rtl else "left"
 
-        if ui_style != "compact" and hasattr(self, "_grip"):
-            self._grip.pack(fill="x")
+        if tokens.show_grip and ui_style != "compact" and hasattr(self, "_grip"):
+            if is_horizontal:
+                self._grip.config(
+                    text="••",
+                    bg=getattr(self, "_row_bg", p.bg),
+                    fg=p.subtext,
+                    padx=5,
+                    pady=2,
+                )
+                self._grip.pack(side=pack_side, fill="y", padx=(2, 0))
+            else:
+                grip_txt = self._get_grip_text(ui_style)
+                self._grip.config(
+                    text=grip_txt,
+                    bg=getattr(self, "_row_bg", p.bg),
+                    fg=p.subtext,
+                    padx=8,
+                    pady=2,
+                )
+                self._grip.pack(side="top", fill="x")
         elif hasattr(self, "_grip"):
             self._grip.pack_forget()
 
+        if not hasattr(self, "_separators"):
+            self._separators = []
+
         while len(self._rows) < len(self._candidates):
             idx = len(self._rows)
-            fnt = get_ui_font(size=f_sz)
-            row = tk.Label(
+            row = CandidateRow(
                 self._frame,
-                text="",
+                row_index=idx,
                 bg=getattr(self, "_row_bg", p.bg),
-                fg=p.fg,
-                font=fnt,
-                anchor="w",
                 padx=pad_x,
                 pady=pad_y,
             )
             self._bind_drag(row, row_index=idx)
             self._rows.append(row)
 
+        while len(self._separators) < max(0, len(self._candidates) - 1):
+            sep = tk.Frame(self._frame, height=1)
+            self._separators.append(sep)
+
+        # Clear existing packs
+        for r in self._rows:
+            r.pack_forget()
+        for s in self._separators:
+            s.pack_forget()
+
         for i, c in enumerate(self._candidates):
             selected = i == self._selected
-            rtl = any(ord(ch) > 127 for ch in c.text[:2])
-            fnt = get_ui_font(size=f_sz, bold=selected, rtl=rtl)
-            if selected:
-                bg, fg = p.highlight, p.highlight_fg
-            elif getattr(c, "kind", None) and c.kind.name == "SENTENCE":
-                bg, fg = getattr(self, "_row_bg", p.bg), p.subtext
-            else:
-                bg, fg = getattr(self, "_row_bg", p.bg), p.fg
-            self._rows[i].config(
-                text=self._row_text(i, c, selected),
-                bg=bg,
-                fg=fg,
-                font=fnt,
-                padx=pad_x,
-                pady=pad_y,
+            self._rows[i].set_candidate(
+                candidate=c,
+                index=i,
+                selected=selected,
+                tokens=tokens,
+                f_sz=f_sz,
+                is_horizontal=is_horizontal,
             )
-            self._rows[i].pack(fill="x")
+            self._rows[i]._formatted_text = self._row_text(i, c, selected)
+            if is_horizontal:
+                self._rows[i].pack(side=pack_side, padx=3, pady=pad_y)
+                if tokens.show_separators and i < len(self._candidates) - 1:
+                    sep_frame = self._separators[i]
+                    sep_frame.config(width=1, height=18, bg=tokens.separator_color or p.border)
+                    sep_frame.pack(side=pack_side, fill="y", padx=1, pady=3)
+            else:
+                self._rows[i].pack(fill="x")
+                if tokens.show_separators and i < len(self._candidates) - 1:
+                    sep_frame = self._separators[i]
+                    sep_frame.config(height=1, width=0, bg=tokens.separator_color or p.border)
+                    sep_frame.pack(fill="x")
 
         for j in range(len(self._candidates), len(self._rows)):
             self._rows[j].pack_forget()
 
-        self._hint.pack(fill="x")
+        if tokens.show_hint_bar and not is_horizontal:
+            self._hint.config(
+                bg=getattr(self, "_row_bg", p.bg),
+                fg=p.subtext,
+                font=get_ui_font(size=max(8, f_sz - 3), rtl=True),
+            )
+            self._hint.pack(fill="x")
+        else:
+            self._hint.pack_forget()
+
         self._last_render_key = (tuple(c.text for c in self._candidates), self._selected)
 
     def _place(self, x: int, y: int) -> None:
@@ -724,6 +1029,18 @@ class OverlayWindow:
     @property
     def active_popup(self) -> bool:
         return self.predicting or self.clipboard_open
+
+    @property
+    def is_horizontal(self) -> bool:
+        tokens = getattr(self, "style_tokens", None)
+        return bool(
+            (tokens and tokens.layout == "horizontal")
+            or (getattr(self.cfg, "prediction_layout", "vertical") == "horizontal")
+        )
+
+    @property
+    def _is_horizontal(self) -> bool:
+        return self.is_horizontal
 
     def show_clipboard(self, items: list[str], x: int, y: int, height: int = 16) -> None:
         if not items:

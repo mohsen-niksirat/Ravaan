@@ -18,6 +18,7 @@ _uia_failed_until: dict[int, float] = {}
 _uia_failed_pids: set[int] = set()
 _cached_caret: tuple[CaretRect, str, float] | None = None
 _cached_uia_automation = None
+_uia_last_had_error: bool = False
 
 
 
@@ -70,7 +71,7 @@ def set_mock_caret(rect: CaretRect | None, source: str = "mock") -> None:
         _mock_caret = (rect, source)
 
 
-def get_caret_rect_with_source() -> tuple[CaretRect, str]:
+def get_caret_rect_with_source(force_fresh: bool = False) -> tuple[CaretRect, str]:
     """Return the caret rect and detection source ('UIA', 'GetGUIThreadInfo', or 'cursor')."""
     global _last_caret_source, _cached_caret
 
@@ -78,12 +79,12 @@ def get_caret_rect_with_source() -> tuple[CaretRect, str]:
         return _mock_caret[0], _mock_caret[1]
 
     now = time.monotonic()
-    if _cached_caret is not None and (now - _cached_caret[2]) < 0.250:
+    if not force_fresh and _cached_caret is not None and (now - _cached_caret[2]) < 0.250:
         return _cached_caret[0], _cached_caret[1]
 
     active_pid = _get_active_pid()
     rect = None
-    # Skip UIA if this PID recently failed UIA within cooldown
+    # Skip UIA if this PID recently failed UIA with an error within cooldown
     if active_pid not in _uia_failed_until or now > _uia_failed_until[active_pid]:
         rect = _try_uia_caret()
         if rect is not None and (-10000 <= rect.x <= 50000) and (-10000 <= rect.y <= 50000):
@@ -91,12 +92,11 @@ def get_caret_rect_with_source() -> tuple[CaretRect, str]:
             _last_caret_source = "UIA"
             _cached_caret = (rect, "UIA", now)
             return rect, "UIA"
-        else:
-            if active_pid:
-                _uia_failed_until[active_pid] = now + 3.0
+        elif _uia_last_had_error and active_pid:
+            _uia_failed_until[active_pid] = now + 3.0
 
-    # UIA was unavailable for this active window. Log once per process ID.
-    if active_pid and active_pid not in _uia_failed_pids:
+    # UIA had an exception for this active window. Log once per process ID.
+    if active_pid and _uia_last_had_error and active_pid not in _uia_failed_pids:
         _uia_failed_pids.add(active_pid)
         if len(_uia_failed_pids) > 100:
             _uia_failed_pids.pop()
@@ -121,6 +121,20 @@ def get_caret_rect_with_source() -> tuple[CaretRect, str]:
     _cached_caret = (rect, "cursor", now)
     log.debug("Caret via cursor: %s", rect)
     return rect, "cursor"
+
+
+def is_text_caret_active(force_fresh: bool = True) -> bool:
+    """Return True if an active text typing caret is currently detected.
+
+    Checks UI Automation (browsers, Electron, Office, terminals, editors) and
+    Win32 GetGUIThreadInfo (standard edit controls). Returns False when clicking
+    on empty canvas, desktop, wallpaper, buttons, or non-text areas.
+    """
+    if _mock_caret is not None:
+        return _mock_caret[1] in ("UIA", "GetGUIThreadInfo", "mock")
+
+    _rect, source = get_caret_rect_with_source(force_fresh=force_fresh)
+    return source in ("UIA", "GetGUIThreadInfo", "mock")
 
 
 def get_caret_rect() -> CaretRect:
@@ -169,7 +183,8 @@ def _try_uia_caret() -> CaretRect | None:
     except Exception:
         pass
 
-    global _cached_uia_automation
+    global _cached_uia_automation, _uia_last_had_error
+    _uia_last_had_error = False
     try:
         if _cached_uia_automation is None:
             _cached_uia_automation = comtypes.client.CreateObject(
@@ -205,6 +220,7 @@ def _try_uia_caret() -> CaretRect | None:
         return None
     except Exception:  # noqa: BLE001 — UIA is best-effort
         _cached_uia_automation = None
+        _uia_last_had_error = True
         return None
 
 
@@ -247,10 +263,8 @@ def _try_gui_thread_info() -> CaretRect | None:
     if not hwnd:
         return None
     thread_id = w.user32.GetWindowThreadProcessId(hwnd, None)
-    own_tid = w.kernel32.GetCurrentThreadId()
-    attached = False
-    if thread_id != own_tid:
-        attached = bool(w.user32.AttachThreadInput(own_tid, thread_id, True))
+    if not thread_id:
+        return None
 
     try:
         info = w.GUITHREADINFO()
@@ -278,9 +292,8 @@ def _try_gui_thread_info() -> CaretRect | None:
                         width = 2
                     result = CaretRect(x=pt.x, y=pt.y, width=width, height=height)
         return result
-    finally:
-        if attached:
-            w.user32.AttachThreadInput(own_tid, thread_id, False)
+    except Exception:
+        return None
 
 
 def _cursor_position() -> CaretRect:

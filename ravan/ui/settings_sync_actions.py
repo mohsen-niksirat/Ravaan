@@ -8,7 +8,14 @@ from tkinter import messagebox
 from typing import Any
 
 from ravan.core.i18n import t
-from ravan.core.sync import merge_dictionaries, merge_snippets, pull_sync, push_sync
+from ravan.core.sync import (
+    dict_to_snippet,
+    merge_dictionaries,
+    merge_snippets,
+    pull_sync,
+    push_sync,
+    snippet_to_dict,
+)
 
 log = logging.getLogger(__name__)
 
@@ -58,10 +65,7 @@ def do_sync_push(win: Any) -> None:
         for ln in win._user_words_text.get("1.0", "end").splitlines()
         if ln.strip() and not ln.strip().startswith("#")
     ]
-    snippets_data = [
-        {"trigger": s.trigger, "replacement": s.replacement, "enabled": s.enabled}
-        for s in win._managed_snippets
-    ]
+    snippets_data = [snippet_to_dict(s) for s in win._managed_snippets]
 
     def _bg() -> None:
         res = push_sync(win.cfg, user_words, snippets_data)
@@ -105,10 +109,7 @@ def do_sync_pull(win: Any) -> None:
         for ln in win._user_words_text.get("1.0", "end").splitlines()
         if ln.strip() and not ln.strip().startswith("#")
     ]
-    current_snippets = [
-        {"trigger": s.trigger, "replacement": s.replacement, "enabled": s.enabled}
-        for s in win._managed_snippets
-    ]
+    current_snippets = [snippet_to_dict(s) for s in win._managed_snippets]
 
     def _bg() -> None:
         res = pull_sync(
@@ -126,7 +127,6 @@ def do_sync_pull(win: Any) -> None:
                 )
                 return
 
-            from ravan.core.config import Snippet
             from ravan.core.sync import restore_backup
             from ravan.core.user_dict import save_user_words
 
@@ -168,13 +168,9 @@ def do_sync_pull(win: Any) -> None:
                     current_snippets, remote_snippets, resolution_strategy=strategy
                 )
                 win._managed_snippets = [
-                    Snippet(
-                        trigger=str(s["trigger"]),
-                        replacement=str(s["replacement"]),
-                        enabled=bool(s.get("enabled", True)),
-                    )
+                    dict_to_snippet(s)
                     for s in resolved_snippets
-                    if isinstance(s, dict) and s.get("trigger")
+                    if isinstance(s, dict) and str(s.get("trigger", "")).strip()
                 ]
                 win._update_snip_display()
 
