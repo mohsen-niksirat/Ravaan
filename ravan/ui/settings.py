@@ -741,6 +741,7 @@ class SettingsWindow:
             custom_colors=custom_colors,
             layout=layout,
         )
+        self._preview_chassis_img = chassis_img
         self._preview_chassis_photo = ImageTk.PhotoImage(chassis_img)
 
         def _draw_content(cw_in: int) -> None:

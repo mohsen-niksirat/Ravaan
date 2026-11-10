@@ -258,23 +258,23 @@ def test_settings_preview_is_distinct_per_style(monkeypatch):
         for _ in range(60):
             win.tick()
 
-        mock_bgs: dict[str, str] = {}
+        chassis_bytes: dict[str, bytes] = {}
         for style in ("macos", "glass", "classic"):
             win._prediction_ui_style_var.set(style)
             win.on_prediction_style_changed()
             win._root.update()
             container = win._style_preview.winfo_children()[0]
-            mock = container.winfo_children()[1]  # [0] is the backdrop canvas
-            mock_bgs[style] = str(mock.cget("bg")).lower()
+            canvas = container.winfo_children()[0]  # [0] is the backdrop canvas
+            assert canvas.find_all(), "Canvas must have rendered graphical elements"
+            assert win._preview_chassis_img is not None
+            chassis_bytes[style] = win._preview_chassis_img.tobytes()
 
         # The three translucent/opaque styles must render clearly different
-        # materials (macos tinted acrylic, glass strongly see-through, classic
-        # fully opaque) — previously the preview looked identical for every style.
-        assert mock_bgs["macos"] != mock_bgs["glass"]
-        assert mock_bgs["glass"] != mock_bgs["classic"]
-        assert mock_bgs["macos"] != mock_bgs["classic"]
-        # glass is the most see-through: its mock sits closest to the backdrop.
-        assert mock_bgs["glass"] != mock_bgs["macos"]
+        # graphical materials (macos tinted acrylic, glass specular refraction,
+        # classic opaque window) — each chassis image must be distinct.
+        assert chassis_bytes["macos"] != chassis_bytes["glass"]
+        assert chassis_bytes["glass"] != chassis_bytes["classic"]
+        assert chassis_bytes["macos"] != chassis_bytes["classic"]
     finally:
         if win._root is not None:
             win._close()
