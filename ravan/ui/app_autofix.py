@@ -404,9 +404,9 @@ class AppAutofixMixin:
         delete_len = len(corrected) + len(delim)
         replace_text = orig + delim
         self._suppress_until = time.monotonic() + 0.03
-        from ravan.platform.inject import replace_last_n_with
+        from ravan.ui import app as _app_mod
 
-        replace_last_n_with(delete_len, replace_text)
+        _app_mod.replace_last_n_with(delete_len, replace_text)
 
         for _ in range(delete_len):
             if self.journal._chars:
