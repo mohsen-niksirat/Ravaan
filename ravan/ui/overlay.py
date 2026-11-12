@@ -58,6 +58,7 @@ class CandidateRow(tk.Frame):
         is_horizontal: bool = False,
     ) -> None:
         p = tokens.palette
+        is_custom = p.name.endswith("_custom")
         is_rtl = any(ord(ch) > 127 for ch in candidate.text[:2])
 
         def _is_light(hex_col: str) -> bool:
@@ -76,10 +77,16 @@ class CandidateRow(tk.Frame):
                 row_bg = getattr(self.master, "_row_bg", p.bg)
                 row_fg = p.accent or p.highlight_fg
             elif tokens.name == "neon":
-                row_bg = "#2A0820" if not p.name.endswith("_custom") else p.highlight
+                row_bg = "#2A0820" if not is_custom else p.highlight
                 row_fg = "#080811" if _is_light(row_bg) else "#00FF66"
                 row_hl_thick = 1
-                row_hl_col = "#FF007F"
+                row_hl_col = "#FF007F" if not is_custom else (tokens.border_color or p.border)
+            elif is_custom:
+                row_bg = p.highlight
+                row_fg = "#080811" if _is_light(row_bg) else (p.highlight_fg or "#FFFFFF")
+                if tokens.name in ("modern", "glass"):
+                    row_hl_thick = 1
+                    row_hl_col = tokens.border_color or p.border
             elif tokens.name == "classic":
                 row_bg = "#0A246A"
                 row_fg = "#FFFFFF"
@@ -112,6 +119,8 @@ class CandidateRow(tk.Frame):
             row_bg = getattr(self.master, "_row_bg", p.bg)
             if tokens.name == "neon":
                 row_fg = "#00FF66"
+            elif is_custom:
+                row_fg = "#080811" if _is_light(row_bg) else p.fg
             elif tokens.name == "classic":
                 row_fg = "#000000"
             elif tokens.name == "fluent":
@@ -137,6 +146,7 @@ class CandidateRow(tk.Frame):
 
         # 2. Badge setup
         badge_style = tokens.badge_style
+        badge_bg = row_bg
         if badge_style == "circle":
             circles = ("❶", "❷", "❸", "❹", "❺", "❻", "❼", "❽", "❾")
             badge_txt = circles[index] if index < len(circles) else str(index + 1)
@@ -149,6 +159,12 @@ class CandidateRow(tk.Frame):
 
         if tokens.name == "neon":
             badge_fg = "#080811" if (selected and _is_light(row_bg)) else "#FF007F"
+        elif is_custom:
+            badge_fg = (
+                "#080811"
+                if _is_light(row_bg)
+                else (p.highlight_fg if selected else (p.accent or p.subtext))
+            )
         elif tokens.name == "classic":
             badge_fg = "#FFFFFF" if selected else "#000000"
         elif tokens.name == "fluent":
@@ -158,19 +174,39 @@ class CandidateRow(tk.Frame):
         elif tokens.name == "glass":
             badge_fg = "#A0D0FF" if selected else "#8FA6BC"
         elif tokens.name == "material":
-            badge_fg = "#D0BCFF" if selected else "#CAC4D0"
+            badge_fg = "#007AFF" if selected else "#D0BCFF"
         elif tokens.name in ("macos", "ios"):
             badge_fg = "#FFFFFF" if selected else "#98989D"
+        elif tokens.name == "minimal":
+            badge_fg = "#FFFFFF" if selected else "#A0A0B0"
+            badge_bg = "#303038" if selected else "#1A1A20"
         else:
             badge_fg = (
                 "#080811" if _is_light(row_bg) else (p.highlight_fg if selected else p.subtext)
             )
         f_badge = get_ui_font(size=max(8, f_sz - 2), bold=selected)
-        self._badge.config(text=badge_txt, bg=row_bg, fg=badge_fg, font=f_badge)
+        self._badge.config(
+            text=badge_txt,
+            bg=badge_bg,
+            fg=badge_fg,
+            font=f_badge,
+            padx=3 if badge_style == "keycap" else 0,
+            pady=1 if badge_style == "keycap" else 0,
+            relief="ridge" if badge_style == "keycap" else "flat",
+            bd=1 if badge_style == "keycap" else 0,
+        )
 
         # 3. Candidate text
         f_text = get_ui_font(size=f_sz, bold=selected, rtl=is_rtl)
-        self._text.config(text=candidate.text, bg=row_bg, fg=row_fg, font=f_text)
+        text_anchor = "e" if is_rtl else "w"
+        self._text.config(
+            text=candidate.text,
+            bg=row_bg,
+            fg=row_fg,
+            font=f_text,
+            anchor=text_anchor,
+            justify="right" if is_rtl else "left",
+        )
 
         # 4. Meta tag setup
         tags = {"SENTENCE": " [ادامه]", "NEXT_WORD": " [بعدی]", "AUTOCORRECT": " ≈"}
@@ -209,22 +245,35 @@ class CandidateRow(tk.Frame):
         for w in (self._accent_bar, self._badge, self._text, self._tag, self._meter):
             w.pack_forget()
 
-        lead_side = "right" if is_rtl else "left"
-        trail_side = "left" if is_rtl else "right"
+        if is_horizontal:
+            lead_side = "right" if is_rtl else "left"
+            if badge_txt:
+                self._badge.pack(side=lead_side, padx=(2, 4) if is_rtl else (4, 2))
+            self._text.pack(side=lead_side, padx=2)
+            if tag_txt:
+                self._tag.pack(side=lead_side, padx=1)
+        else:
+            # Matches preview_graphics.py:
+            # Left side: Accent bar -> Badge -> Meter/Tag
+            # Right side (for RTL) or Left side (for LTR): Candidate text
+            if has_accent_bar:
+                self._accent_bar.pack(side="left", fill="y", padx=(2, 4))
 
-        if has_accent_bar:
-            self._accent_bar.pack(side=lead_side, fill="y", padx=(0, 3) if is_rtl else (3, 0))
+            if badge_txt:
+                self._badge.pack(side="left", padx=(6, 6))
 
-        if badge_txt:
-            self._badge.pack(side=lead_side, padx=(3, 5) if is_rtl else (5, 3))
-
-        self._text.pack(side=lead_side, fill="x", expand=True)
-
-        if meter_txt:
-            self._meter.pack(side=trail_side, padx=(4, 2) if is_rtl else (2, 4))
-
-        if tag_txt:
-            self._tag.pack(side=trail_side, padx=2)
+            if is_rtl:
+                self._text.pack(side="right", fill="x", expand=True, padx=(6, 10))
+                if meter_txt:
+                    self._meter.pack(side="left", padx=(2, 2))
+                if tag_txt:
+                    self._tag.pack(side="left", padx=(2, 2))
+            else:
+                self._text.pack(side="left", fill="x", expand=True, padx=(4, 6))
+                if tag_txt:
+                    self._tag.pack(side="right", padx=(2, 2))
+                if meter_txt:
+                    self._meter.pack(side="right", padx=(2, 6))
 
     def config(self, cnf=None, **kwargs):
         if cnf is None:
@@ -421,47 +470,64 @@ class OverlayWindow:
             except Exception:  # noqa: BLE001
                 pass
         self._row_bg = self.palette.card_bg if self._acrylic_active else bg
+        is_custom = self.palette.name.endswith("_custom")
 
-        grip_bg = "#0A246A" if self._ui_style == "classic" else self._row_bg
+        grip_bg = (
+            self._row_bg
+            if is_custom
+            else ("#0A246A" if self._ui_style == "classic" else self._row_bg)
+        )
         grip_fg = (
-            "#FFFFFF"
-            if self._ui_style == "classic"
+            (self.palette.accent or self.palette.subtext)
+            if is_custom
             else (
-                "#4CC2FF"
-                if self._ui_style == "fluent"
+                "#FFFFFF"
+                if self._ui_style == "classic"
                 else (
-                    "#FF007F"
-                    if self._ui_style == "neon"
+                    "#4CC2FF"
+                    if self._ui_style == "fluent"
                     else (
-                        "#E9D5FF"
-                        if self._ui_style == "modern"
+                        "#FF007F"
+                        if self._ui_style == "neon"
                         else (
-                            "#8AB4D8"
-                            if self._ui_style == "glass"
+                            "#E9D5FF"
+                            if self._ui_style == "modern"
                             else (
-                                "#D0BCFF"
-                                if self._ui_style == "material"
-                                else self.palette.subtext
+                                "#8AB4D8"
+                                if self._ui_style == "glass"
+                                else (
+                                    "#D0BCFF"
+                                    if self._ui_style == "material"
+                                    else self.palette.subtext
+                                )
                             )
                         )
                     )
                 )
             )
         )
-        hint_bg = "#D4D0C8" if self._ui_style == "classic" else self._row_bg
+        hint_bg = (
+            self._row_bg
+            if is_custom
+            else ("#D4D0C8" if self._ui_style == "classic" else self._row_bg)
+        )
         hint_fg = (
-            "#404040"
-            if self._ui_style == "classic"
+            self.palette.subtext
+            if is_custom
             else (
-                "#FF007F"
-                if self._ui_style == "neon"
+                "#404040"
+                if self._ui_style == "classic"
                 else (
-                    "#60CDFF"
-                    if self._ui_style == "fluent"
+                    "#FF007F"
+                    if self._ui_style == "neon"
                     else (
-                        "#A894C4"
-                        if self._ui_style == "modern"
-                        else self.palette.subtext
+                        "#60CDFF"
+                        if self._ui_style == "fluent"
+                        else (
+                            "#A894C4"
+                            if self._ui_style == "modern"
+                            else self.palette.subtext
+                        )
                     )
                 )
             )
@@ -1027,6 +1093,7 @@ class OverlayWindow:
             s.pack_forget()
 
         # 1. Grip Header packed at TOP
+        is_custom = p.name.endswith("_custom")
         if tokens.show_grip and ui_style != "compact" and hasattr(self, "_grip"):
             if is_horizontal:
                 self._grip.config(
@@ -1039,13 +1106,33 @@ class OverlayWindow:
                 self._grip.pack(side=pack_side, fill="y", padx=(2, 0))
             else:
                 grip_txt = self._get_grip_text(ui_style)
-                grip_bg = "#0A246A" if ui_style == "classic" else getattr(self, "_row_bg", p.bg)
-                grip_fg = "#FFFFFF" if ui_style == "classic" else (
-                    "#FF007F" if ui_style == "neon" else (
-                        "#4CC2FF" if ui_style == "fluent" else (
-                            "#E9D5FF" if ui_style == "modern" else (
-                                "#8AB4D8" if ui_style == "glass" else (
-                                    "#D0BCFF" if ui_style == "material" else p.subtext
+                grip_bg = (
+                    getattr(self, "_row_bg", p.bg)
+                    if is_custom
+                    else ("#0A246A" if ui_style == "classic" else getattr(self, "_row_bg", p.bg))
+                )
+                grip_fg = (
+                    (p.accent or p.subtext)
+                    if is_custom
+                    else (
+                        "#FFFFFF"
+                        if ui_style == "classic"
+                        else (
+                            "#FF007F"
+                            if ui_style == "neon"
+                            else (
+                                "#4CC2FF"
+                                if ui_style == "fluent"
+                                else (
+                                    "#E9D5FF"
+                                    if ui_style == "modern"
+                                    else (
+                                        "#8AB4D8"
+                                        if ui_style == "glass"
+                                        else (
+                                            "#D0BCFF" if ui_style == "material" else p.subtext
+                                        )
+                                    )
                                 )
                             )
                         )
@@ -1062,23 +1149,31 @@ class OverlayWindow:
 
         # 2. Hint bar packed at BOTTOM (so it is ALWAYS below candidate rows!)
         if tokens.show_hint_bar and not is_horizontal:
-            hint_bg = "#D4D0C8" if ui_style == "classic" else getattr(self, "_row_bg", p.bg)
+            hint_bg = (
+                getattr(self, "_row_bg", p.bg)
+                if is_custom
+                else ("#D4D0C8" if ui_style == "classic" else getattr(self, "_row_bg", p.bg))
+            )
             hint_fg = (
-                "#444444"
-                if ui_style == "classic"
+                p.subtext
+                if is_custom
                 else (
-                    "#FF007F"
-                    if ui_style == "neon"
+                    "#444444"
+                    if ui_style == "classic"
                     else (
-                        "#60CDFF"
-                        if ui_style == "fluent"
+                        "#FF007F"
+                        if ui_style == "neon"
                         else (
-                            "#A894C4"
-                            if ui_style == "modern"
+                            "#60CDFF"
+                            if ui_style == "fluent"
                             else (
-                                "#8AB4D8"
-                                if ui_style == "glass"
-                                else p.subtext
+                                "#A894C4"
+                                if ui_style == "modern"
+                                else (
+                                    "#8AB4D8"
+                                    if ui_style == "glass"
+                                    else p.subtext
+                                )
                             )
                         )
                     )
@@ -1119,6 +1214,7 @@ class OverlayWindow:
             self._separators.append(sep)
 
         # 3. Candidate Rows packed in the MIDDLE (between grip and hint)
+        row_inset_x = 0 if ui_style in ("classic", "compact") else 6
         for i, c in enumerate(self._candidates):
             selected = i == self._selected
             self._rows[i].set_candidate(
@@ -1137,11 +1233,11 @@ class OverlayWindow:
                     sep_frame.config(width=1, height=18, bg=tokens.separator_color or p.border)
                     sep_frame.pack(side=pack_side, fill="y", padx=1, pady=3)
             else:
-                self._rows[i].pack(side="top", fill="x")
+                self._rows[i].pack(side="top", fill="x", padx=row_inset_x, pady=1)
                 if tokens.show_separators and i < len(self._candidates) - 1:
                     sep_frame = self._separators[i]
                     sep_frame.config(height=1, width=0, bg=tokens.separator_color or p.border)
-                    sep_frame.pack(side="top", fill="x")
+                    sep_frame.pack(side="top", fill="x", padx=max(8, row_inset_x + 4))
 
         for j in range(len(self._candidates), len(self._rows)):
             self._rows[j].pack_forget()
@@ -1155,8 +1251,12 @@ class OverlayWindow:
         try:
             from ravan.platform import winapi as wapi
 
-            off_x = getattr(self.theme, "offset_x", 0)
-            off_y = getattr(self.theme, "offset_y", 0)
+            off_x = getattr(self.theme, "offset_x", 0) or (
+                getattr(self.cfg, "popup_offset_x", 0) if self.cfg else 0
+            )
+            off_y = getattr(self.theme, "offset_y", 0) or (
+                getattr(self.cfg, "popup_offset_y", 0) if self.cfg else 0
+            )
             m_left, m_top, m_right, m_bottom = wapi.get_monitor_work_area(x + off_x, y + off_y)
             px = max(m_left + 8, min(int(x + off_x), m_right - w - 8))
             py = max(m_top + 8, min(int(y + off_y), m_bottom - h - 8))

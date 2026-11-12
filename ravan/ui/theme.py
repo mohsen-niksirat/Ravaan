@@ -601,23 +601,24 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
 
     if raw_name == "material":
         pal = get_material_palette(mode)
+        sep = "#383244" if is_dark else "#D9CCE8"
         return PredictionStyleTokens(
             name="material",
             palette=pal,
             corner_radius=20.0,
-            row_padding_y=7,
+            row_padding_y=6,
             row_padding_x=14,
-            show_separators=False,
-            separator_color="",
+            show_separators=True,
+            separator_color=sep,
             badge_style="circle",
             selected_row_style="pill",
             accent_bar_color="",
             show_hint_bar=True,
-            show_grip=False,
+            show_grip=True,
             text_align="w",
             confidence_meter_always=False,
-            border_width=0,
-            border_color=pal.bg,
+            border_width=2,
+            border_color="#4B4655" if is_dark else "#CAC4D0",
             border_relief="flat",
             alpha=pal.alpha,
             acrylic=False,
@@ -625,14 +626,14 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
 
     if raw_name == "ios":
         pal = get_ios_palette(mode)
-        sep = "#3A3A40" if is_dark else "#E5E5EA"
+        sep = "#2D2D30" if is_dark else "#E5E5EA"
         return PredictionStyleTokens(
             name="ios",
             palette=pal,
             corner_radius=16.0,
             row_padding_y=6,
             row_padding_x=14,
-            show_separators=False,
+            show_separators=True,
             separator_color=sep,
             badge_style="circle",
             selected_row_style="pill",
@@ -650,23 +651,24 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
 
     if raw_name == "minimal":
         pal = get_minimal_palette(mode)
+        sep = "#242428" if is_dark else "#EAEAEA"
         return PredictionStyleTokens(
             name="minimal",
             palette=pal,
             corner_radius=4.0,
-            row_padding_y=2,
-            row_padding_x=8,
-            show_separators=False,
-            separator_color="",
-            badge_style="plain",
+            row_padding_y=4,
+            row_padding_x=10,
+            show_separators=True,
+            separator_color=sep,
+            badge_style="keycap",
             selected_row_style="fill",
-            accent_bar_color="",
+            accent_bar_color="#A0A0B0",
             show_hint_bar=True,
-            show_grip=False,
+            show_grip=True,
             text_align="w",
             confidence_meter_always=False,
-            border_width=0,
-            border_color=pal.bg,
+            border_width=2,
+            border_color="#323238" if is_dark else "#D0D0D8",
             border_relief="flat",
             alpha=pal.alpha,
             acrylic=False,
@@ -704,8 +706,8 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
             corner_radius=12.0,
             row_padding_y=5,
             row_padding_x=12,
-            show_separators=False,
-            separator_color="",
+            show_separators=True,
+            separator_color="#46286E" if is_dark else "#DDD0F5",
             badge_style="plain",
             selected_row_style="pill",
             accent_bar_color="",
@@ -726,10 +728,10 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
             name="compact",
             palette=pal,
             corner_radius=4.0,
-            row_padding_y=2,
+            row_padding_y=3,
             row_padding_x=8,
-            show_separators=False,
-            separator_color="",
+            show_separators=True,
+            separator_color="#28282E" if is_dark else "#E0E0E5",
             badge_style="plain",
             selected_row_style="fill",
             accent_bar_color="",
@@ -752,8 +754,8 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
             corner_radius=10.0,
             row_padding_y=5,
             row_padding_x=12,
-            show_separators=False,
-            separator_color="",
+            show_separators=True,
+            separator_color="#3C5573",
             badge_style="plain",
             selected_row_style="pill",
             accent_bar_color="",
@@ -800,8 +802,8 @@ def _raw_prediction_style(name: str = "macos", mode: str = "auto") -> Prediction
         corner_radius=12.0,
         row_padding_y=5,
         row_padding_x=14,
-        show_separators=False,
-        separator_color="",
+        show_separators=True,
+        separator_color="#36363C" if is_dark else "#D6D6DA",
         badge_style="plain",
         selected_row_style="fill",
         accent_bar_color="",
@@ -1193,14 +1195,36 @@ def apply_theme_to_ttk(
     # Frames
     style.configure("TFrame", background=bg)
     style.configure("Card.TFrame", background=card, relief="flat", borderwidth=1, bordercolor=border)
+    style.configure("Surface.TFrame", background=inp_bg, relief="flat", borderwidth=1, bordercolor=border)
+
+    # LabelFrames (Fluent 2 Elevated Cards)
+    style.configure(
+        "TLabelframe",
+        background=card,
+        foreground=fg,
+        bordercolor=border,
+        lightcolor=border,
+        darkcolor=border,
+        borderwidth=1,
+        relief="solid",
+        padding=[14, 10],
+    )
+    style.configure(
+        "TLabelframe.Label",
+        background=card,
+        foreground=palette.accent,
+        font=get_ui_font(size=10, bold=True),
+        padding=[6, 2],
+    )
 
     # Labels
     style.configure("TLabel", background=bg, foreground=fg, font=font_regular)
     style.configure("Card.TLabel", background=card, foreground=fg, font=font_regular)
     style.configure("Sub.TLabel", background=bg, foreground=subtext, font=font_sub)
     style.configure("CardSub.TLabel", background=card, foreground=subtext, font=font_sub)
-    style.configure("Header.TLabel", background=bg, foreground=fg, font=get_ui_font(size=11, bold=True))
+    style.configure("Header.TLabel", background=bg, foreground=fg, font=get_ui_font(size=13, bold=True))
     style.configure("CardHeader.TLabel", background=card, foreground=palette.accent, font=get_ui_font(size=10, bold=True))
+    style.configure("Badge.TLabel", background=palette.badge_bg, foreground=palette.badge_fg, font=font_bold, padding=[8, 3])
 
     # Buttons
     style.configure(
@@ -1222,6 +1246,42 @@ def apply_theme_to_ttk(
         bordercolor=[("active", palette.accent)],
     )
 
+    # Sidebar Navigation Buttons
+    style.configure(
+        "Nav.TButton",
+        background=card,
+        foreground=subtext,
+        bordercolor=card,
+        darkcolor=card,
+        lightcolor=card,
+        borderwidth=0,
+        padding=[14, 9],
+        font=font_regular,
+        anchor="w",
+    )
+    style.map(
+        "Nav.TButton",
+        background=[("pressed", btn_hover), ("active", btn_hover)],
+        foreground=[("pressed", fg), ("active", fg)],
+    )
+    style.configure(
+        "NavActive.TButton",
+        background=highlight,
+        foreground=hl_fg,
+        bordercolor=highlight,
+        darkcolor=highlight,
+        lightcolor=highlight,
+        borderwidth=0,
+        padding=[14, 9],
+        font=font_bold,
+        anchor="w",
+    )
+    style.map(
+        "NavActive.TButton",
+        background=[("pressed", palette.accent_hover), ("active", palette.accent_hover)],
+        foreground=[("pressed", hl_fg), ("active", hl_fg)],
+    )
+
     # Accent Primary Button
     style.configure(
         "Accent.TButton",
@@ -1232,13 +1292,32 @@ def apply_theme_to_ttk(
         lightcolor=highlight,
         borderwidth=0,
         focuscolor=palette.accent_hover,
-        padding=[14, 6],
+        padding=[16, 7],
         font=font_bold,
     )
     style.map(
         "Accent.TButton",
         background=[("pressed", palette.accent_hover), ("active", palette.accent_hover)],
         foreground=[("pressed", hl_fg), ("active", hl_fg)],
+    )
+
+    # Spinbox
+    style.configure(
+        "TSpinbox",
+        fieldbackground=inp_bg,
+        background=card,
+        foreground=fg,
+        bordercolor=border,
+        lightcolor=border,
+        darkcolor=border,
+        arrowcolor=fg,
+        insertcolor=fg,
+        padding=[6, 4],
+    )
+    style.map(
+        "TSpinbox",
+        bordercolor=[("focus", highlight)],
+        fieldbackground=[("readonly", inp_bg)],
     )
 
     # Notebook & Tabs
@@ -1250,11 +1329,19 @@ def apply_theme_to_ttk(
         tabmargins=[4, 4, 4, 0],
     )
     style.configure(
+        "Hidden.TNotebook",
+        background=bg,
+        bordercolor=bg,
+        borderwidth=0,
+        tabmargins=[0, 0, 0, 0],
+    )
+    style.layout("Hidden.TNotebook.Tab", [])
+    style.configure(
         "TNotebook.Tab",
         background=card,
         foreground=subtext,
         bordercolor=border,
-        padding=[8, 6],
+        padding=[10, 6],
         font=font_regular,
     )
     style.map(
@@ -1302,13 +1389,28 @@ def apply_theme_to_ttk(
         indicatorbackground=inp_bg,
         indicatorcolor=palette.accent,
         focuscolor=bg,
-        padding=[2, 2],
+        padding=[4, 3],
     )
     style.map(
         "TCheckbutton",
         indicatorbackground=[("selected", highlight), ("active", card)],
         indicatorcolor=[("selected", hl_fg)],
         background=[("active", bg)],
+    )
+    style.configure(
+        "Card.TCheckbutton",
+        background=card,
+        foreground=fg,
+        indicatorbackground=inp_bg,
+        indicatorcolor=palette.accent,
+        focuscolor=card,
+        padding=[4, 3],
+    )
+    style.map(
+        "Card.TCheckbutton",
+        indicatorbackground=[("selected", highlight), ("active", inp_bg)],
+        indicatorcolor=[("selected", hl_fg)],
+        background=[("active", card)],
     )
 
     style.configure(
@@ -1318,13 +1420,28 @@ def apply_theme_to_ttk(
         indicatorbackground=inp_bg,
         indicatorcolor=palette.accent,
         focuscolor=bg,
-        padding=[2, 2],
+        padding=[4, 3],
     )
     style.map(
         "TRadiobutton",
         indicatorbackground=[("selected", highlight), ("active", card)],
         indicatorcolor=[("selected", hl_fg)],
         background=[("active", bg)],
+    )
+    style.configure(
+        "Card.TRadiobutton",
+        background=card,
+        foreground=fg,
+        indicatorbackground=inp_bg,
+        indicatorcolor=palette.accent,
+        focuscolor=card,
+        padding=[4, 3],
+    )
+    style.map(
+        "Card.TRadiobutton",
+        indicatorbackground=[("selected", highlight), ("active", inp_bg)],
+        indicatorcolor=[("selected", hl_fg)],
+        background=[("active", card)],
     )
 
     # Treeview

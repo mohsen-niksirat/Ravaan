@@ -77,8 +77,7 @@ class SnippetGroupSelector(ttk.Frame):
             ttk.Label(
                 self,
                 text=t("snippets_editor.no_groups_hint", "(No groups configured. Configure in Settings > Snippets)"),
-                foreground="gray",
-                font=("Segoe UI", 8),
+                style="Sub.TLabel",
             ).pack(anchor="w")
             return
 

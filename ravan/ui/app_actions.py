@@ -289,7 +289,12 @@ class AppActionsMixin:
             return
         caret = get_caret_rect()
         self.overlay.show_clipboard(items, caret.x, caret.y, caret.height)
-        set_popup_visible(True, swallow_digits=self.cfg.quickpick_digits)
+        is_horiz = getattr(self.cfg, "prediction_layout", "vertical") == "horizontal"
+        set_popup_visible(
+            True,
+            swallow_digits=self.cfg.quickpick_digits,
+            swallow_arrow="both" if is_horiz else None,
+        )
         self._popup_shown_at = time.monotonic()
         log.info("Showing clipboard popup with %d items", len(items))
 

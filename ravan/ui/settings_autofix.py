@@ -8,20 +8,37 @@ from typing import Any
 
 from ravan.core.config import hotkey_to_text
 from ravan.core.i18n import is_rtl, t
+from ravan.ui.settings_builder import _get_win_palette, _make_section_banner
 
 
 def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict[str, int]) -> int:
     """Build the Settings tab for Automatic Wrong-Layout Correction."""
     rtl = is_rtl()
+    palette = _get_win_palette(win)
     side = "right" if rtl else "left"
+
+    sub = (
+        "تشخیص و اصلاح خودکار تایپ با کیبورد اشتباه (مثلاً sghl ← سلام) همراه با تغییر خودکار زبان ویندوز"
+        if rtl
+        else "Automatically detect and convert words typed in the wrong keyboard layout (e.g. sghl → سلام)"
+    )
+    banner = _make_section_banner(
+        parent,
+        "⚡",
+        t("settings.tab_autofix", "Auto-Fix"),
+        sub,
+        palette,
+        rtl,
+    )
+    banner.pack(fill="x", pady=(0, 8))
 
     # 1. Mode selector
     mode_frame = ttk.LabelFrame(
         parent,
-        text=t("settings.autofix_mode_title", "Automatic Layout Correction Mode"),
-        padding=8,
+        text=f"  {t('settings.autofix_mode_title', 'Automatic Layout Correction Mode')}  ",
+        padding=12,
     )
-    mode_frame.pack(fill="x", pady=6)
+    mode_frame.pack(fill="x", pady=(0, 8))
 
     initial_af_mode = getattr(win.cfg, "autofix_mode", "safe")
     win._autofix_master_var = tk.BooleanVar(value=initial_af_mode != "off")
@@ -90,19 +107,18 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     ex_lbl = ttk.Label(
         mode_frame,
         text=f"↳ {ex_autofix}",
-        font=("Segoe UI" if not rtl else "Vazirmatn", 8),
-        foreground="gray",
+        style="Sub.TLabel",
     )
-    ex_lbl.pack(anchor="w" if not rtl else "e", padx=10, pady=(2, 4))
+    ex_lbl.pack(anchor="w" if not rtl else "e", padx=10, pady=(4, 2))
     ToolTip(ex_lbl, ex_autofix)
 
     # 2. Auto layout switch
     layout_frame = ttk.LabelFrame(
         parent,
-        text=t("settings.auto_layout_title", "Windows Keyboard Layout Switching"),
-        padding=8,
+        text=f"  {t('settings.auto_layout_title', 'Windows Keyboard Layout Switching')}  ",
+        padding=12,
     )
-    layout_frame.pack(fill="x", pady=6)
+    layout_frame.pack(fill="x", pady=(0, 8))
 
     win._auto_layout_switch_var = tk.BooleanVar(value=bool(getattr(win.cfg, "auto_layout_switch", False)))
     cb_layout = ttk.Checkbutton(
@@ -113,8 +129,10 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     cb_layout.pack(anchor="w" if not rtl else "e", pady=2)
 
     sub_frame = ttk.Frame(layout_frame)
-    sub_frame.pack(fill="x", pady=4)
-    ttk.Label(sub_frame, text=t("settings.auto_layout_mode_label", "Action:")).pack(side=side, padx=(0, 6) if not rtl else (6, 0))
+    sub_frame.pack(fill="x", pady=6)
+    ttk.Label(sub_frame, text=t("settings.auto_layout_mode_label", "Action:")).pack(
+        side=side, padx=(0, 6) if not rtl else (6, 0)
+    )
 
     win._auto_layout_mode_var = tk.StringVar(value=getattr(win.cfg, "auto_layout_mode", "fix_only"))
     mode_combo = ttk.Combobox(
@@ -122,17 +140,17 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
         textvariable=win._auto_layout_mode_var,
         values=["fix_only", "switch_only", "fix_and_switch"],
         state="readonly",
-        width=18,
+        width=20,
     )
     mode_combo.pack(side=side)
 
     # 3. Global Undo Hotkey
     undo_frame = ttk.LabelFrame(
         parent,
-        text=t("settings.global_undo_title", "Global Undo Hotkey"),
-        padding=8,
+        text=f"  {t('settings.global_undo_title', 'Global Undo Hotkey')}  ",
+        padding=12,
     )
-    undo_frame.pack(fill="x", pady=6)
+    undo_frame.pack(fill="x", pady=(0, 8))
 
     default_undo = getattr(win.cfg, "global_undo_hotkey", None)
     win._global_undo_var = tk.StringVar(
@@ -140,30 +158,31 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     )
     u_row = ttk.Frame(undo_frame)
     u_row.pack(fill="x")
-    ttk.Label(u_row, text=t("settings.undo_shortcut_label", "Undo correction (up to 50 steps):")).pack(side=side, padx=(0, 6) if not rtl else (6, 0))
-    ttk.Entry(u_row, textvariable=win._global_undo_var, width=20).pack(side=side)
+    ttk.Label(u_row, text=t("settings.undo_shortcut_label", "Undo correction (up to 50 steps):")).pack(
+        side=side, padx=(0, 6) if not rtl else (6, 0)
+    )
+    ttk.Entry(u_row, textvariable=win._global_undo_var, width=22, justify="center").pack(side=side)
 
     # 4. Recent Corrections & Blacklist
     corr_frame = ttk.LabelFrame(
         parent,
-        text=t("settings.recent_corrections_title", "Recent Corrections & Blacklist"),
-        padding=8,
+        text=f"  {t('settings.recent_corrections_title', 'Recent Corrections & Blacklist')}  ",
+        padding=12,
     )
-    corr_frame.pack(fill="both", expand=True, pady=6)
+    corr_frame.pack(fill="both", expand=True, pady=(0, 8))
 
     tree_cols = ("original", "fixed", "status")
     tree = ttk.Treeview(corr_frame, columns=tree_cols, show="headings", height=5)
     tree.heading("original", text=t("settings.col_original", "Typed Word"))
     tree.heading("fixed", text=t("settings.col_fixed", "Auto-Fixed"))
     tree.heading("status", text=t("settings.col_status", "Status"))
-    tree.column("original", width=120)
-    tree.column("fixed", width=120)
-    tree.column("status", width=90)
-    tree.pack(fill="both", expand=True, pady=(0, 6))
+    tree.column("original", width=130)
+    tree.column("fixed", width=130)
+    tree.column("status", width=100)
+    tree.pack(fill="both", expand=True, pady=(0, 8))
 
     win._autofix_tree = tree
 
-    # Populate blacklist and sample recent records
     blacklist_set = {(p[0].lower(), p[1].lower()) for p in getattr(win.cfg, "autofix_blacklist", []) if len(p) >= 2}
     for orig, fixed in blacklist_set:
         tree.insert("", "end", values=(orig, fixed, t("settings.blacklisted", "Blacklisted")))
@@ -209,7 +228,7 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     ).pack(side=side)
 
     bottom_frame = ttk.Frame(parent)
-    bottom_frame.pack(fill="x", pady=(8, 4))
+    bottom_frame.pack(fill="x", pady=(4, 4))
     ttk.Button(
         bottom_frame,
         text=t("settings.reset_defaults", "↺ Reset Defaults"),

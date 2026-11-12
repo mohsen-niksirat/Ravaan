@@ -97,14 +97,15 @@ class KeyHandlerMixin:
 
         # ── Clipboard popup navigation ──
         if self.overlay.clipboard_open:
+            is_horizontal = getattr(self.cfg, "prediction_layout", "vertical") == "horizontal"
             if vk == w.VK_ESCAPE:
                 self.overlay.hide()
                 set_popup_visible(False)
                 return
-            if vk == w.VK_UP:
+            if vk == w.VK_UP or (is_horizontal and vk == w.VK_LEFT):
                 self.overlay.move_selection(-1)
                 return
-            if vk == w.VK_DOWN:
+            if vk == w.VK_DOWN or (is_horizontal and vk == w.VK_RIGHT):
                 self.overlay.move_selection(1)
                 return
             if vk in (w.VK_RETURN, w.VK_TAB):

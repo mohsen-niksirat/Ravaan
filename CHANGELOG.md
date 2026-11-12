@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.3] - 2026-11-12
+
+### Added
+- **Modern Fluent 2 / Studio Settings Redesign (`ravan/ui/settings.py`, `ravan/ui/settings_builder.py`)**:
+  - Replaced flat tabs with a bilateral RTL/LTR Sidebar Navigation panel, top hero banner with version badge and search pill, and pinned bottom action footer.
+  - Rebuilt all Settings sections (`General`, `Auto-Fix`, `Prediction`, `Hotkeys`, `Exclusions`, `Snippets`, `Cloud Sync`, `About`) using grouped elevated cards (`TLabelframe`) and section title banners.
+  - Added an interactive 10-style visual gallery selector grid in the Prediction Studio alongside the live preview.
+  - Styled all raw `tk.Text` editors (custom words, excluded apps, snippets) with dark/light theme tokens and crisp contrast.
+
+### Fixed
+- **1:1 Visual Parity Between Live Suggestion Box and Settings Preview (`ravan/ui/overlay.py`, `ravan/ui/theme.py`, `ravan/ui/preview_graphics.py`)**:
+  - Fixed Persian RTL `CandidateRow` packing where badges (`❶`) and Persian text both packed to the right without `anchor="e"`, causing centered text and reversed badge columns; badges now anchor on the left column and Persian words right-align cleanly on the right column, matching the Settings preview.
+  - Added horizontal pill inset padding (`padx=6`) and synchronized `material` and `minimal` style tokens (`show_grip`, `show_separators`, `border_width`, `keycap` badges) with the preview renderer.
+  - Wired custom color palettes (`prediction_use_custom_colors`), horizontal ribbon preview rendering, `popup_offset_x/y`, horizontal clipboard navigation (`Left`/`Right`), and `continuation_suggestions_enabled` end-to-end.
+
 ## [2.7.2] - 2026-11-09
 
 ### Added

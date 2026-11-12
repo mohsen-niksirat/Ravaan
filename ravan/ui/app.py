@@ -228,36 +228,6 @@ class RavanApp(
                 pass
         log.info("Settings updated")
 
-    def _undo_last_autocorrect(self) -> bool:
-        if self._last_autocorrect is None:
-            return False
-        orig, corrected, t_done, delim = self._last_autocorrect
-        self._last_autocorrect = None
-        if time.monotonic() - t_done > 10.0:
-            return False
-
-        delete_len = len(corrected) + len(delim)
-        replace_text = orig + delim
-        self._suppress_until = time.monotonic() + 0.03
-        replace_last_n_with(delete_len, replace_text)
-
-        for _ in range(delete_len):
-            if self.journal._chars:
-                self.journal._chars.pop()
-        for ch in replace_text:
-            self.journal.push(ch)
-
-        if hasattr(self, "predictor") and self.predictor:
-            self.predictor.suppress_session_word(orig)
-
-        log.info("Undid autocorrect: reverted %r back to %r", corrected, orig)
-        self._record_event(f"Undid autocorrect: reverted '{corrected}' -> '{orig}'")
-        from ravan.core.i18n import t
-
-        msg = t("notifications.autocorrect_undone", "Reverted to '{orig}'", orig=orig)
-        self.tray.notify(msg)
-        return True
-
     def _erase_word_and_delimiter(self, word: str, delimiter: str = "") -> None:
         del_len = len(word) + len(delimiter)
         self._suppress_until = time.monotonic() + 0.03

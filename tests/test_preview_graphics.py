@@ -40,3 +40,12 @@ def test_render_light_mode():
     for style in ("macos", "classic", "modern"):
         img = render_style_chassis(style=style, width=240, height=100, is_dark=False)
         assert img.size == (240, 100)
+
+
+def test_render_horizontal_layout_distinct_from_vertical():
+    for style in ALL_STYLES:
+        img_v = render_style_chassis(style=style, width=260, height=216, layout="vertical")
+        img_h = render_style_chassis(style=style, width=276, height=64, layout="horizontal")
+        assert img_h.size == (276, 64)
+        assert img_h.tobytes() != img_v.resize((276, 64)).tobytes()
+

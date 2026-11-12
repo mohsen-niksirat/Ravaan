@@ -169,6 +169,7 @@ class DictPredictor(Predictor):
         lazy_en_loader: Callable[[], Dictionary | None] | None = None,
         lazy_fa_loader: Callable[[], Dictionary | None] | None = None,
         lazy_learning_loader: Callable[[], UserLearningEngine] | None = None,
+        continuation_suggestions_enabled: bool = True,
     ) -> None:
         self._lock = threading.Lock()
         self._english = english
@@ -177,6 +178,7 @@ class DictPredictor(Predictor):
         self._lazy_en_loader = lazy_en_loader
         self._lazy_fa_loader = lazy_fa_loader
         self._lazy_learning_loader = lazy_learning_loader
+        self.continuation_suggestions_enabled = bool(continuation_suggestions_enabled)
         self.ignored_words = {
             w.strip().lower() for w in (ignored_words or []) if w and w.strip()
         }
@@ -296,6 +298,9 @@ class DictPredictor(Predictor):
             lazy_en_loader=_load_en,
             lazy_fa_loader=_load_fa,
             lazy_learning_loader=_load_learning,
+            continuation_suggestions_enabled=getattr(
+                cfg, "continuation_suggestions_enabled", True
+            ),
         )
 
 
@@ -380,20 +385,21 @@ class DictPredictor(Predictor):
         completions = candidates[:limit]
 
         # 3. Sentence continuations (top-3 multi-word completions shown after single words)
-        sentence_cands = self.learning.predict_sentence_continuations(
-            context, prefix=prefix, limit=3, app_name=app_name
-        )
-        for sent in sentence_cands:
-            if sent not in seen_texts and sent.lower() != prefix.lower():
-                completions.append(
-                    Candidate(
-                        text=sent,
-                        score=150.0,
-                        kind=CandidateKind.SENTENCE,
-                        replace_len=len(prefix),
+        if self.continuation_suggestions_enabled:
+            sentence_cands = self.learning.predict_sentence_continuations(
+                context, prefix=prefix, limit=3, app_name=app_name
+            )
+            for sent in sentence_cands:
+                if sent not in seen_texts and sent.lower() != prefix.lower():
+                    completions.append(
+                        Candidate(
+                            text=sent,
+                            score=150.0,
+                            kind=CandidateKind.SENTENCE,
+                            replace_len=len(prefix),
+                        )
                     )
-                )
-                seen_texts.add(sent)
+                    seen_texts.add(sent)
 
         # 4. Fuzzy matches (fallback when completions are empty)
         if not completions and len(prefix) >= 3:

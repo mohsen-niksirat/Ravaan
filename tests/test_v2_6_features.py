@@ -41,17 +41,17 @@ def test_format_lang_label():
 
 
 def test_show_language_fallback_to_cursor():
-    root = MagicMock()
-    root.winfo_reqwidth.return_value = 100
-    root.winfo_reqheight.return_value = 40
-    root.winfo_screenwidth.return_value = 1920
-    overlay = OverlayWindow(root)
-    overlay._lang_label = MagicMock()
-
-    with patch("ravan.platform.caret._cursor_position", return_value=CaretRect(x=350, y=420, width=2, height=16)):
-        overlay.show_language("فا", 0, 0, 16)
-        assert overlay._mode == "lang"
-        assert overlay.current_x > 0 or overlay.current_y > 0
+    overlay = OverlayWindow()
+    try:
+        with patch(
+            "ravan.platform.caret._cursor_position",
+            return_value=CaretRect(x=350, y=420, width=2, height=16),
+        ):
+            overlay.show_language("فا", 0, 0, 16)
+            assert overlay._mode == "lang"
+            assert overlay.current_x > 0 or overlay.current_y > 0
+    finally:
+        overlay.destroy()
 
 
 class DummyJournal:

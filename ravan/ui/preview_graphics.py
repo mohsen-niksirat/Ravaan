@@ -48,6 +48,7 @@ def render_style_chassis(
     r1_top = margin + 26 * scale
     r1_h = 28 * scale
     r1_bot = r1_top + r1_h
+    is_horiz = layout == "horizontal"
 
     # Handle custom colors override if specified
     if custom_colors:
@@ -58,18 +59,65 @@ def render_style_chassis(
 
         r = 14 * scale
         draw.rounded_rectangle(box_rect, radius=r, fill=(*c_bg, 245), outline=(*c_border, 255), width=2 * scale)
-        # Highlight card for row 1
-        r1_rect = [margin + 6 * scale, r1_top, margin + card_w - 6 * scale, r1_bot]
-        draw.rounded_rectangle(r1_rect, radius=8 * scale, fill=(*c_hi, 235))
-        # Accent indicator
-        draw.rounded_rectangle(
-            [margin + 8 * scale, r1_top + 3 * scale, margin + 12 * scale, r1_bot - 3 * scale],
-            radius=2 * scale,
-            fill=(*c_accent, 255),
-        )
-        for i in range(1, 5):
-            dy = r1_bot + i * 26 * scale
-            draw.line([margin + 12 * scale, dy, margin + card_w - 12 * scale, dy], fill=(*c_border, 120), width=1)
+        if is_horiz:
+            # Selected right-most chip (RTL first candidate) or left-most
+            chip_w = (card_w - 16 * scale) // 3
+            c1_right = margin + card_w - 8 * scale
+            c1_left = c1_right - chip_w
+            c1_top = margin + 8 * scale
+            c1_bot = margin + card_h - 8 * scale
+            draw.rounded_rectangle([c1_left, c1_top, c1_right, c1_bot], radius=8 * scale, fill=(*c_hi, 235))
+            for i in range(1, 3):
+                dx = c1_right - i * chip_w
+                draw.line([dx, c1_top + 4 * scale, dx, c1_bot - 4 * scale], fill=(*c_border, 140), width=1 * scale)
+        else:
+            # Highlight card for row 1
+            r1_rect = [margin + 6 * scale, r1_top, margin + card_w - 6 * scale, r1_bot]
+            draw.rounded_rectangle(r1_rect, radius=8 * scale, fill=(*c_hi, 235))
+            # Accent indicator
+            draw.rounded_rectangle(
+                [margin + 8 * scale, r1_top + 3 * scale, margin + 12 * scale, r1_bot - 3 * scale],
+                radius=2 * scale,
+                fill=(*c_accent, 255),
+            )
+            for i in range(1, 5):
+                dy = r1_bot + i * 26 * scale
+                draw.line([margin + 12 * scale, dy, margin + card_w - 12 * scale, dy], fill=(*c_border, 120), width=1)
+        return img.resize((width, height), Image.Resampling.LANCZOS)
+
+    if is_horiz:
+        # Render horizontal ribbon chassis for the selected style
+        r = (0 if style in ("compact", "classic", "minimal") else 12) * scale
+        style_bgs = {
+            "macos": ((36, 36, 40, 245) if is_dark else (245, 245, 247, 245), (72, 72, 78, 255), (0, 122, 255, 255)),
+            "modern": ((38, 14, 68, 250), (168, 85, 247, 230), (138, 43, 226, 240)),
+            "fluent": ((30, 32, 36, 250), (76, 194, 255, 240), (44, 48, 56, 255)),
+            "compact": ((18, 18, 20, 255), (55, 55, 62, 255), (36, 36, 42, 255)),
+            "glass": ((24, 34, 48, 215), (138, 180, 216, 230), (59, 110, 156, 180)),
+            "classic": ((212, 208, 200, 255), (64, 64, 64, 255), (10, 36, 106, 255)),
+            "material": ((34, 32, 40, 245), (75, 70, 85, 220), (62, 56, 76, 255)),
+            "ios": ((28, 28, 30, 245), (65, 65, 72, 220), (0, 122, 255, 255)),
+            "minimal": ((16, 16, 18, 255), (50, 50, 56, 255), (30, 30, 36, 255)),
+            "neon": ((12, 4, 18, 255), (255, 0, 127, 255), (46, 6, 36, 255)),
+        }
+        bg_c, bd_c, hi_c = style_bgs.get(style, style_bgs["macos"])
+        if r > 0:
+            draw.rounded_rectangle(box_rect, radius=r, fill=bg_c, outline=bd_c, width=2 * scale)
+        else:
+            draw.rectangle(box_rect, fill=bg_c, outline=bd_c, width=2 * scale)
+        chip_w = (card_w - 20 * scale) // 3
+        c1_right = margin + card_w - 10 * scale
+        c1_left = c1_right - chip_w
+        c1_top = margin + 7 * scale
+        c1_bot = margin + card_h - 7 * scale
+        chip_r = (0 if style in ("compact", "classic", "minimal") else 8) * scale
+        if chip_r > 0:
+            draw.rounded_rectangle([c1_left, c1_top, c1_right, c1_bot], radius=chip_r, fill=hi_c)
+        else:
+            draw.rectangle([c1_left, c1_top, c1_right, c1_bot], fill=hi_c)
+        for i in range(1, 3):
+            dx = c1_right - i * chip_w
+            draw.line([dx, c1_top + 4 * scale, dx, c1_bot - 4 * scale], fill=bd_c, width=1 * scale)
         return img.resize((width, height), Image.Resampling.LANCZOS)
 
     # ─────────────────────────────────────────────────────────────

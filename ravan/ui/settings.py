@@ -157,7 +157,7 @@ class SettingsWindow:
         self._root.withdraw()
         self._root.attributes("-topmost", True)
         self._root.resizable(True, True)
-        self._root.minsize(620, 440)
+        self._root.minsize(760, 520)
         # Close-with-change: closing the window applies (saves) pending edits.
         # Cancel / Escape remain explicit discard paths.
         self._root.protocol("WM_DELETE_WINDOW", self._save_then_close)
@@ -181,89 +181,252 @@ class SettingsWindow:
             ch.destroy()
 
         palette = get_active_palette(getattr(self.cfg, "theme_mode", "auto"))
-        pad = {"padx": 8, "pady": 3}
-        frm = ttk.Frame(self._root, padding=8)
+        pad = {"padx": 10, "pady": 4}
+        frm = ttk.Frame(self._root, padding=0)
         frm.pack(fill="both", expand=True)
 
-        # ── Buttons: Pinned at bottom so they are NEVER cut off ──
-        ttk.Separator(frm, orient="horizontal").pack(side="bottom", fill="x", pady=(6, 6))
-        btns = ttk.Frame(frm)
-        btns.pack(side="bottom", fill="x", pady=(0, 4))
+        # ── Bottom Action Bar: Pinned at bottom with elevated surface ──
+        footer_bar = tk.Frame(
+            frm,
+            bg=palette.card_bg,
+            highlightthickness=1,
+            highlightbackground=palette.border,
+            padx=18,
+            pady=10,
+        )
+        footer_bar.pack(side="bottom", fill="x")
         btn_side = "left" if rtl else "right"
-        self._saved_label = ttk.Label(btns, text="", foreground=palette.success, font=get_ui_font(size=9, bold=True, rtl=rtl))
-        self._saved_label.pack(side=btn_side, padx=8)
-        ttk.Button(btns, text=t("settings.btn_close", "Close"), command=self._close).pack(side=btn_side, padx=4)
-        ttk.Button(btns, text=t("settings.btn_save", "Save Settings"), style="Accent.TButton", command=self._save).pack(side=btn_side, padx=4)
+        hint_side = "right" if rtl else "left"
 
-        # ── Header: App Brand Banner ──
-        header_frm = ttk.Frame(frm)
-        header_frm.pack(side="top", fill="x", pady=(0, 6))
+        shortcut_hint = (
+            "Ctrl+Enter: ذخیره  ·  Esc: بستن  ·  Ctrl+Tab: جابه‌جایی تب"
+            if rtl
+            else "Ctrl+Enter: Save  ·  Esc: Close  ·  Ctrl+Tab: Switch Section"
+        )
+        tk.Label(
+            footer_bar,
+            text=shortcut_hint,
+            bg=palette.card_bg,
+            fg=palette.subtext,
+            font=get_ui_font(size=8, rtl=rtl),
+        ).pack(side=hint_side, padx=4)
+
+        self._saved_label = tk.Label(
+            footer_bar,
+            text="",
+            bg=palette.card_bg,
+            fg=palette.success,
+            font=get_ui_font(size=9, bold=True, rtl=rtl),
+        )
+        self._saved_label.pack(side=btn_side, padx=10)
+        ttk.Button(footer_bar, text=t("settings.btn_close", "Close"), command=self._close).pack(
+            side=btn_side, padx=4
+        )
+        ttk.Button(
+            footer_bar,
+            text=t("settings.btn_save", "Save Settings"),
+            style="Accent.TButton",
+            command=self._save,
+        ).pack(side=btn_side, padx=4)
+
+        # ── Top Hero Header Banner ──
+        header_card = tk.Frame(
+            frm,
+            bg=palette.card_bg,
+            highlightthickness=1,
+            highlightbackground=palette.border,
+            padx=20,
+            pady=12,
+        )
+        header_card.pack(side="top", fill="x")
         h_pack = "right" if rtl else "left"
         h_badge_pack = "left" if rtl else "right"
 
-        title_lbl = ttk.Label(
-            header_frm,
-            text="🪶 روان — Ravaan",
-            font=get_ui_font(size=12, bold=True, rtl=rtl),
-            foreground=palette.accent,
-        )
-        title_lbl.pack(side=h_pack, padx=(0, 6) if not rtl else (6, 0))
+        brand_col = tk.Frame(header_card, bg=palette.card_bg)
+        brand_col.pack(side=h_pack)
 
-        sub_desc = "دستیار هوشمند تایپ و پیش‌بینی فارسی" if rtl else "Smart Persian Typing & Word Prediction"
-        ttk.Label(
-            header_frm,
-            text=sub_desc,
-            style="Sub.TLabel",
-        ).pack(side=h_pack, pady=(2, 0))
+        title_row = tk.Frame(brand_col, bg=palette.card_bg)
+        title_row.pack(anchor="e" if rtl else "w")
+
+        tk.Label(
+            title_row,
+            text="🪶 روان — Ravaan",
+            bg=palette.card_bg,
+            fg=palette.accent,
+            font=get_ui_font(size=13, bold=True, rtl=rtl),
+        ).pack(side=h_pack)
 
         from ravan import __version__
 
-        ttk.Label(
-            header_frm,
+        tk.Label(
+            title_row,
             text=f"v{__version__}",
-            style="CardSub.TLabel",
-            padding=[6, 2],
-        ).pack(side=h_badge_pack)
+            bg=palette.badge_bg,
+            fg=palette.badge_fg,
+            font=get_ui_font(size=8, bold=True),
+            padx=8,
+            pady=2,
+        ).pack(side=h_pack, padx=8)
 
-        # ── Search Bar: Top ──
-        search_frm = ttk.Frame(frm)
-        search_frm.pack(side="top", fill="x", pady=(0, 8))
-        pack_side = "right" if rtl else "left"
-        ttk.Label(search_frm, text=t("settings.search_label", "🔍 Search:"), font=get_ui_font(size=9, bold=True, rtl=rtl)).pack(
-            side=pack_side, padx=(0, 6) if not rtl else (6, 0)
+        sub_desc = (
+            "مرکز کنترل هوشمند تایپ دو‌زبانه، اصلاح خودکار چیدمان و پیش‌بینی کلمات"
+            if rtl
+            else "Smart Bilingual Typing Assistant, Auto-Layout Fixer & Word Prediction Studio"
         )
+        tk.Label(
+            brand_col,
+            text=sub_desc,
+            bg=palette.card_bg,
+            fg=palette.subtext,
+            font=get_ui_font(size=8, rtl=rtl),
+        ).pack(anchor="e" if rtl else "w", pady=(2, 0))
+
+        # Integrated Search Pill on the opposite side of Header
+        search_pill = tk.Frame(
+            header_card,
+            bg=palette.input_bg,
+            highlightthickness=1,
+            highlightbackground=palette.border,
+            padx=8,
+            pady=4,
+        )
+        search_pill.pack(side=h_badge_pack, pady=2)
+
+        pack_side = "right" if rtl else "left"
+        tk.Label(
+            search_pill,
+            text=t("settings.search_label", "🔍"),
+            bg=palette.input_bg,
+            fg=palette.subtext,
+            font=get_ui_font(size=9, bold=True, rtl=rtl),
+        ).pack(side=pack_side, padx=(0, 4) if not rtl else (4, 0))
+
         self._search_var = tk.StringVar(value="")
-        search_entry = ttk.Entry(search_frm, textvariable=self._search_var)
+        search_entry = ttk.Entry(search_pill, textvariable=self._search_var, width=26)
         search_entry.pack(side=pack_side, fill="x", expand=True)
         ttk.Button(
-            search_frm,
+            search_pill,
             text="✕",
-            width=3,
+            width=2,
             command=lambda: self._search_var.set(""),
         ).pack(side=pack_side, padx=(4, 0))
 
-        # ── Notebook in middle: Expands and fills remaining space ──
-        nb = ttk.Notebook(frm)
-        nb.pack(side="top", fill="both", expand=True)
+        # ── Main Workspace: Sidebar Navigation + Content Area ──
+        body_frm = ttk.Frame(frm)
+        body_frm.pack(side="top", fill="both", expand=True)
+
+        sidebar_side = "right" if rtl else "left"
+        content_side = "left" if rtl else "right"
+
+        sidebar = tk.Frame(
+            body_frm,
+            bg=palette.card_bg,
+            width=205,
+            highlightthickness=1,
+            highlightbackground=palette.border,
+            padx=8,
+            pady=10,
+        )
+        sidebar.pack(side=sidebar_side, fill="y")
+        sidebar.pack_propagate(False)
+
+        nav_hdr_txt = "بخش‌های تنظیمات" if rtl else "SETTINGS SECTIONS"
+        tk.Label(
+            sidebar,
+            text=nav_hdr_txt,
+            bg=palette.card_bg,
+            fg=palette.subtext,
+            font=get_ui_font(size=8, bold=True, rtl=rtl),
+            anchor="e" if rtl else "w",
+        ).pack(fill="x", padx=8, pady=(0, 6))
+
+        content_host = ttk.Frame(body_frm, padding=(12, 8))
+        content_host.pack(side=content_side, fill="both", expand=True)
+
+        try:
+            nb = ttk.Notebook(content_host, style="Hidden.TNotebook")
+        except tk.TclError:
+            nb = ttk.Notebook(content_host)
+        nb.pack(fill="both", expand=True)
         self._nb = nb
 
-        tab_general = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
-        tab_autofix = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
-        tab_prediction = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
-        tab_hotkeys = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
-        tab_exclusions = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
-        tab_snippets = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
-        tab_sync = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
-        tab_about = _ScrollableTab(nb, palette, rtl=rtl, padding=8)
+        tab_general = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
+        tab_autofix = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
+        tab_prediction = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
+        tab_hotkeys = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
+        tab_exclusions = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
+        tab_snippets = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
+        tab_sync = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
+        tab_about = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
 
-        nb.add(tab_general.outer, text=f"⚙️ {t('settings.tab_general', 'General')}")
-        nb.add(tab_autofix.outer, text=f"⚡ {t('settings.tab_autofix', 'Auto-Fix')}")
-        nb.add(tab_prediction.outer, text=f"🔮 {t('settings.tab_prediction', 'Prediction')}")
-        nb.add(tab_hotkeys.outer, text=f"⌨️ {t('settings.tab_hotkeys', 'Hotkeys')}")
-        nb.add(tab_exclusions.outer, text=f"🚫 {t('settings.tab_exclusions', 'Exclusions')}")
-        nb.add(tab_snippets.outer, text=f"📝 {t('settings.tab_snippets', 'Snippets')}")
-        nb.add(tab_sync.outer, text=f"☁️ {t('settings.tab_sync', 'Cloud Sync')}")
-        nb.add(tab_about.outer, text=f"ℹ️ {t('settings.tab_about', 'About')}")
+        nav_items = [
+            (tab_general.outer, "⚙️", t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "زبان", "شروع", "صدا"]),
+            (tab_autofix.outer, "⚡", t("settings.tab_autofix", "Auto-Fix"), ["autofix", "layout", "undo", "switch", "اصلاح", "چیدمان"]),
+            (tab_prediction.outer, "🔮", t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "style", "پیش‌بینی", "نیم‌فاصله", "استایل"]),
+            (tab_hotkeys.outer, "⌨️", t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید", "میانبر"]),
+            (tab_exclusions.outer, "🚫", t("settings.tab_exclusions", "Exclusions"), ["exclude", "blacklist", "app", "مستثنی"]),
+            (tab_snippets.outer, "📝", t("settings.tab_snippets", "Snippets"), ["snippet", "trigger", "متن", "قطعه"]),
+            (tab_sync.outer, "☁️", t("settings.tab_sync", "Cloud Sync"), ["sync", "gist", "webdav", "همگام", "ابری"]),
+            (tab_about.outer, "ℹ️", t("settings.tab_about", "About"), ["about", "version", "درباره"]),
+        ]
+
+        self._nav_buttons: list[tk.Button] = []
+
+        def _select_nav(idx: int) -> None:
+            tabs = nb.tabs()
+            if 0 <= idx < len(tabs):
+                try:
+                    nb.select(tabs[idx])
+                except tk.TclError:
+                    pass
+            _update_nav_highlight(idx)
+
+        def _update_nav_highlight(active_idx: int) -> None:
+            for i, btn in enumerate(self._nav_buttons):
+                if i == active_idx:
+                    btn.config(
+                        bg=palette.highlight,
+                        fg=palette.highlight_fg,
+                        activebackground=palette.accent_hover,
+                        activeforeground=palette.highlight_fg,
+                        font=get_ui_font(size=9, bold=True, rtl=rtl),
+                    )
+                else:
+                    btn.config(
+                        bg=palette.card_bg,
+                        fg=palette.fg,
+                        activebackground=palette.button_hover,
+                        activeforeground=palette.fg,
+                        font=get_ui_font(size=9, bold=False, rtl=rtl),
+                    )
+
+        for idx, (tab_outer, icon, title, _kws) in enumerate(nav_items):
+            nb.add(tab_outer, text=f"{icon} {title}")
+            btn_text = f"{title}  {icon}" if rtl else f"{icon}   {title}"
+            nav_btn = tk.Button(
+                sidebar,
+                text=btn_text,
+                bd=0,
+                relief="flat",
+                padx=12,
+                pady=8,
+                anchor="e" if rtl else "w",
+                justify="right" if rtl else "left",
+                cursor="hand2",
+                command=lambda i=idx: _select_nav(i),
+            )
+            nav_btn.pack(fill="x", pady=2)
+            self._nav_buttons.append(nav_btn)
+
+        def _on_nb_changed(_e: Any = None) -> None:
+            try:
+                cur_idx = nb.index("current")
+                _update_nav_highlight(cur_idx)
+            except Exception:
+                pass
+
+        nb.bind("<<NotebookTabChanged>>", _on_nb_changed)
+        _update_nav_highlight(0)
 
         from ravan.ui.settings_autofix import build_autofix_section
         from ravan.ui.settings_builder import (
@@ -297,29 +460,30 @@ class SettingsWindow:
         ):
             tab.bind_recursive_scroll(tab.inner)
 
-        tabs_spec = [
-            (tab_general.outer, t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "زبان", "شروع", "صدا"]),
-            (tab_autofix.outer, t("settings.tab_autofix", "Auto-Fix"), ["autofix", "layout", "undo", "switch", "اصلاح", "چیدمان"]),
-            (tab_prediction.outer, t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "پیش‌بینی", "نیم‌فاصله"]),
-            (tab_hotkeys.outer, t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید"]),
-            (tab_exclusions.outer, t("settings.tab_exclusions", "Excluded Apps"), ["exclude", "blacklist", "app", "مستثنی"]),
-            (tab_snippets.outer, t("settings.tab_snippets", "Snippets"), ["snippet", "trigger", "متن"]),
-            (tab_sync.outer, t("settings.tab_sync", "Cloud Sync"), ["sync", "gist", "webdav", "همگام"]),
-            (tab_about.outer, t("settings.tab_about", "About"), ["about", "version", "درباره"]),
-        ]
-
         def _filter_tabs(*_args: Any) -> None:
             q = self._search_var.get().strip().lower()
-            first = None
-            for tab_widget, title, kws in tabs_spec:
-                if not q or q in title.lower() or any(q in kw for kw in kws):
+            first_idx = None
+            for idx, (tab_widget, _icon, title, kws) in enumerate(nav_items):
+                matched = not q or q in title.lower() or any(q in kw for kw in kws)
+                if matched:
                     nb.tab(tab_widget, state="normal")
-                    if first is None:
-                        first = tab_widget
+                    self._nav_buttons[idx].config(state="normal")
+                    if first_idx is None:
+                        first_idx = idx
                 else:
                     nb.tab(tab_widget, state="hidden")
-            if first is not None and q:
-                nb.select(first)
+                    self._nav_buttons[idx].config(
+                        state="disabled",
+                        bg=palette.card_bg,
+                        fg=palette.subtext,
+                    )
+            if first_idx is not None and q:
+                _select_nav(first_idx)
+            elif not q:
+                try:
+                    _update_nav_highlight(nb.index("current"))
+                except Exception:
+                    pass
 
         self._search_var.trace_add("write", _filter_tabs)
 
@@ -327,14 +491,16 @@ class SettingsWindow:
             tabs = nb.tabs()
             if tabs:
                 cur = nb.index("current")
-                nb.select(tabs[(cur + 1) % len(tabs)])
+                nxt = (cur + 1) % len(tabs)
+                _select_nav(nxt)
             return "break"
 
         def _prev_tab(_e: Any = None) -> str:
             tabs = nb.tabs()
             if tabs:
                 cur = nb.index("current")
-                nb.select(tabs[(cur - 1 + len(tabs)) % len(tabs)])
+                prv = (cur - 1 + len(tabs)) % len(tabs)
+                _select_nav(prv)
             return "break"
 
         self._root.bind("<Control-Tab>", _next_tab)
@@ -364,8 +530,8 @@ class SettingsWindow:
         self._root.update_idletasks()
         sw = self._root.winfo_screenwidth()
         sh = self._root.winfo_screenheight()
-        target_w = min(800, max(680, int(sw * 0.85)))
-        target_h = min(660, max(460, int(sh * 0.82)))
+        target_w = min(920, max(780, int(sw * 0.85)))
+        target_h = min(700, max(520, int(sh * 0.84)))
         x = max(20, (sw - target_w) // 2)
         y = max(20, (sh - target_h) // 3)
         self._root.geometry(f"{target_w}x{target_h}+{x}+{y}")
@@ -483,6 +649,11 @@ class SettingsWindow:
         if hasattr(self, "_prediction_use_custom_colors_var"):
             self._prediction_use_custom_colors_var.set(False)
             self.cfg.prediction_use_custom_colors = False
+        if hasattr(self, "_refresh_style_gallery"):
+            try:
+                self._refresh_style_gallery()
+            except Exception:  # noqa: BLE001
+                pass
         self._render_style_preview()
         if self.on_saved:
             self.on_saved(self.cfg)
@@ -731,8 +902,9 @@ class SettingsWindow:
 
         from ravan.ui.preview_graphics import render_style_chassis
 
-        card_w = 260
-        card_h = 216
+        is_horiz_preview = layout == "horizontal"
+        card_w = 276 if is_horiz_preview else 260
+        card_h = 64 if is_horiz_preview else 216
         chassis_img = render_style_chassis(
             style=style,
             width=card_w,
@@ -764,12 +936,46 @@ class SettingsWindow:
             )
 
             cx = cw // 2
-            cy = 20 + card_h // 2
+            cy = (canvas_h // 2) if is_horiz_preview else (20 + card_h // 2)
             backdrop_canvas.create_image(cx, cy, image=self._preview_chassis_photo)
 
             x_left = cx - card_w // 2
             x_right = cx + card_w // 2
             y_top = cy - card_h // 2
+
+            if is_horiz_preview:
+                horiz_cands = [
+                    ("۱ سلام علیکم", True),
+                    ("۲ سلام", False),
+                    ("۳ سلسفیلا", False),
+                ]
+                chip_w = (card_w - 36) // 3
+                c1_right = x_right - 18
+                for idx, (cand_label, is_sel) in enumerate(horiz_cands):
+                    chip_cx = c1_right - idx * chip_w - chip_w // 2
+                    if custom_colors:
+                        fg_c = (
+                            custom_colors.get("highlight_fg", "#FFFFFF")
+                            if is_sel
+                            else custom_colors.get("fg", "#F5F5F7")
+                        )
+                    elif is_sel:
+                        fg_c = "#00FF66" if style == "neon" else "#FFFFFF"
+                    elif style == "classic":
+                        fg_c = "#000000"
+                    elif style == "neon":
+                        fg_c = "#00FF66"
+                    else:
+                        fg_c = "#E5E5EA"
+                    backdrop_canvas.create_text(
+                        chip_cx,
+                        cy,
+                        text=cand_label,
+                        anchor="center",
+                        fill=fg_c,
+                        font=get_ui_font(size=9, bold=is_sel, rtl=True),
+                    )
+                return
 
             # ── Header titles on the chassis ──
             if style == "classic":
@@ -884,7 +1090,14 @@ class SettingsWindow:
                     row_y = r1_y + idx * 25
 
                 # Colors per style
-                if is_sel:
+                if custom_colors:
+                    if is_sel:
+                        fg_c = custom_colors.get("highlight_fg", "#FFFFFF")
+                        b_fg = custom_colors.get("highlight_fg", "#FFFFFF")
+                    else:
+                        fg_c = custom_colors.get("fg", "#F5F5F7")
+                        b_fg = custom_colors.get("accent", "#0A84FF")
+                elif is_sel:
                     fg_c = "#00FF66" if style == "neon" else "#FFFFFF"
                     b_fg = "#FF007F" if style == "neon" else ("#60CDFF" if style == "fluent" else "#FFFFFF")
                 else:
