@@ -228,14 +228,14 @@ if user32 is not None and kernel32 is not None:
     user32.ToUnicodeEx.argtypes = [
         wintypes.UINT,
         wintypes.UINT,
-        ctypes.POINTER(wintypes.BYTE),
+        ctypes.POINTER(ctypes.c_ubyte),
         wintypes.LPWSTR,
         ctypes.c_int,
         wintypes.UINT,
         wintypes.HKL,
     ]
     user32.ToUnicodeEx.restype = ctypes.c_int
-    user32.GetKeyboardState.argtypes = [ctypes.POINTER(wintypes.BYTE)]
+    user32.GetKeyboardState.argtypes = [ctypes.POINTER(ctypes.c_ubyte)]
     user32.GetKeyboardState.restype = wintypes.BOOL
     user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
     user32.GetAsyncKeyState.restype = wintypes.SHORT

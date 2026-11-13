@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
 
 from ravan.core.config import HotkeySpec
 
@@ -94,7 +93,7 @@ def matches_hotkey(
 
 def _foreground_keyboard_state():
     """Build a 256-byte keyboard state array synced with live hardware/toggle keys."""
-    state = (wintypes.BYTE * 256)()
+    state = (ctypes.c_ubyte * 256)()
     w.user32.GetKeyboardState(state)
 
     def _sync_down(vk_code: int) -> bool:
