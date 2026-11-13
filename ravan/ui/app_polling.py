@@ -32,16 +32,47 @@ class AppPollingMixin:
         self._check_elevated(hwnd)
 
         exe = foreground_exe()
-        if not exe or exe == self._current_exe:
+        if not exe:
+            return
+        prev_hwnd = getattr(self, "_current_hwnd", None)
+        hwnd_changed = prev_hwnd not in (None, 0) and hwnd != prev_hwnd
+        if exe == self._current_exe and not hwnd_changed:
+            self._current_hwnd = hwnd
             return
         self._current_exe = exe
+        self._current_hwnd = hwnd
         self._current_window_class = window_class_name(hwnd)
-        # New window → unknown text state; reset journal & popup
+        # New window or dialog → unknown text state; reset journal & popup
         self.journal.clear()
+        self._journal_desynced = True
+        self._last_autocorrect = None
         self._pending_predict = False
+        self._pending_selection_check_time = None
         if self.overlay.visible:
             self.overlay.hide()
             set_popup_visible(False)
+        if hasattr(self, "_hide_selection_toolbar"):
+            self._hide_selection_toolbar()
+        if hasattr(self, "_hide_undo_chip"):
+            self._hide_undo_chip()
+
+        if exe and exe != getattr(self, "_last_profile_layout_exe", None):
+            self._last_profile_layout_exe = exe
+            from ravan.core.profiles import resolve_effective_profile
+
+            prof = resolve_effective_profile(self.cfg, exe)
+            if prof.preferred_layout in ("fa", "en") and not self._is_excluded():
+                from ravan.platform.focus import is_fullscreen_focused, is_password_focused
+                from ravan.platform.lang import (
+                    current_language,
+                    is_ime_composing,
+                    switch_to_language,
+                )
+
+                if not is_password_focused() and not is_fullscreen_focused() and not is_ime_composing():
+                    cur = current_language()
+                    if cur is None or not cur.tag.lower().startswith(prof.preferred_layout):
+                        switch_to_language(prof.preferred_layout, hwnd=hwnd)
 
     def _poll_hook_health(self: Any) -> None:
         """Watchdog to verify keyboard hook is alive; detect sleep/resume and lock screen."""
@@ -217,8 +248,37 @@ class AppPollingMixin:
             return "left" if (lang and lang.is_persian) else "right"
         return "right"
 
+    def _resync_journal_from_caret(self: Any) -> None:
+        """Best-effort UIA resync of recent pre-caret text after edits/clicks/backspace."""
+        if getattr(self, "_uia_resync_enabled", False) is not True:
+            return
+        try:
+            from ravan.platform.caret import get_text_before_caret
+
+            uia_text = get_text_before_caret(max_chars=64)
+        except Exception:  # noqa: BLE001
+            return
+        if uia_text is None:
+            return
+        uia_text = uia_text.replace("\u200b", "").replace("\ufeff", "")
+        if (
+            uia_text == ""
+            and not getattr(self, "_last_key_was_backspace", False)
+            and self.journal.last_word()
+        ):
+            return
+        self.journal.clear()
+        for ch in uia_text:
+            self.journal.push(ch)
+        self._journal_desynced = False
+
     def _maybe_predict(self: Any) -> None:
-        if not self._pending_predict or not self.cfg.prediction_enabled:
+        pred_enabled = (
+            self._effective_prediction_enabled()
+            if hasattr(self, "_effective_prediction_enabled")
+            else bool(getattr(self.cfg, "prediction_enabled", True))
+        )
+        if not self._pending_predict or not pred_enabled:
             return
         if getattr(self, "power_mode_active", False):
             self._pending_predict = False
@@ -235,8 +295,22 @@ class AppPollingMixin:
         if elapsed_ms < self.cfg.prediction_debounce_ms:
             return
         self._pending_predict = False
+        if getattr(self, "_just_pasted", False) and not self.journal.last_word():
+            if self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
+            return
+        if getattr(self, "_last_key_was_backspace", False) or getattr(
+            self, "_journal_desynced", False
+        ):
+            self._resync_journal_from_caret()
+        from ravan.core.normalizer import (
+            is_numeric_or_symbol_token,
+            is_valid_prediction_context_word,
+        )
+
         prefix = self.journal.last_word()
-        if prefix and (prefix.isdigit() or all(c.isdigit() or c in "+-.,/" for c in prefix)):
+        if prefix and is_numeric_or_symbol_token(prefix):
             if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
@@ -252,11 +326,14 @@ class AppPollingMixin:
         )
 
         if len(prefix) < self.cfg.min_prefix_len:
+            last_ctx_token = context_word.strip().split()[-1] if context_word and context_word.strip() else ""
             if (
                 self.cfg.next_word_prediction
                 and context_word
                 and prefix == ""
                 and not getattr(self, "_last_key_was_backspace", False)
+                and not getattr(self, "_just_pasted", False)
+                and is_valid_prediction_context_word(last_ctx_token)
             ):
                 cands = self.predictor.predict(
                     "", context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
@@ -293,15 +370,21 @@ class AppPollingMixin:
             prefix, context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
         )
         if not cands:
-            if self.overlay.predicting and not getattr(self, "_last_key_was_backspace", False):
+            if (
+                self.overlay.predicting
+                and not getattr(self, "_last_key_was_backspace", False)
+                and not getattr(self, "_edited_since_popup", False)
+            ):
                 # Sticky popup: keep the current suggestion box visible until the
                 # next keystroke refreshes it, a word completes, or the timeout
                 # fires — a mid-word candidate gap must not flicker it away.
                 return
+            self._edited_since_popup = False
             if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
             return
+        self._edited_since_popup = False
         if getattr(self.overlay, "has_custom_pos", False) and self.overlay.custom_x >= 0:
             cx, cy, ch = self.overlay.custom_x, self.overlay.custom_y, 16
         else:
@@ -438,64 +521,117 @@ class AppPollingMixin:
         import threading
         threading.Thread(target=_bg_worker, name="ravan-bg-sync", daemon=True).start()
 
+    def _invalidate_journal_for_external_click(self: Any) -> None:
+        """Reset linear journal immediately when user clicks outside Ravaan overlay."""
+        if self._is_foreground_self():
+            return
+        if hasattr(self, "journal"):
+            self.journal.clear()
+        self._journal_desynced = True
+        self._just_pasted = False
+        self._last_autocorrect = None
+        self._pending_predict = False
+        if getattr(self.overlay, "predicting", False) is True:
+            self.overlay.hide()
+            set_popup_visible(False)
+        if hasattr(self, "_hide_selection_toolbar"):
+            self._hide_selection_toolbar()
+        if hasattr(self, "_hide_undo_chip"):
+            self._hide_undo_chip()
+
+    def _is_point_in_overlay(self: Any, pos: Any) -> bool:
+        if pos is None:
+            return False
+        for attr in ("overlay", "undo_chip", "selection_toolbar"):
+            pop = getattr(self, attr, None)
+            if pop is None or getattr(pop, "visible", False) is not True:
+                continue
+            fn = getattr(pop, "contains_screen_point", None)
+            if callable(fn) and fn(pos.x, pos.y) is True:
+                return True
+        return False
+
     def _poll_mouse_click(self: Any) -> None:
-        """Detect mouse click in an input area and show language indicator before typing.
+        """Detect mouse click in an input area, reset stale journal, and show indicator.
 
         Protects laptop touchpad and mouse double-clicks: if a second tap/click arrives
         within the double-click threshold (~220ms), any pending single-click indicator is
         aborted immediately so double-clicks and double-taps remain 100% responsive and
         never interrupted by window creation or input inspection.
         """
-        if not getattr(self.cfg, "show_lang_on_click", True):
-            self._pending_click_time = None
-            return
-
         now = time.monotonic()
-
-        # Check if a pending single-click has settled (no second click arrived)
-        pending_time = getattr(self, "_pending_click_time", None)
-        if pending_time is not None:
-            # 220ms debounce: provides an immediate window for touchpad double-taps
-            # (which occur within 80-200ms) to cancel without interference, while
-            # remaining instantaneous to human perception when starting to type.
-            if now - pending_time >= 0.22:
-                self._pending_click_time = None
-                self._dispatch_mouse_click_indicator()
-
         is_down = bool(w.user32.GetAsyncKeyState(0x01) & 0x8000)  # VK_LBUTTON
         last_down = getattr(self, "_mouse_left_down", False)
+        is_right_down = bool(w.user32.GetAsyncKeyState(0x02) & 0x8000)  # VK_RBUTTON
+        last_right_down = getattr(self, "_mouse_right_down", False)
+        if is_right_down and not last_right_down:
+            self._mouse_right_down = True
+            try:
+                from ravan.platform.caret import _cursor_position
+
+                r_pos = _cursor_position()
+            except Exception:
+                r_pos = None
+            if not self._is_point_in_overlay(r_pos):
+                self._invalidate_journal_for_external_click()
+        elif not is_right_down and last_right_down:
+            self._mouse_right_down = False
+        show_lang = bool(getattr(self.cfg, "show_lang_on_click", True))
+
+        if show_lang:
+            # Check if a pending single-click has settled (no second click arrived)
+            pending_time = getattr(self, "_pending_click_time", None)
+            if pending_time is not None and now - pending_time >= 0.22:
+                self._pending_click_time = None
+                self._dispatch_mouse_click_indicator()
+        else:
+            self._pending_click_time = None
+
+        pending_sel = getattr(self, "_pending_selection_check_time", None)
+        if pending_sel is not None and now >= pending_sel:
+            self._pending_selection_check_time = None
+            self._dispatch_selection_toolbar()
 
         if is_down and not last_down:
             self._mouse_left_down = True
             self._mouse_down_time = now
+            self._pending_selection_check_time = None
 
             # If a single-click was pending, a second tap/click has started -> DOUBLE-CLICK!
-            if getattr(self, "_pending_click_time", None) is not None:
+            if (show_lang and getattr(self, "_pending_click_time", None) is not None) or (
+                now - getattr(self, "_last_tap_up_time", 0.0) < 0.35
+            ):
                 self._pending_click_time = None
                 self._last_double_click_time = now
+                self._invalidate_journal_for_external_click()
                 return
 
+            down_pos = None
             try:
                 from ravan.platform.caret import _cursor_position
 
-                self._mouse_down_pos = _cursor_position()
+                down_pos = _cursor_position()
             except Exception:
-                self._mouse_down_pos = None
+                down_pos = None
+            self._mouse_down_pos = down_pos
+            if not self._is_point_in_overlay(down_pos):
+                self._invalidate_journal_for_external_click()
             return
 
         if not is_down and last_down:
             self._mouse_left_down = False
+            down_pos = getattr(self, "_mouse_down_pos", None)
+            if self._is_point_in_overlay(down_pos):
+                return
 
-            # If this release is the tail end of a double-click, ignore it completely
+            # If this release completes a double-click, schedule selection toolbar check
             if now - getattr(self, "_last_double_click_time", 0.0) < 0.45:
+                self._pending_selection_check_time = now + 0.08
                 return
 
             down_time = getattr(self, "_mouse_down_time", 0.0)
             elapsed = now - down_time
-            if elapsed > 0.45:  # Held down too long (drag or long press)
-                return
-
-            down_pos = getattr(self, "_mouse_down_pos", None)
+            moved = False
             if down_pos is not None:
                 try:
                     from ravan.platform.caret import _cursor_position
@@ -503,10 +639,18 @@ class AppPollingMixin:
                     cur = _cursor_position()
                     dx = abs(cur.x - down_pos.x)
                     dy = abs(cur.y - down_pos.y)
-                    if dx > 15 or dy > 15:  # Dragged
-                        return
+                    moved = dx > 15 or dy > 15
                 except Exception:
-                    pass
+                    moved = False
+
+            if elapsed > 0.45 or moved:
+                self._invalidate_journal_for_external_click()
+                self._pending_selection_check_time = now + 0.08
+                return
+
+            self._last_tap_up_time = now
+            if not show_lang:
+                return
 
             last_shown = getattr(self, "_last_mouse_lang_shown", 0.0)
             if now - last_shown < 0.6:
@@ -517,6 +661,63 @@ class AppPollingMixin:
 
             # Schedule single-click verification to ensure it's not the first tap of a double-tap
             self._pending_click_time = now
+
+    def _dispatch_selection_toolbar(self: Any) -> None:
+        """Show Floating Selection Mini-Toolbar if UIA confirms non-empty selection."""
+        tb = getattr(self, "selection_toolbar", None)
+        if tb is None or not callable(getattr(tb, "show", None)):
+            return
+        if getattr(self, "is_paused", False) or getattr(self, "power_mode_active", False):
+            return
+        if self._is_excluded() or self._is_foreground_self():
+            return
+
+        from ravan.core.profiles import resolve_effective_profile
+
+        prof = resolve_effective_profile(self.cfg, getattr(self, "_current_exe", None))
+        if not prof.selection_toolbar:
+            return
+
+        from ravan.platform.focus import is_fullscreen_focused, is_password_focused
+
+        if is_password_focused() or is_fullscreen_focused():
+            return
+
+        from ravan.platform.caret import _cursor_position, get_selected_text_and_rect
+
+        sel = get_selected_text_and_rect(max_chars=240)
+        if sel is None:
+            return
+        sel_text, sel_rect = sel
+        if not sel_text or len(sel_text.strip()) < 2:
+            return
+
+        rect = sel_rect
+        if rect is None:
+            try:
+                rect = _cursor_position()
+            except Exception:
+                return
+
+        if hasattr(tb, "parent"):
+            ov_root = getattr(getattr(self, "overlay", None), "_root", None)
+            if ov_root is not None:
+                tb.parent = ov_root
+
+        avoid = (
+            self._popup_avoid_rects(exclude=tb)
+            if hasattr(self, "_popup_avoid_rects") and callable(self._popup_avoid_rects)
+            else []
+        )
+        tb.show(
+            x=int(rect.x),
+            y=int(rect.y),
+            width=int(getattr(rect, "width", 0)),
+            height=int(getattr(rect, "height", 16)),
+            show_ai=bool(getattr(self.cfg, "ai_assistant_enabled", False)),
+            avoid_rects=avoid,
+            theme_mode=getattr(self.cfg, "theme_mode", "auto"),
+        )
 
     def _dispatch_mouse_click_indicator(self: Any) -> None:
         """Fires the language indicator after confirming a single click in an active text field."""

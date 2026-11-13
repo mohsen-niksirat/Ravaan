@@ -318,3 +318,38 @@ def clean_pasted_text(
             cleaned_parts.append(f"{leading}{clean_chunk}{trailing}")
 
     return "".join(cleaned_parts)
+
+
+_SENTENCE_END_PUNCT = frozenset(".!?؟;؛…:,،)»]}\"'“”")
+
+
+def is_persian_script_token(token: str) -> bool:
+    """Return True if token contains Persian or Arabic letters."""
+    return any("\u0621" <= c <= "\u06ff" for c in token)
+
+
+def is_numeric_or_symbol_token(token: str) -> bool:
+    """Return True if token is a number, formatted quantity (date/time/price/%), or pure symbol."""
+    s = token.strip()
+    if not s:
+        return False
+    letters = [c for c in s if c.isalpha() and c != "\ufdfc"]
+    if not letters:
+        return True
+    if s[0].isdigit() or (len(s) > 1 and s[0] in "+-.٫" and s[1].isdigit()):
+        return True
+    return False
+
+
+def is_valid_prediction_context_word(word: str) -> bool:
+    """Return True if a completed token is a valid word to predict a next word from."""
+    s = word.strip()
+    if not s:
+        return False
+    if s[-1] in _SENTENCE_END_PUNCT:
+        return False
+    if is_numeric_or_symbol_token(s):
+        return False
+    if "://" in s or s.startswith(("www.", "@", "#")) or "@" in s:
+        return False
+    return True

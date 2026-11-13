@@ -6,6 +6,7 @@ import ctypes
 import logging
 import queue
 import threading
+import time
 from ctypes import wintypes
 from dataclasses import dataclass
 from typing import Any
@@ -60,6 +61,22 @@ class HookEvent:
     flags: int
     scan_code: int
     is_key_down: bool
+    modifiers: frozenset[str] | None = None
+
+
+_MOD_VK_TO_NAME: dict[int, str] = {
+    w.VK_CONTROL: "ctrl",
+    w.VK_LCONTROL: "ctrl",
+    w.VK_RCONTROL: "ctrl",
+    w.VK_MENU: "alt",
+    w.VK_LMENU: "alt",
+    w.VK_RMENU: "alt",
+    w.VK_SHIFT: "shift",
+    w.VK_LSHIFT: "shift",
+    w.VK_RSHIFT: "shift",
+    w.VK_LWIN: "win",
+    w.VK_RWIN: "win",
+}
 
 
 def set_popup_visible(
@@ -92,6 +109,7 @@ class KeyboardHook:
         self._proc: Any = None
         self._running = False
         self._lock = threading.Lock()
+        self._mod_down_at: dict[int, float] = {}
 
     @property
     def events(self) -> queue.Queue[HookEvent]:
@@ -195,16 +213,52 @@ class KeyboardHook:
             self._hook = None
         log.info("Keyboard hook uninstalled")
 
+    def _snapshot_modifiers(self, vk: int, is_down: bool) -> frozenset[str]:
+        """Update and return active modifier names at the instant of a physical hook event."""
+        now = time.monotonic()
+        if vk in _MOD_VK_TO_NAME:
+            if is_down:
+                self._mod_down_at[vk] = now
+            else:
+                self._mod_down_at.pop(vk, None)
+                if vk in (w.VK_CONTROL, w.VK_SHIFT, w.VK_MENU):
+                    mod_name = _MOD_VK_TO_NAME[vk]
+                    for k in [mk for mk, mn in _MOD_VK_TO_NAME.items() if mn == mod_name]:
+                        self._mod_down_at.pop(k, None)
+
+        active: set[str] = set()
+        user32 = getattr(w, "user32", None)
+        for m_vk, mod_name in _MOD_VK_TO_NAME.items():
+            async_down = False
+            if user32 is not None:
+                try:
+                    async_down = bool(user32.GetAsyncKeyState(m_vk) & 0x8000)
+                except Exception:  # noqa: BLE001
+                    async_down = False
+            if async_down:
+                active.add(mod_name)
+                if m_vk in self._mod_down_at:
+                    self._mod_down_at[m_vk] = now
+            elif m_vk in self._mod_down_at:
+                if now - self._mod_down_at[m_vk] <= 0.15:
+                    active.add(mod_name)
+                else:
+                    self._mod_down_at.pop(m_vk, None)
+        return frozenset(active)
+
     def _callback(self, n_code: int, w_param: int, l_param: int) -> int:
         if n_code == w.HC_ACTION:
             kb = ctypes.cast(l_param, ctypes.POINTER(w.KBDLLHOOKSTRUCT)).contents
             flags = int(kb.flags)
             is_down = w_param in (w.WM_KEYDOWN, w.WM_SYSKEYDOWN)
+            vk = int(kb.vkCode)
+            mods = None if (flags & LLKHF_INJECTED) else self._snapshot_modifiers(vk, is_down)
             event = HookEvent(
-                vk_code=int(kb.vkCode),
+                vk_code=vk,
                 flags=flags,
                 scan_code=int(kb.scanCode),
                 is_key_down=is_down,
+                modifiers=mods,
             )
 
             # Never forward injected events into our logic queue for swallow path only;
@@ -221,7 +275,8 @@ class KeyboardHook:
             popup_visible_snap, swallow_digits_snap, swallow_arrow_snap, swallow_enter_snap = (
                 _popup_state
             )
-            if popup_visible_snap and is_down:
+            shortcut_mod = bool(mods and (mods & {"ctrl", "alt", "win"}))
+            if popup_visible_snap and is_down and not shortcut_mod:
                 vk = event.vk_code
                 if vk == w.VK_RETURN:
                     # Only swallow Enter if swallow_enter is explicitly enabled AND Shift is not held!

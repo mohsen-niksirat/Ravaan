@@ -1109,6 +1109,49 @@ def apply_popup_window_attributes(
         return result
 
 
+def rects_overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool:
+    """Return True when two screen-space rectangles (x1, y1, x2, y2) intersect."""
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    return ax1 < bx2 and ax2 > bx1 and ay1 < by2 and ay2 > by1
+
+
+def clamp_popup_position(
+    win: tk.Tk | tk.Toplevel,
+    px: int,
+    py: int,
+    width: int,
+    height: int,
+    margin: int = 10,
+) -> tuple[int, int]:
+    """Clamp popup top-left coordinates safely inside the primary screen dimensions."""
+    try:
+        sw = max(320, int(win.winfo_screenwidth()))
+        sh = max(240, int(win.winfo_screenheight()))
+    except Exception:
+        return max(margin, px), max(margin, py)
+    return max(margin, min(px, sw - width - margin)), max(margin, min(py, sh - height - margin))
+
+
+def resolve_popup_position(
+    win: tk.Tk | tk.Toplevel,
+    px: int,
+    py: int,
+    width: int,
+    height: int,
+    avoid_rects: list[tuple[int, int, int, int]] | tuple[tuple[int, int, int, int], ...] = (),
+) -> tuple[int, int]:
+    """Clamp (px, py) to screen and shift vertically away from any overlapping popups."""
+    cx, cy = clamp_popup_position(win, px, py, width, height)
+    for rect in avoid_rects:
+        if rects_overlap((cx, cy, cx + width, cy + height), rect):
+            _ax1, ay1, _ax2, ay2 = rect
+            above_y = ay1 - height - 8
+            candidate_y = above_y if above_y >= 10 else ay2 + 8
+            cx, cy = clamp_popup_position(win, cx, candidate_y, width, height)
+    return cx, cy
+
+
 def apply_window_decorations(win: tk.Tk | tk.Toplevel, palette: Palette | None = None) -> None:
     """Apply native Windows 11 Fluent dark/light title bar and rounded corners to a window."""
     if palette is None:

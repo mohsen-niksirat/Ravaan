@@ -84,10 +84,36 @@ class RavanApp(
         self._popup_shown_at = self._last_focus_poll = self._last_lang_poll = self._last_clip_poll = 0.0
         self._pending_predict = self._running = False
         self._current_exe: Any = None
+        self._current_hwnd: int = 0
+        self._journal_desynced: bool = False
+        self._just_pasted: bool = False
+        self._uia_resync_enabled: bool = True
         self._last_autocorrect: Any = None
+        self._last_quick_undo: dict[str, Any] | None = None
+        self._pending_selection_check_time: float | None = None
+        self._last_profile_layout_exe: str | None = None
+        self._last_tap_up_time: float = 0.0
         self._own_pid = os.getpid()
         self.is_paused = False
         self._pause_timer: Any = None
+
+        from ravan.ui.selection_toolbar import SelectionToolbarWindow
+        from ravan.ui.undo_chip import UndoChipWindow
+
+        ov_root = getattr(self.overlay, "_root", None)
+        theme_mode = getattr(self.cfg, "theme_mode", "auto")
+        self.undo_chip = UndoChipWindow(
+            parent=ov_root,
+            on_undo=lambda: self._undo_quick_fix() if hasattr(self, "_undo_quick_fix") else None,
+            theme_mode=theme_mode,
+        )
+        self.selection_toolbar = SelectionToolbarWindow(
+            parent=ov_root,
+            on_action=lambda aid: self._on_selection_toolbar_action(aid)
+            if hasattr(self, "_on_selection_toolbar_action")
+            else None,
+            theme_mode=theme_mode,
+        )
         from ravan.ui.hint_manager import HintManager
 
         self.hint_manager = HintManager(self.cfg, on_show_toast=getattr(self, "_show_toast", None))
@@ -166,6 +192,13 @@ class RavanApp(
             pass
         set_popup_visible(False)
         self.overlay.hide()
+        for aux_attr in ("undo_chip", "selection_toolbar"):
+            aux = getattr(self, aux_attr, None)
+            if aux is not None:
+                try:
+                    aux.destroy()
+                except Exception:  # noqa: BLE001
+                    pass
         self.hook.stop()
         self.tray.stop()
         try:
@@ -200,6 +233,10 @@ class RavanApp(
         self.predictor.session_suppressed.update(session_suppressed)
         self.predictor._selection_counts.update(selection_counts)
         self.snippets = SnippetEngine.from_config(cfg)
+        for aux_attr in ("undo_chip", "selection_toolbar"):
+            aux = getattr(self, aux_attr, None)
+            if aux is not None and hasattr(aux, "theme_mode"):
+                aux.theme_mode = getattr(cfg, "theme_mode", "auto")
         if hasattr(self.overlay, "apply_config"):
             self.overlay.apply_config(cfg)
         elif hasattr(self.overlay, "set_theme_mode"):
@@ -359,7 +396,10 @@ class RavanApp(
             return self._expand_snippet_match(regex_match, word, delimiter)
 
         if word:
-            self.predictor.record_selection(word, context=prev_context)
+            from ravan.core.normalizer import is_numeric_or_symbol_token
+
+            if not is_numeric_or_symbol_token(word):
+                self.predictor.record_selection(word, context=prev_context)
         return False
 
     def _on_overlay_moved(self, x: int, y: int) -> None:
@@ -376,6 +416,8 @@ class RavanApp(
 
     def _accept_candidate(self, cand: Candidate) -> None:
         from ravan.core.events import CandidateKind
+        from ravan.core.normalizer import is_valid_prediction_context_word
+        from ravan.platform.caret import invalidate_caret_cache
 
         word = self.journal.last_word()
         prev_context = (
@@ -407,6 +449,35 @@ class RavanApp(
             set_popup_visible(False)
         else:
             self._replace_word(word, cand.text + auto_space)
+
+        # Synchronize editing flags after acceptance and invalidate stale caret coords
+        # so any follow-up next-word popup tracks the updated cursor position.
+        self._last_key_was_backspace = False
+        self._edited_since_popup = False
+        self._just_pasted = False
+        self._journal_desynced = False
+        invalidate_caret_cache()
+
+        # When auto-space inserted a trailing space after a valid word, automatically
+        # schedule next-word prediction just as manual space typing does.
+        if (
+            auto_space == " "
+            and bool(getattr(self.cfg, "next_word_prediction", True))
+            and not getattr(self, "power_mode_active", False)
+            and not self._is_excluded()
+        ):
+            pred_enabled = (
+                self._effective_prediction_enabled()
+                if hasattr(self, "_effective_prediction_enabled")
+                else bool(getattr(self.cfg, "prediction_enabled", True))
+            )
+            last_tok = cand.text.strip().split()[-1] if cand.text.strip() else ""
+            if (
+                pred_enabled
+                and is_valid_prediction_context_word(last_tok)
+                and hasattr(self, "_schedule_predict")
+            ):
+                self._schedule_predict()
 
     def _replace_word(
         self,

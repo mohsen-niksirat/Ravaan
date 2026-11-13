@@ -17,7 +17,9 @@ class AppDialogsMixin:
         from ravan.ui.settings import SettingsWindow
 
         self._settings_window = SettingsWindow(
-            self.cfg, on_saved=self._on_settings_saved
+            self.cfg,
+            on_saved=self._on_settings_saved,
+            learning_engine=getattr(getattr(self, "predictor", None), "learning", None),
         )
         self._settings_window.show()
 
@@ -112,7 +114,9 @@ class AppDialogsMixin:
             elif action == "set_auto_zwnj":
                 self.set_auto_zwnj_enabled(bool(arg))
             elif action == "toggle_pause":
-                self.toggle_pause()
+                self.toggle_pause(10 if arg is None else int(arg))
+            elif action == "toggle_manual_pause":
+                self.toggle_pause(minutes=None)
             elif action == "quick_stats":
                 self._show_quick_text_stats()
             elif action == "show_update":
@@ -120,9 +124,7 @@ class AppDialogsMixin:
             elif action == "toggle_power_mode":
                 self.toggle_power_mode()
             elif action == "set_power_mode":
-                target = bool(arg)
-                if getattr(self, "power_mode_active", False) != target:
-                    self.toggle_power_mode()
+                self.toggle_power_mode(force_state=bool(arg))
             elif action == "start_macro_recording":
                 self.start_macro_recording()
             elif action == "stop_macro_recording":
@@ -164,14 +166,17 @@ class AppDialogsMixin:
 
         save_config(self.cfg)
         if not enabled:
+            self._pending_predict = False
             self.overlay.hide()
+            from ravan.platform.hook import set_popup_visible
+
+            set_popup_visible(False)
 
     def set_autocorrect_enabled(self: Any, enabled: bool) -> None:
-        self.cfg.autocorrect_enabled = enabled
-        if hasattr(self, "predictor") and self.predictor is not None:
-            self.predictor.autocorrect_mode = self.cfg.autocorrect_mode if enabled else "off"
         from ravan.core.config import save_config
+        from ravan.ui.app_tray import sync_autocorrect_state
 
+        sync_autocorrect_state(self.cfg, getattr(self, "predictor", None), enabled)
         save_config(self.cfg)
 
     def set_autofix_enabled(self: Any, enabled: bool) -> None:
@@ -188,7 +193,7 @@ class AppDialogsMixin:
 
         save_config(self.cfg)
 
-    def toggle_pause(self: Any, minutes: int = 10) -> None:
+    def toggle_pause(self: Any, minutes: int | None = 10) -> None:
         import threading
 
         from ravan.core.i18n import t
@@ -198,15 +203,32 @@ class AppDialogsMixin:
             self._pause_timer.cancel()
             self._pause_timer = None
         if self.is_paused:
+            self._pending_predict = False
             self.overlay.hide()
-            self._pause_timer = threading.Timer(minutes * 60, self._auto_resume)
-            self._pause_timer.daemon = True
-            self._pause_timer.start()
-            msg = t("tray.paused_msg", "Ravaan paused for {min} minutes.", min=minutes)
+            from ravan.platform.hook import set_popup_visible
+
+            set_popup_visible(False)
+            if hasattr(self, "_hide_selection_toolbar"):
+                self._hide_selection_toolbar()
+            if hasattr(self, "_hide_undo_chip"):
+                self._hide_undo_chip()
+            if minutes is not None and minutes > 0:
+                self._pause_timer = threading.Timer(minutes * 60, self._auto_resume)
+                self._pause_timer.daemon = True
+                self._pause_timer.start()
+                tray_min = minutes
+                msg = t("tray.paused_msg", "Ravaan paused for {min} minutes.", min=minutes)
+            else:
+                tray_min = 0
+                msg = t(
+                    "tray.paused_manual_msg",
+                    "Ravaan paused until you resume it.",
+                )
         else:
+            tray_min = 0
             msg = t("tray.resumed_msg", "Ravaan resumed.")
         if hasattr(self.tray, "set_paused"):
-            self.tray.set_paused(self.is_paused, minutes if self.is_paused else 0)
+            self.tray.set_paused(self.is_paused, tray_min)
         self.tray.notify(msg, title="Ravaan")
 
     def _auto_resume(self: Any) -> None:

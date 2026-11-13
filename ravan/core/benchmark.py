@@ -118,8 +118,9 @@ def run_prediction_benchmark(
         predictor = DictPredictor.from_config(cfg)
 
     # Warmup lazy loaders for both English and Persian, including n-gram indexes
+    warmup_cases = BENCHMARK_FIXTURES[:10] + BENCHMARK_FIXTURES[26:30] + BENCHMARK_FIXTURES[37:40]
     for _ in range(max(1, warmup)):
-        for ctx, prf, _ in BENCHMARK_FIXTURES[:8]:
+        for ctx, prf, _ in warmup_cases:
             predictor.predict(prf, ctx, limit=5)
 
     latencies_ms: list[float] = []

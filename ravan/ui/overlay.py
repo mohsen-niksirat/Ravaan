@@ -627,6 +627,19 @@ class OverlayWindow:
         self.custom_x = -1
         self.custom_y = -1
 
+    def contains_screen_point(self, x: int, y: int) -> bool:
+        """Return True when the overlay is visible and screen coordinates fall inside it."""
+        if not self.visible:
+            return False
+        try:
+            ox = int(self._root.winfo_rootx())
+            oy = int(self._root.winfo_rooty())
+            ow = int(self._root.winfo_width())
+            oh = int(self._root.winfo_height())
+            return ox <= x <= ox + ow and oy <= y <= oy + oh
+        except Exception:  # noqa: BLE001
+            return False
+
     def _bind_drag(self, widget: tk.Widget, row_index: int = -1) -> None:
         targets: list[tk.Widget] = [widget]
         if isinstance(widget, CandidateRow):

@@ -45,6 +45,14 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._theme_mode_var.set(d.theme_mode)
         if hasattr(win, "_translit_var"):
             win._translit_var.set(d.translit_enabled)
+        if hasattr(win, "_orthography_guard_var"):
+            win._orthography_guard_var.set(d.orthography_guard_enabled)
+        if hasattr(win, "_orthography_mode_var"):
+            win._orthography_mode_var.set(d.orthography_guard_mode)
+        if hasattr(win, "_quick_undo_chip_var"):
+            win._quick_undo_chip_var.set(d.quick_undo_chip_enabled)
+        if hasattr(win, "_selection_toolbar_var"):
+            win._selection_toolbar_var.set(d.selection_toolbar_enabled)
         if hasattr(win, "_show_lang_on_click_var"):
             win._show_lang_on_click_var.set(d.show_lang_on_click)
         if hasattr(win, "_lang_placement_var"):
@@ -167,6 +175,12 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
         if hasattr(win, "_excl_text"):
             win._excl_text.delete("1.0", "end")
             win._excl_text.insert("1.0", "\n".join(DEFAULT_EXCLUDED_APPS) + "\n")
+    elif tab_name == "profiles":
+        if hasattr(win, "_app_profiles_enabled_var"):
+            win._app_profiles_enabled_var.set(d.app_profiles_enabled)
+        win._managed_app_profiles = {}
+        if callable(getattr(win, "_refresh_profiles_tree", None)):
+            win._refresh_profiles_tree()
     elif tab_name == "snippets":
         win._managed_snippets = []
         win._update_snip_display()

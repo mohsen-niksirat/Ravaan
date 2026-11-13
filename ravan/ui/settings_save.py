@@ -179,6 +179,25 @@ def save_settings_window(win: Any) -> None:
         cfg.enable_feature_hints = win._hints_var.get()
     if hasattr(win, "_translit_var"):
         cfg.translit_enabled = win._translit_var.get()
+    if hasattr(win, "_orthography_guard_var"):
+        cfg.orthography_guard_enabled = win._orthography_guard_var.get()
+    if hasattr(win, "_orthography_mode_var"):
+        om = str(win._orthography_mode_var.get()).strip().lower()
+        cfg.orthography_guard_mode = om if om in ("off", "safe", "strict") else "safe"
+    if hasattr(win, "_quick_undo_chip_var"):
+        cfg.quick_undo_chip_enabled = win._quick_undo_chip_var.get()
+    if hasattr(win, "_selection_toolbar_var"):
+        cfg.selection_toolbar_enabled = win._selection_toolbar_var.get()
+    if hasattr(win, "_app_profiles_enabled_var"):
+        cfg.app_profiles_enabled = win._app_profiles_enabled_var.get()
+    if hasattr(win, "_managed_app_profiles"):
+        from ravan.core.profiles import sanitize_app_profiles
+
+        cfg.app_profiles = sanitize_app_profiles(win._managed_app_profiles)
+    if hasattr(win, "_managed_zwnj_blacklist"):
+        cfg.zwnj_orthography_blacklist = [
+            str(w).strip() for w in win._managed_zwnj_blacklist if str(w).strip()
+        ]
     cfg.clipboard_history_enabled = win._cliphist_var.get()
     cfg.inline_calc_enabled = win._calc_var.get()
     cfg.quickpick_digits = win._digits_var.get()

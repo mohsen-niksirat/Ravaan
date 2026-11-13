@@ -38,13 +38,31 @@ class AppAutofixMixin:
         )
 
     def set_translit_enabled(self: Any, enabled: bool) -> None:
-        self.cfg.translit_enabled = enabled
-        from ravan.core.config import save_config
+        self.cfg.translit_enabled = bool(enabled)
+        from ravan.core.config import hotkey_to_text, save_config
+        from ravan.core.i18n import t
 
         save_config(self.cfg)
-        status = "فعال" if enabled else "غیرفعال"
-        msg = f"حالت فینگلیش به فارسی {status} شد (Ctrl+Alt+T)"
+        hk = ""
+        if getattr(self.cfg, "translit_hotkey", None) is not None:
+            hk = hotkey_to_text(self.cfg.translit_hotkey)
+        hotkey_suffix = f" ({hk})" if hk else ""
+        if self.cfg.translit_enabled:
+            msg = t(
+                "toast.translit_enabled",
+                "Finglish mode enabled{hotkey}",
+                hotkey=hotkey_suffix,
+            )
+        else:
+            msg = t(
+                "toast.translit_disabled",
+                "Finglish mode disabled{hotkey}",
+                hotkey=hotkey_suffix,
+            )
         self._show_toast(msg)
+        if hasattr(self, "tray") and self.tray is not None and hasattr(self.tray, "update_menu"):
+            self.tray.update_menu()
+        status = "فعال" if self.cfg.translit_enabled else "غیرفعال"
         self._record_event(f"Toggled transliteration: {status}")
 
     def _toggle_translit(self: Any) -> None:
@@ -175,6 +193,8 @@ class AppAutofixMixin:
             return False
         if hasattr(self, "_is_excluded") and self._is_excluded():
             return False
+        if hasattr(self, "_effective_autofix_enabled") and not self._effective_autofix_enabled():
+            return False
         from ravan.platform.focus import is_password_focused
 
         if is_password_focused():
@@ -182,6 +202,10 @@ class AppAutofixMixin:
 
         active_lang = getattr(self, "_active_layout_tag", "en") or "en"
         app_name = getattr(self, "_current_exe", "") or ""
+        if hasattr(self, "_current_profile") and callable(self._current_profile):
+            prof = self._current_profile()
+            if prof.source == "user" and prof.autofix_enabled and prof.exe:
+                self.autofix.app_modes.setdefault(prof.exe, getattr(self.cfg, "autofix_mode", "safe"))
         prev_context = (
             self.journal.previous_context(2)
             if hasattr(self.journal, "previous_context")
@@ -252,6 +276,8 @@ class AppAutofixMixin:
             return False
         if hasattr(self, "_is_excluded") and self._is_excluded():
             return False
+        if hasattr(self, "_effective_autofix_enabled") and not self._effective_autofix_enabled():
+            return False
         from ravan.platform.focus import is_password_focused
 
         if is_password_focused():
@@ -259,6 +285,10 @@ class AppAutofixMixin:
 
         active_lang = getattr(self, "_active_layout_tag", "en") or "en"
         app_name = getattr(self, "_current_exe", "") or ""
+        if hasattr(self, "_current_profile") and callable(self._current_profile):
+            prof = self._current_profile()
+            if prof.source == "user" and prof.autofix_enabled and prof.exe:
+                self.autofix.app_modes.setdefault(prof.exe, getattr(self.cfg, "autofix_mode", "safe"))
         prev_context = (
             self.journal.previous_context(2)
             if hasattr(self.journal, "previous_context")
@@ -320,8 +350,17 @@ class AppAutofixMixin:
         """Global undo: reverts the last automatic correction (up to 50 steps)."""
         if hasattr(self, "_undo_last_transliteration") and getattr(self, "_last_translit_record", None):
             return self._undo_last_transliteration(from_backspace=False)
-        if hasattr(self, "autofix") and self.autofix is not None:
-            rec = self.autofix.pop_last_correction()
+        quick_undo = getattr(self, "_last_quick_undo", None)
+        af = getattr(self, "autofix", None)
+        top_af = af.correction_stack[-1] if af is not None and getattr(af, "correction_stack", None) else None
+        if isinstance(quick_undo, dict) and hasattr(self, "_undo_quick_fix"):
+            q_ts = float(quick_undo.get("timestamp", 0.0))
+            af_ts = float(getattr(top_af, "timestamp", -1.0)) if top_af is not None else -1.0
+            if top_af is None or q_ts >= af_ts:
+                if self._undo_quick_fix():
+                    return True
+        if af is not None:
+            rec = af.pop_last_correction()
             if rec is not None:
                 del_len = len(rec.fixed) + len(rec.delimiter)
                 replace_text = rec.original + rec.delimiter

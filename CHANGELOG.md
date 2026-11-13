@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.4] - 2026-11-13
+
+### Fixed
+- **Tray Pause Controls & Quick Toggles (`ravan/ui/tray.py`, `ravan/ui/app_tray.py`, `ravan/ui/app_dialogs.py`, `ravan/ui/app_actions.py`, `ravan/ui/app_autofix.py`)**:
+  - Separated the top Tray menu toggle into a manual indefinite pause that stays paused until clicked again, distinct from `Pause for 10 min`.
+  - Fixed `Power Mode (Focus Typing)` in Quick Toggles so tray clicks execute overlay hiding, popup suppression hooks, duration timers, and notifications, while keeping tray checkmarks synchronized with hotkeys.
+  - Fixed `Autocorrect` Quick Toggle remaining off when `autocorrect_mode` had previously been set to `"off"` in Settings.
+  - Localized Tray status labels and Finglish mode toggle notifications (`en.json` / `fa.json`) and fixed `Open logs folder` callback signature for `pystray`.
+- **Smart Context-Aware Prediction Triggers (`ravan/ui/key_handler.py`, `ravan/ui/app.py`, `ravan/ui/app_polling.py`, `ravan/platform/hook.py`, `ravan/core/normalizer.py`, `ravan/core/learning.py`, `ravan/core/predictor.py`)**:
+  - Automatically schedule next-word prediction when selecting a suggestion via quick-pick digits, arrows, Tab, Enter, or mouse click with auto-space enabled.
+  - Prevented unsolicited predictions after clipboard paste (`Ctrl+V`, `Win+V`, `Shift+Insert`, `Alt+V`, right-click Paste) and eliminated fast modifier-release races via hook modifier snapshotting.
+  - Prevented numeric tokens, formatted numbers, and sentence-ending punctuation from triggering suggestions or polluting learning models.
+
 ## [2.7.3] - 2026-11-12
 
 ### Added

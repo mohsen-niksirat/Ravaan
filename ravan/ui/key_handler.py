@@ -6,6 +6,7 @@ import logging
 import time
 from typing import Any
 
+from ravan.platform import keys as _keys
 from ravan.platform import winapi as w
 from ravan.platform.hook import LLKHF_INJECTED, HookEvent, _is_shift_pressed, set_popup_visible
 from ravan.platform.inject import replace_last_n_with
@@ -15,8 +16,38 @@ from ravan.platform.lang import current_language
 log = logging.getLogger(__name__)
 
 
+def _event_has_modifier(event: HookEvent, mod: str) -> bool:
+    """Return modifier state captured at hook instant, or live state for synthetic events."""
+    mods = getattr(event, "modifiers", None)
+    if mods is not None:
+        return mod in mods
+    if mod == "shift":
+        return _is_shift_pressed()
+    return _keys.modifiers_down([mod], exact=False)
+
+
+def _matches_event_hotkey(event: HookEvent, vk: int, spec: Any) -> bool:
+    mods = getattr(event, "modifiers", None)
+    if mods is not None:
+        return matches_hotkey(vk, spec, held_modifiers=mods)
+    return matches_hotkey(vk, spec)
+
+
 class KeyHandlerMixin:
     """Mixin containing keystroke processing and trigger dispatch for RavanApp."""
+
+    def _mark_paste_state(self: Any) -> None:
+        """Invalidate tracked typing buffer and suppress auto/next-word predictions on paste."""
+        self._select_all_pending = False
+        self._last_autocorrect = None
+        self._journal_desynced = True
+        self._just_pasted = True
+        self._pending_predict = False
+        if hasattr(self, "journal"):
+            self.journal.clear()
+        if getattr(self.overlay, "visible", False):
+            self.overlay.hide()
+        set_popup_visible(False)
 
     def _drain_hook_events(self: Any) -> None:
         if self._is_foreground_self():
@@ -36,12 +67,8 @@ class KeyHandlerMixin:
                 continue
             if event.flags & LLKHF_INJECTED:
                 continue
-            # Physical Backspace from user must NEVER be suppressed by synthetic cooldown,
-            # ensuring journal and active editor stay perfectly synchronized during fast typing.
-            if event.vk_code == w.VK_BACK:
-                pass
-            elif time.monotonic() < self._suppress_until:
-                continue
+            # All injected events carry LLKHF_INJECTED and are filtered above; never drop
+            # real physical keystrokes via time cooldown or journal desyncs from the screen.
             self._handle_key(event)
 
     def _handle_key(self: Any, event: HookEvent) -> None:
@@ -50,6 +77,10 @@ class KeyHandlerMixin:
             if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
+            if hasattr(self, "_hide_selection_toolbar"):
+                self._hide_selection_toolbar()
+            if hasattr(self, "_hide_undo_chip"):
+                self._hide_undo_chip()
             if hasattr(self, "journal"):
                 self.journal.clear()
             return
@@ -61,6 +92,10 @@ class KeyHandlerMixin:
             if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
+            if hasattr(self, "_hide_selection_toolbar"):
+                self._hide_selection_toolbar()
+            if hasattr(self, "_hide_undo_chip"):
+                self._hide_undo_chip()
             if hasattr(self, "journal"):
                 self.journal.clear()
             return
@@ -77,22 +112,30 @@ class KeyHandlerMixin:
         self._record_event("Key pressed", vk=vk, char=char)
 
         # Typing dismisses any active language indicator chip instantly (except modifier keys or the hotkey itself)
-        if not is_modifier(vk) and not matches_hotkey(vk, self.cfg.lang_indicator_hotkey):
+        if not is_modifier(vk) and not _matches_event_hotkey(event, vk, self.cfg.lang_indicator_hotkey):
             if getattr(self.overlay, "visible", False) and getattr(self.overlay, "_mode", "") == "lang":
                 self.overlay.hide()
+        if not is_modifier(vk):
+            if vk == w.VK_ESCAPE:
+                if hasattr(self, "_hide_selection_toolbar"):
+                    self._hide_selection_toolbar()
+                if hasattr(self, "_hide_undo_chip"):
+                    self._hide_undo_chip()
+            elif not _event_has_modifier(event, "ctrl") and hasattr(self, "_hide_selection_toolbar"):
+                self._hide_selection_toolbar()
 
         if hasattr(self, "_handle_accent_key") and self._handle_accent_key(event, vk, char):
             return
 
         if getattr(self, "is_paused", False):
-            if hasattr(self.cfg, "pause_hotkey") and matches_hotkey(
-                vk, self.cfg.pause_hotkey
+            if hasattr(self.cfg, "pause_hotkey") and _matches_event_hotkey(
+                event, vk, self.cfg.pause_hotkey
             ):
                 self._ui_queue.put(("toggle_pause", None))
-            elif hasattr(self.cfg, "power_mode_hotkey") and matches_hotkey(
-                vk, self.cfg.power_mode_hotkey
+            elif hasattr(self.cfg, "power_mode_hotkey") and _matches_event_hotkey(
+                event, vk, self.cfg.power_mode_hotkey
             ):
-                self._ui_queue.put(("toggle_pause", None))
+                self._ui_queue.put(("toggle_power_mode", None))
             return
 
         # ── Clipboard popup navigation ──
@@ -125,7 +168,11 @@ class KeyHandlerMixin:
             set_popup_visible(False)
 
         # ── Prediction popup navigation ──
-        elif self.overlay.predicting:
+        elif self.overlay.predicting and not (
+            _event_has_modifier(event, "ctrl")
+            or _event_has_modifier(event, "alt")
+            or _event_has_modifier(event, "win")
+        ):
             is_horizontal = getattr(self.cfg, "prediction_layout", "vertical") == "horizontal"
             if vk == w.VK_ESCAPE:
                 self.overlay.hide()
@@ -202,17 +249,17 @@ class KeyHandlerMixin:
             # Note: Regular character keys fall through to typing, keeping prediction continuous!
 
         # Hotkeys
-        if hasattr(self.cfg, "pause_hotkey") and matches_hotkey(vk, self.cfg.pause_hotkey):
+        if hasattr(self.cfg, "pause_hotkey") and _matches_event_hotkey(event, vk, self.cfg.pause_hotkey):
             self._ui_queue.put(("toggle_pause", None))
             return
-        if hasattr(self.cfg, "power_mode_hotkey") and matches_hotkey(vk, self.cfg.power_mode_hotkey):
+        if hasattr(self.cfg, "power_mode_hotkey") and _matches_event_hotkey(event, vk, self.cfg.power_mode_hotkey):
             self._ui_queue.put(("toggle_power_mode", None))
             return
-        if hasattr(self.cfg, "quick_stats_hotkey") and matches_hotkey(vk, self.cfg.quick_stats_hotkey):
+        if hasattr(self.cfg, "quick_stats_hotkey") and _matches_event_hotkey(event, vk, self.cfg.quick_stats_hotkey):
             if not getattr(self, "power_mode_active", False):
                 self._ui_queue.put(("quick_stats", None))
             return
-        if self.cfg.clipboard_history_enabled and matches_hotkey(vk, self.cfg.clipboard_history_hotkey):
+        if self.cfg.clipboard_history_enabled and _matches_event_hotkey(event, vk, self.cfg.clipboard_history_hotkey):
             self._show_clipboard_popup()
             return
 
@@ -220,11 +267,11 @@ class KeyHandlerMixin:
             if vk == w.VK_ESCAPE:
                 self._ui_queue.put(("stop_macro_recording", None))
                 return
-            self.macro_recorder.record(vk, vk_to_unicode(vk, event.scan_code) or "")
+            self.macro_recorder.record(vk, char)
 
         if (
-            matches_hotkey(vk, getattr(self.cfg, "global_undo_hotkey", None))
-            or matches_hotkey(vk, self.cfg.undo_autocorrect_hotkey)
+            _matches_event_hotkey(event, vk, getattr(self.cfg, "global_undo_hotkey", None))
+            or _matches_event_hotkey(event, vk, self.cfg.undo_autocorrect_hotkey)
         ):
             if hasattr(self, "_undo_last_correction") and self._undo_last_correction():
                 return
@@ -239,13 +286,13 @@ class KeyHandlerMixin:
             (getattr(self.cfg, "clean_clipboard_hotkey", None), self._clean_clipboard_text),
             (getattr(self.cfg, "digits_hotkey", None), self._toggle_digits_selection_or_last_word),
         ):
-            if hk is not None and matches_hotkey(vk, hk):
+            if hk is not None and _matches_event_hotkey(event, vk, hk):
                 if now - self._last_convert_at > 0.3:
                     self._last_convert_at = now
                     action()
                 return
 
-        if matches_hotkey(vk, self.cfg.lang_indicator_hotkey):
+        if _matches_event_hotkey(event, vk, self.cfg.lang_indicator_hotkey):
             if not getattr(self, "power_mode_active", False):
                 self._show_lang_indicator()
             return
@@ -254,7 +301,7 @@ class KeyHandlerMixin:
             ("ai_assistant_hotkey", "_trigger_ai_assistant"),
             ("voice_dictation_hotkey", "_toggle_voice_dictation"),
         ):
-            if hasattr(self.cfg, hk_name) and matches_hotkey(vk, getattr(self.cfg, hk_name)):
+            if hasattr(self.cfg, hk_name) and _matches_event_hotkey(event, vk, getattr(self.cfg, hk_name)):
                 fn = getattr(self, fn_name, None)
                 if fn:
                     fn()
@@ -263,11 +310,21 @@ class KeyHandlerMixin:
         if is_modifier(vk):
             return
 
-        from ravan.platform.keys import modifiers_down
+        is_ctrl = _event_has_modifier(event, "ctrl")
+        is_alt = _event_has_modifier(event, "alt")
+        is_shift = _event_has_modifier(event, "shift")
+        is_win = _event_has_modifier(event, "win")
 
-        is_ctrl = modifiers_down(["ctrl"], exact=False)
-        is_alt = modifiers_down(["alt"], exact=False)
-        is_shift = _is_shift_pressed()
+        # Handle Windows-key shortcuts (including Win+V Windows Clipboard History paste)
+        if is_win:
+            if vk == ord("V"):
+                self._mark_paste_state()
+            else:
+                self._pending_predict = False
+                if self.overlay.visible:
+                    self.overlay.hide()
+                    set_popup_visible(False)
+            return
 
         # Handle Ctrl-based shortcuts and clipboard operations (Copy, Cut, Paste, Select All)
         if is_ctrl and not is_alt:
@@ -282,11 +339,16 @@ class KeyHandlerMixin:
                 self._select_all_pending = True
                 return
 
-            if vk in (ord("V"), ord("X")):
-                # Ctrl+V (Paste) or Ctrl+X (Cut)
-                # Invalidate linear journal because external text was pasted or selection was cut
+            if vk == ord("V"):
+                # Ctrl+V (Paste): invalidate journal and suppress unsolicited post-paste predictions
+                self._mark_paste_state()
+                return
+
+            if vk == ord("X"):
+                # Ctrl+X (Cut): invalidate linear journal
                 self._select_all_pending = False
                 self._last_autocorrect = None
+                self._journal_desynced = True
                 self.journal.clear()
                 return
 
@@ -295,28 +357,66 @@ class KeyHandlerMixin:
                 self._select_all_pending = False
                 return
 
-            # All other Ctrl shortcuts (Ctrl+Z, Ctrl+S, Ctrl+F, etc.)
+            # All other Ctrl shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+Tab, Ctrl+T/W/N/L, etc.)
             self._select_all_pending = False
-            if vk in (ord("Z"), ord("Y")):
+            if vk in (
+                ord("Z"),
+                ord("Y"),
+                w.VK_TAB,
+                w.VK_PRIOR,
+                w.VK_NEXT,
+                ord("T"),
+                ord("W"),
+                ord("N"),
+                ord("L"),
+            ):
                 self._last_autocorrect = None
+                self._journal_desynced = True
                 self.journal.clear()
+            return
+
+        # Handle plain Alt menu/navigation shortcuts (AltGr sets both Ctrl+Alt so it still types)
+        if is_alt and not is_ctrl:
+            self._pending_predict = False
+            self._select_all_pending = False
+            self._last_autocorrect = None
+            self._journal_desynced = True
+            self.journal.clear()
+            if self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
             return
 
         # Handle Shift+Insert (Standard Windows Paste shortcut)
         if vk == w.VK_INSERT and is_shift and not is_ctrl and not is_alt:
+            self._mark_paste_state()
+            return
+
+        # Context-menu key should dismiss popups without altering typed state
+        if vk == getattr(w, "VK_APPS", 0x5D):
+            self._pending_predict = False
             if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
-            self._pending_predict = False
+            return
+
+        # Tab when prediction popup is not active switches UI field or indents
+        if vk == w.VK_TAB and not is_ctrl and not is_alt:
             self._select_all_pending = False
             self._last_autocorrect = None
+            self._journal_desynced = True
             self.journal.clear()
+            self._pending_predict = False
+            if self.overlay.visible:
+                self.overlay.hide()
+                set_popup_visible(False)
             return
 
         # Caret movement / Forward Delete keys invalidate the linear journal buffer
         if vk in (w.VK_DELETE, w.VK_HOME, w.VK_END, w.VK_PRIOR, w.VK_NEXT, w.VK_LEFT, w.VK_RIGHT, w.VK_UP, w.VK_DOWN):
             self._select_all_pending = False
             self._last_autocorrect = None
+            self._journal_desynced = True
             self.journal.clear()
             self._pending_predict = False
             if self.overlay.visible:
@@ -335,6 +435,7 @@ class KeyHandlerMixin:
 
         if vk == w.VK_BACK:
             self._last_key_was_backspace = True
+            self._edited_since_popup = True
             if getattr(self, "_select_all_pending", False):
                 self._select_all_pending = False
                 self._last_autocorrect = None
@@ -344,8 +445,9 @@ class KeyHandlerMixin:
                     self.overlay.hide()
                     set_popup_visible(False)
                 return
-            if modifiers_down(["ctrl"], exact=False):
+            if _event_has_modifier(event, "ctrl"):
                 self._last_autocorrect = None
+                self._journal_desynced = True
                 self.journal.pop_last_word_info(allow_trailing_spaces=True)
             else:
                 if hasattr(self, "_undo_last_correction_from_backspace"):
@@ -366,6 +468,12 @@ class KeyHandlerMixin:
                 if self.overlay.visible:
                     self.overlay.hide()
                     set_popup_visible(False)
+                if (
+                    getattr(self, "_uia_resync_enabled", False) is True
+                    and getattr(self, "_journal_desynced", False)
+                    and not getattr(self, "_just_pasted", False)
+                ):
+                    self._schedule_predict()
                 return
             self._schedule_predict()
             return
@@ -396,9 +504,14 @@ class KeyHandlerMixin:
         # Shift+Space manual ZWNJ hotkey
         if self.cfg.shift_space_zwnj and vk == w.VK_SPACE:
             from ravan.core.zwnj import ZWNJ
-            from ravan.platform.keys import modifiers_down
 
-            if modifiers_down(["shift"], exact=True):
+            mods = getattr(event, "modifiers", None)
+            shift_only = (
+                mods == frozenset({"shift"})
+                if mods is not None
+                else _keys.modifiers_down(["shift"], exact=True)
+            )
+            if shift_only:
                 self._suppress_until = time.monotonic() + 0.05
                 # The delivered space is already in the target buffer: erase it and
                 # insert the ZWNJ in its place (same accounting as auto-ZWNJ below).
@@ -408,9 +521,9 @@ class KeyHandlerMixin:
                 set_popup_visible(False)
                 return
 
-        # Regular typing: get unicode char
-        ch = vk_to_unicode(vk, event.scan_code)
-        if not ch:
+        # Regular typing: reuse decoded unicode char from above and filter control chars
+        ch = char
+        if not ch or (len(ch) == 1 and ord(ch) < 32 and ch not in ("\r", "\n", "\t")):
             return
 
         # Inline math calculator trigger '=' and rounding/currency macros (Math v2)
@@ -540,7 +653,12 @@ class KeyHandlerMixin:
                     self.journal.push(" ")
 
         # Smart contextual Persian punctuation (e.g. ? -> ؟, , -> ،, ; -> ؛)
-        if self.cfg.smart_punctuation_enabled and ch in "?,;":
+        smart_punct_ok = (
+            self._effective_smart_punctuation()
+            if hasattr(self, "_effective_smart_punctuation")
+            else bool(self.cfg.smart_punctuation_enabled)
+        )
+        if smart_punct_ok and ch in "?,;":
             lang = current_language()
             if lang and lang.tag == "fa":
                 text_buf = self.journal.text()
@@ -553,11 +671,22 @@ class KeyHandlerMixin:
                     mapping = {"?": "؟", ",": "،", ";": "؛"}
                     target_p = mapping.get(ch)
                     if target_p:
+                        word_before_p = self.journal.last_word(allow_trailing_spaces=False)
                         self._suppress_until = time.monotonic() + 0.05
                         # The delivered ASCII punctuation is already in the target
                         # buffer: erase it and inject the Persian equivalent.
                         replace_last_n_with(1, target_p)
                         self.journal.push(target_p)
+                        auto_zwnj_ok = (
+                            self._effective_auto_zwnj()
+                            if hasattr(self, "_effective_auto_zwnj")
+                            else bool(self.cfg.auto_zwnj_enabled)
+                        )
+                        fixed_p = False
+                        if auto_zwnj_ok and hasattr(self, "_maybe_apply_live_zwnj"):
+                            fixed_p = self._maybe_apply_live_zwnj(word_before_p, delimiter=target_p)
+                        if not fixed_p and hasattr(self, "_maybe_apply_live_orthography"):
+                            self._maybe_apply_live_orthography(word_before_p, delimiter=target_p)
                         self._record_event(f"Smart Persian punctuation conversion: '{target_p}'")
                         self.overlay.hide()
                         set_popup_visible(False)
@@ -567,14 +696,21 @@ class KeyHandlerMixin:
             if time.monotonic() - self._last_autocorrect[2] > 4.0 or ch.isalnum():
                 self._last_autocorrect = None
 
-        if ch.isspace() or ch in ".,;:!?\n\r\t،؛؟":
+        if ch.isspace() or ch in ".,;:!?\n\r\t،؛؟)»]":
             word = self.journal.last_word(allow_trailing_spaces=False)
 
+            auto_zwnj_ok = (
+                self._effective_auto_zwnj()
+                if hasattr(self, "_effective_auto_zwnj")
+                else bool(self.cfg.auto_zwnj_enabled)
+            )
             # Auto ZWNJ for Persian prefix (e.g. می + space -> می‌)
-            if ch == " " and self.cfg.auto_zwnj_enabled:
+            if ch == " " and auto_zwnj_ok:
+                from ravan.core.orthography import is_token_blacklisted
                 from ravan.core.zwnj import ZWNJ, is_zwnj_prefix
 
-                if is_zwnj_prefix(word):
+                bl = getattr(self.cfg, "zwnj_orthography_blacklist", [])
+                if is_zwnj_prefix(word) and not is_token_blacklisted(word, bl):
                     self._suppress_until = time.monotonic() + 0.05
                     replace_last_n_with(1, ZWNJ)
                     self.journal.push(ZWNJ)
@@ -585,15 +721,42 @@ class KeyHandlerMixin:
             handled = self._on_word_completed(word, delimiter=ch)
             if not handled:
                 self.journal.push(ch)
-                # Auto ZWNJ for Persian suffix (e.g. کتاب ها + space -> کتاب‌ها )
-                if ch == " " and self.cfg.auto_zwnj_enabled:
-                    self._maybe_attach_suffix_zwnj(word)
+                auto_zwnj_ok = (
+                    self._effective_auto_zwnj()
+                    if hasattr(self, "_effective_auto_zwnj")
+                    else bool(self.cfg.auto_zwnj_enabled)
+                )
+                fixed_live = False
+                # Auto ZWNJ for Persian suffixes, compounds, and joined words
+                if auto_zwnj_ok and ch not in "\r\n":
+                    if hasattr(self, "_maybe_apply_live_zwnj"):
+                        fixed_live = self._maybe_apply_live_zwnj(word, delimiter=ch)
+                    elif ch == " " and hasattr(self, "_maybe_attach_suffix_zwnj"):
+                        fixed_live = bool(self._maybe_attach_suffix_zwnj(word))
+                if not fixed_live and ch not in "\r\n" and hasattr(self, "_maybe_apply_live_orthography"):
+                    self._maybe_apply_live_orthography(word, delimiter=ch)
             self.overlay.hide()
             set_popup_visible(False)
-            if self.cfg.next_word_prediction and ch == " ":
+            should_predict_next = False
+            if (
+                self.cfg.next_word_prediction
+                and ch == " "
+                and word
+                and not getattr(self, "_just_pasted", False)
+            ):
+                from ravan.core.normalizer import is_valid_prediction_context_word
+
+                prev_word_fn = getattr(self.journal, "previous_word", None)
+                last_token = prev_word_fn() if callable(prev_word_fn) else word
+                if not isinstance(last_token, str) or not last_token:
+                    last_token = word
+                should_predict_next = is_valid_prediction_context_word(last_token)
+            if should_predict_next:
                 self._schedule_predict()
             return
 
+        if ch.isalpha():
+            self._just_pasted = False
         self.journal.push(ch)
         if hasattr(self, "_maybe_autofix_mid_word"):
             cur_word = self.journal.last_word(allow_trailing_spaces=False)
@@ -602,4 +765,14 @@ class KeyHandlerMixin:
                     self.overlay.hide()
                     set_popup_visible(False)
                     return
+        cur_after = self.journal.last_word(allow_trailing_spaces=False)
+        if isinstance(cur_after, str) and cur_after:
+            from ravan.core.normalizer import is_numeric_or_symbol_token
+
+            if is_numeric_or_symbol_token(cur_after):
+                self._pending_predict = False
+                if self.overlay.visible:
+                    self.overlay.hide()
+                    set_popup_visible(False)
+                return
         self._schedule_predict()

@@ -527,25 +527,93 @@ class Dictionary:
                 high = mid - 1
         return None
 
+    def _raw_completions(self, prefix_lower: str, limit: int) -> list[DictEntry]:
+        if self._mmap is not None:
+            return self._completions_mmap(prefix_lower, limit)
+        if not prefix_lower:
+            return self._entries_list[:limit]
+        idx = bisect.bisect_left(self._sorted_keys, prefix_lower)
+        matches: list[DictEntry] = []
+        n = len(self._sorted_keys)
+        while idx < n and self._sorted_keys[idx].startswith(prefix_lower):
+            matches.append(self._sorted_entries[idx])
+            idx += 1
+        matches.sort(key=lambda e: e.rank)
+        return matches[:limit]
+
+    def _completions_with_zwnj(
+        self, prefix_lower: str, limit: int, direct: list[DictEntry]
+    ) -> list[DictEntry]:
+        from ravan.core.zwnj import _COMPOUNDS, is_prefix_exception, should_attach_suffix
+
+        out: list[DictEntry] = list(direct)
+        seen: set[str] = {e.word.lower() for e in out}
+
+        for pref in _PERSIAN_ZWNJ_PREFIXES:
+            if prefix_lower.startswith(pref):
+                plain_pref = pref[:-1]
+                tail = prefix_lower[len(pref) :]
+                joined_prefix = plain_pref + tail
+                scan = max(limit * 6, 40)
+                for entry in self._raw_completions(joined_prefix, scan):
+                    w_lower = entry.word.lower()
+                    if is_prefix_exception(w_lower) or w_lower == plain_pref:
+                        continue
+                    stem = entry.word[len(plain_pref) :].lstrip("\u200c")
+                    if len(stem) < 2:
+                        continue
+                    if not tail and plain_pref in ("می", "بی") and not self.contains(stem):
+                        continue
+                    cand_word = f"{plain_pref}\u200c{stem}"
+                    if cand_word.lower() not in seen:
+                        seen.add(cand_word.lower())
+                        out.append(
+                            DictEntry(word=cand_word, rank=entry.rank, frequency=entry.frequency)
+                        )
+                break
+
+        if len(out) < limit:
+            for comp_word in _COMPOUNDS.values():
+                if comp_word.startswith(prefix_lower) and comp_word.lower() not in seen:
+                    seen.add(comp_word.lower())
+                    rank = (self.rank_of(comp_word) or 50000)
+                    out.append(DictEntry(word=comp_word, rank=rank, frequency=1))
+
+        if len(out) < limit and "\u200c" in prefix_lower:
+            base, tail = prefix_lower.rsplit("\u200c", 1)
+            base_entry = self.get(base) if base else None
+            if base_entry is not None:
+                suffix_candidates = (
+                    "ها", "های", "هایی", "هایم", "هایت", "هایش", "هایمان", "هایتان", "هایشان",
+                    "هام", "هات", "هاش", "هامون", "هاتون", "هاشون",
+                    "تر", "ترین", "ام", "ای", "ایم", "اید", "اند", "ات", "اش",
+                    "مان", "تان", "شان", "ی",
+                )
+                for i, suf in enumerate(suffix_candidates):
+                    if suf.startswith(tail) and should_attach_suffix(base, suf):
+                        cand_word = f"{base}\u200c{suf}"
+                        if cand_word.lower() not in seen:
+                            seen.add(cand_word.lower())
+                            out.append(
+                                DictEntry(
+                                    word=cand_word,
+                                    rank=base_entry.rank + 100 + i,
+                                    frequency=max(1, base_entry.frequency // 2),
+                                )
+                            )
+
+        out.sort(key=lambda e: e.rank)
+        return out[:limit]
+
     def completions(self, prefix: str, limit: int) -> list[DictEntry]:
         prefix_lower = prefix.lower()
         cache_key = (prefix_lower, limit)
         if cache_key in self._completions_cache:
             return self._completions_cache[cache_key]
 
-        if self._mmap is not None:
-            res = self._completions_mmap(prefix_lower, limit)
-        elif not prefix_lower:
-            res = self._entries_list[:limit]
-        else:
-            idx = bisect.bisect_left(self._sorted_keys, prefix_lower)
-            matches: list[DictEntry] = []
-            n = len(self._sorted_keys)
-            while idx < n and self._sorted_keys[idx].startswith(prefix_lower):
-                matches.append(self._sorted_entries[idx])
-                idx += 1
-            matches.sort(key=lambda e: e.rank)
-            res = matches[:limit]
+        res = self._raw_completions(prefix_lower, limit)
+        if "\u200c" in prefix_lower and len(res) < limit:
+            res = self._completions_with_zwnj(prefix_lower, limit, res)
 
         if len(self._completions_cache) < 1024:
             self._completions_cache[cache_key] = res

@@ -76,6 +76,7 @@ class TrayIcon:
         on_toggle_auto_zwnj: Callable[[bool], None] | None = None,
         is_auto_zwnj_enabled: Callable[[], bool] | None = None,
         on_toggle_pause: Callable[[], None] | None = None,
+        on_toggle_manual_pause: Callable[[], None] | None = None,
         is_paused: Callable[[], bool] | None = None,
         on_toggle_translit: Callable[[], None] | None = None,
         is_translit_enabled: Callable[[], bool] | None = None,
@@ -102,9 +103,13 @@ class TrayIcon:
         self._on_toggle_auto_zwnj = on_toggle_auto_zwnj
         self._is_auto_zwnj_enabled = is_auto_zwnj_enabled
         self._on_toggle_pause = on_toggle_pause
+        self._on_toggle_manual_pause = on_toggle_manual_pause
         self._is_paused = is_paused
         self._on_toggle_translit = on_toggle_translit
         self._is_translit_enabled = is_translit_enabled
+        self._paused_state = False
+        self._paused_minutes: int | None = None
+        self._power_state = False
         self._icon: Any | None = None
         self._thread: threading.Thread | None = None
 
@@ -134,23 +139,27 @@ class TrayIcon:
         def visible_translit(_item: Any) -> bool:
             return bool(self._is_translit_enabled and self._is_translit_enabled())
 
-        def _toggle_translit(_icon: Any, _item: Any) -> None:
-            if self._on_toggle_translit:
-                self._on_toggle_translit()
-            self.update_menu()
-
         from ravan.core.i18n import t
-        from ravan.ui.log_setup import open_logs_folder
 
         def status_text(_item: Any) -> str:
             if self._is_paused and self._is_paused():
-                return t("tray.status_paused", "⏸️ Ravaan: Paused (توقف موقت)")
-            return t("tray.status_active", "🟢 Ravaan: Active (فعال و آماده)")
+                mins = self._paused_minutes
+                if mins is not None and mins > 0:
+                    return t(
+                        "tray.status_paused_timed",
+                        "⏸ Ravaan: Paused ({min}m) — Click to Resume",
+                        min=mins,
+                    )
+                return t(
+                    "tray.status_paused",
+                    "⏸ Ravaan: Paused (Click to Resume)",
+                )
+            return t("tray.status_active", "🟢 Ravaan: Active (Click to Pause)")
 
         def pause_text(_item: Any) -> str:
             if self._is_paused and self._is_paused():
-                return t("tray.resume", "▶ Resume Ravaan (شروع مجدد)")
-            return t("tray.pause_10m", "⏸ Pause for 10 min (توقف ۱۰ دقیقه‌ای)")
+                return t("tray.resume", "▶ Resume Ravaan")
+            return t("tray.pause_10m", "⏸ Pause for 10 min")
 
         quick_toggles_menu = pystray.Menu(
             Item(
@@ -160,7 +169,7 @@ class TrayIcon:
             ),
             Item(
                 t("tray.translit", "Finglish Mode (Ctrl+Alt+T)"),
-                _toggle_translit,
+                self._toggle_translit,
                 checked=visible_translit,
             ),
             Item(
@@ -186,7 +195,7 @@ class TrayIcon:
         )
 
         menu = pystray.Menu(
-            Item(status_text, self._toggle_pause_action),
+            Item(status_text, self._toggle_manual_pause_action),
             Item(pause_text, self._toggle_pause_action),
             pystray.Menu.SEPARATOR,
             Item(t("tray.quick_toggles", "Quick Toggles"), quick_toggles_menu),
@@ -198,7 +207,7 @@ class TrayIcon:
             Item(t("tray.quick_tips", "💡 Quick Tips & Shortcuts"), self._quick_tips),
             Item(t("tray.settings", "Settings…"), self._settings),
             Item(t("tray.diagnostics", "Diagnostics…"), self._diagnostics),
-            Item(t("tray.open_logs", "Open logs folder"), lambda: open_logs_folder()),
+            Item(t("tray.open_logs", "Open logs folder"), self._open_logs),
             Item(t("tray.check_updates", "Check for updates…"), self._check_updates),
             pystray.Menu.SEPARATOR,
             Item(t("tray.quit", "Quit"), self._quit),
@@ -210,26 +219,50 @@ class TrayIcon:
         )
         self._thread.start()
 
-    def set_power_mode(self, active: bool) -> None:
-        if self._icon is not None:
-            try:
-                self._icon.icon = _make_icon_image(dimmed=active)
+    def _refresh_icon_and_title(self) -> None:
+        if self._icon is None:
+            return
+        try:
+            self._icon.icon = _make_icon_image(
+                dimmed=self._power_state, paused=self._paused_state
+            )
+            if self._paused_state:
+                mins = self._paused_minutes
                 self._icon.title = (
-                    "Ravan (Power Mode Active)" if active else "Ravan"
+                    f"Ravaan (Paused ~{mins}m)"
+                    if mins is not None and mins > 0
+                    else "Ravaan (Paused)"
                 )
-            except Exception:
-                pass
+            elif self._power_state:
+                self._icon.title = "Ravan (Power Mode Active)"
+            else:
+                self._icon.title = "Ravan"
+            self._icon.update_menu()
+        except Exception:
+            pass
 
-    def set_paused(self, paused: bool, remaining_min: int = 10) -> None:
-        if self._icon is not None:
+    def set_power_mode(self, active: bool) -> None:
+        self._power_state = bool(active)
+        if self._is_paused:
             try:
-                self._icon.icon = _make_icon_image(paused=paused)
-                self._icon.title = (
-                    f"Ravaan (Paused ~{remaining_min}m)" if paused else "Ravan"
-                )
-                self._icon.update_menu()
+                self._paused_state = bool(self._is_paused())
             except Exception:
                 pass
+        self._refresh_icon_and_title()
+
+    def set_paused(self, paused: bool, remaining_min: int | None = 10) -> None:
+        self._paused_state = bool(paused)
+        self._paused_minutes = (
+            remaining_min
+            if (paused and remaining_min is not None and remaining_min > 0)
+            else None
+        )
+        if self._is_power_mode_active:
+            try:
+                self._power_state = bool(self._is_power_mode_active())
+            except Exception:
+                pass
+        self._refresh_icon_and_title()
 
     def update_menu(self) -> None:
         """Explicitly re-query menu checked states in pystray."""
@@ -266,14 +299,27 @@ class TrayIcon:
             self._on_toggle_power_mode()
         self.update_menu()
 
+    def _toggle_manual_pause_action(self, _icon: Any = None, _item: Any = None) -> None:
+        if self._on_toggle_manual_pause:
+            self._on_toggle_manual_pause()
+        elif self._on_toggle_pause:
+            self._on_toggle_pause()
+        self.update_menu()
+
     def _toggle_pause_action(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_toggle_pause:
             self._on_toggle_pause()
-        if self._icon is not None:
-            try:
-                self._icon.update_menu()
-            except Exception:
-                pass
+        self.update_menu()
+
+    def _toggle_translit(self, _icon: Any = None, _item: Any = None) -> None:
+        if self._on_toggle_translit:
+            self._on_toggle_translit()
+        self.update_menu()
+
+    def _open_logs(self, _icon: Any = None, _item: Any = None) -> None:
+        from ravan.ui.log_setup import open_logs_folder
+
+        open_logs_folder()
 
     def _clean_clipboard(self, _icon: Any = None, _item: Any = None) -> None:
         if self._on_clean_clipboard:

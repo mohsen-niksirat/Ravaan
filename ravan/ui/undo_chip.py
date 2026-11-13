@@ -1,0 +1,259 @@
+"""Inline non-activating Quick-Undo chip with auto-learn blacklist support."""
+
+from __future__ import annotations
+
+import logging
+import sys
+import tkinter as tk
+from collections.abc import Callable
+
+from ravan.core.i18n import is_rtl, t
+from ravan.ui.theme import (
+    apply_popup_window_attributes,
+    get_active_palette,
+    get_ui_font,
+    resolve_popup_position,
+)
+
+log = logging.getLogger(__name__)
+
+
+class UndoChipWindow:
+    """Compact floating non-activating Quick-Undo pill shown after live fixes."""
+
+    def __init__(
+        self,
+        parent: tk.Misc | None = None,
+        on_undo: Callable[[], None] | None = None,
+        theme_mode: str = "auto",
+    ) -> None:
+        self.parent = parent
+        self.on_undo = on_undo
+        self.theme_mode = theme_mode
+        self._top: tk.Toplevel | None = None
+        self._outer: tk.Frame | None = None
+        self._inner: tk.Frame | None = None
+        self._msg_label: tk.Label | None = None
+        self._undo_btn: tk.Label | None = None
+        self._hide_after: str | None = None
+        self._visible: bool = False
+        self._root_hwnd: int | None = None
+        self._last_bounds: tuple[int, int, int, int] | None = None
+
+    @property
+    def visible(self) -> bool:
+        return self._visible and self._top is not None
+
+    @property
+    def hwnd(self) -> int | None:
+        return self._root_hwnd
+
+    def bounds(self) -> tuple[int, int, int, int] | None:
+        return self._last_bounds if self._visible else None
+
+    def contains_screen_point(self, px: int, py: int) -> bool:
+        """Return True when (px, py) falls inside the visible chip window."""
+        if not self._visible or self._top is None:
+            return False
+        if self._last_bounds is not None:
+            x1, y1, x2, y2 = self._last_bounds
+            if x1 <= px <= x2 and y1 <= py <= y2:
+                return True
+        try:
+            wx = self._top.winfo_rootx()
+            wy = self._top.winfo_rooty()
+            ww = self._top.winfo_width()
+            wh = self._top.winfo_height()
+            return wx <= px <= (wx + ww) and wy <= py <= (wy + wh)
+        except Exception:
+            return False
+
+    def _ensure_window(self) -> None:
+        if self._top is not None:
+            try:
+                if self._top.winfo_exists():
+                    return
+            except tk.TclError:
+                self._top = None
+        try:
+            p = get_active_palette(self.theme_mode)
+            parent_widget = self.parent if isinstance(self.parent, tk.Misc) else None
+            top = tk.Toplevel(parent_widget) if parent_widget else tk.Tk()
+            top.withdraw()
+            apply_popup_window_attributes(top, p, border_color=p.border, corner_radius=8.0)
+
+            outer = tk.Frame(top, bg=p.border, padx=1, pady=1)
+            outer.pack(fill=tk.BOTH, expand=True)
+
+            inner = tk.Frame(outer, bg=p.card_bg, padx=8, pady=4)
+            inner.pack(fill=tk.BOTH, expand=True)
+
+            msg_lbl = tk.Label(
+                inner,
+                bg=p.card_bg,
+                fg=p.fg,
+                font=get_ui_font(size=9, bold=False),
+            )
+            undo_btn = tk.Label(
+                inner,
+                bg=p.accent,
+                fg=p.highlight_fg,
+                padx=8,
+                pady=2,
+                cursor="hand2",
+                font=get_ui_font(size=9, bold=True),
+            )
+
+            def _handle_undo(_event=None) -> str:
+                if callable(self.on_undo):
+                    self.on_undo()
+                self.hide()
+                return "break"
+
+            def _on_enter(_event=None) -> None:
+                pal = get_active_palette(self.theme_mode)
+                undo_btn.config(bg=pal.accent_hover)
+
+            def _on_leave(_event=None) -> None:
+                pal = get_active_palette(self.theme_mode)
+                undo_btn.config(bg=pal.accent)
+
+            undo_btn.bind("<Button-1>", _handle_undo)
+            undo_btn.bind("<Enter>", _on_enter)
+            undo_btn.bind("<Leave>", _on_leave)
+
+            self._top = top
+            self._outer = outer
+            self._inner = inner
+            self._msg_label = msg_lbl
+            self._undo_btn = undo_btn
+            if sys.platform == "win32":
+                try:
+                    from ravan.platform import winapi as wapi
+
+                    wid = int(top.winfo_id())
+                    self._root_hwnd = int(wapi.user32.GetAncestor(wid, 2) or wid)
+                except Exception:
+                    self._root_hwnd = None
+        except Exception as exc:  # noqa: BLE001
+            log.debug("UndoChipWindow creation suppressed: %s", exc)
+            self._top = None
+            self._msg_label = None
+            self._undo_btn = None
+
+    def show(
+        self,
+        *,
+        replacement: str,
+        original: str = "",
+        x: int | None = None,
+        y: int | None = None,
+        avoid_rect: tuple[int, int, int, int] | None = None,
+        duration_ms: int = 2600,
+        theme_mode: str | None = None,
+    ) -> None:
+        """Display the Quick-Undo chip near the caret without taking focus."""
+        if theme_mode:
+            self.theme_mode = theme_mode
+        self._ensure_window()
+        if not self._top or not self._msg_label or not self._undo_btn or not self._outer or not self._inner:
+            return
+
+        if self._hide_after:
+            try:
+                self._top.after_cancel(self._hide_after)
+            except Exception:
+                pass
+            self._hide_after = None
+
+        p = get_active_palette(self.theme_mode)
+        rtl = is_rtl()
+
+        short_repl = replacement.strip()
+        if len(short_repl) > 22:
+            short_repl = short_repl[:21] + "…"
+
+        undo_text = t("undo_chip.btn_undo", "↩ لغو" if rtl else "↩ Undo")
+        msg_text = f"✨ {short_repl}"
+
+        self._outer.config(bg=p.border)
+        self._inner.config(bg=p.card_bg)
+        self._msg_label.config(
+            text=msg_text,
+            bg=p.card_bg,
+            fg=p.fg,
+            font=get_ui_font(size=9, bold=False, rtl=any(ord(c) > 127 for c in msg_text) or rtl),
+        )
+        self._undo_btn.config(
+            text=undo_text,
+            bg=p.accent,
+            fg=p.highlight_fg,
+            font=get_ui_font(size=9, bold=True, rtl=rtl),
+        )
+
+        self._msg_label.pack_forget()
+        self._undo_btn.pack_forget()
+        if rtl:
+            self._undo_btn.pack(side=tk.LEFT, padx=(0, 8))
+            self._msg_label.pack(side=tk.RIGHT)
+        else:
+            self._msg_label.pack(side=tk.LEFT, padx=(0, 8))
+            self._undo_btn.pack(side=tk.RIGHT)
+
+        self._top.update_idletasks()
+        w = max(80, int(self._top.winfo_reqwidth()))
+        h = max(26, int(self._top.winfo_reqheight()))
+
+        if x is not None and y is not None:
+            px = x
+            py = y - h - 8
+            if py < 12:
+                py = y + 26
+        else:
+            sw = self._top.winfo_screenwidth()
+            sh = self._top.winfo_screenheight()
+            px = sw - w - 24
+            py = sh - h - 64
+
+        avoid_list = [avoid_rect] if avoid_rect is not None else ()
+        px, py = resolve_popup_position(self._top, px, py, w, h, avoid_rects=avoid_list)
+
+        self._top.geometry(f"{w}x{h}+{px}+{py}")
+        self._top.deiconify()
+        apply_popup_window_attributes(
+            self._top,
+            p,
+            show=True,
+            border_color=p.border,
+            corner_radius=8.0,
+        )
+        self._last_bounds = (px, py, px + w, py + h)
+        self._visible = True
+
+        if duration_ms > 0:
+            self._hide_after = self._top.after(duration_ms, self.hide)
+
+    def hide(self) -> None:
+        if self._hide_after and self._top:
+            try:
+                self._top.after_cancel(self._hide_after)
+            except Exception:
+                pass
+            self._hide_after = None
+        if self._top:
+            try:
+                self._top.withdraw()
+            except Exception:
+                pass
+        self._visible = False
+        self._last_bounds = None
+
+    def destroy(self) -> None:
+        self.hide()
+        if self._top:
+            try:
+                self._top.destroy()
+            except Exception:
+                pass
+            self._top = None
+            self._root_hwnd = None

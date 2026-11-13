@@ -7,6 +7,17 @@ from typing import Any
 from ravan.ui.tray import TrayIcon
 
 
+def sync_autocorrect_state(cfg: Any, predictor: Any, enabled: bool) -> bool:
+    """Apply autocorrect enabled flag and ensure mode leaves 'off' when turning on."""
+    enabled_val = bool(enabled)
+    cfg.autocorrect_enabled = enabled_val
+    if enabled_val and getattr(cfg, "autocorrect_mode", "safe") == "off":
+        cfg.autocorrect_mode = "safe"
+    if predictor is not None:
+        predictor.autocorrect_mode = cfg.autocorrect_mode if enabled_val else "off"
+    return enabled_val
+
+
 def create_app_tray(app: Any) -> TrayIcon:
     """Instantiate and configure TrayIcon for RavanApp with synchronous state updates."""
 
@@ -21,16 +32,16 @@ def create_app_tray(app: Any) -> TrayIcon:
         app._ui_queue.put(("set_prediction", val))
 
     def _set_autocorrect(val: bool) -> None:
-        app.cfg.autocorrect_enabled = bool(val)
-        if hasattr(app, "predictor") and app.predictor is not None:
-            app.predictor.autocorrect_mode = app.cfg.autocorrect_mode if val else "off"
+        enabled_val = sync_autocorrect_state(
+            app.cfg, getattr(app, "predictor", None), bool(val)
+        )
         try:
             from ravan.core.config import save_config
 
             save_config(app.cfg)
         except Exception:
             pass
-        app._ui_queue.put(("set_autocorrect", val))
+        app._ui_queue.put(("set_autocorrect", enabled_val))
 
     def _set_autofix(val: bool) -> None:
         app.cfg.autofix_wrong_layout = bool(val)
@@ -91,6 +102,7 @@ def create_app_tray(app: Any) -> TrayIcon:
         on_toggle_auto_zwnj=_set_auto_zwnj,
         is_auto_zwnj_enabled=lambda: app.cfg.auto_zwnj_enabled,
         on_toggle_pause=lambda: app._ui_queue.put(("toggle_pause", None)),
+        on_toggle_manual_pause=lambda: app._ui_queue.put(("toggle_manual_pause", None)),
         is_paused=lambda: getattr(app, "is_paused", False),
         on_toggle_translit=_toggle_translit,
         is_translit_enabled=lambda: bool(getattr(app.cfg, "translit_enabled", False)),

@@ -300,9 +300,19 @@ class AppActionsMixin:
 
     def _paste_clipboard_item(self: Any, text: str) -> None:
         from ravan.platform.clipboard import set_clipboard_text
+        from ravan.platform.hook import set_popup_visible
         from ravan.platform.inject import send_shortcut
 
         self._suppress_until = time.monotonic() + 0.03
+        self._just_pasted = True
+        self._journal_desynced = True
+        self._pending_predict = False
+        self._last_autocorrect = None
+        if hasattr(self, "journal"):
+            self.journal.clear()
+        if hasattr(self, "overlay") and getattr(self.overlay, "visible", False):
+            self.overlay.hide()
+            set_popup_visible(False)
         set_clipboard_text(text)
         time.sleep(0.02)
         send_shortcut([w.VK_CONTROL], ord("V"))
@@ -330,32 +340,327 @@ class AppActionsMixin:
         log.info("Cleaned clipboard text: %d chars -> %d chars", len(raw), len(cleaned))
         return True
 
-    def _maybe_attach_suffix_zwnj(self: Any, suffix: str) -> bool:
-        from ravan.core.zwnj import ZWNJ, should_attach_suffix
+    def _current_profile(self: Any):
+        from ravan.core.profiles import resolve_effective_profile
 
-        text = self.journal.text()
-        suffix_with_spaces = f" {suffix} "
-        if not text.endswith(suffix_with_spaces):
+        cfg = getattr(self, "cfg", None)
+        if cfg is None:
+            from ravan.core.config import Config
+
+            cfg = Config()
+        return resolve_effective_profile(cfg, getattr(self, "_current_exe", None))
+
+    def _effective_auto_zwnj(self: Any) -> bool:
+        return self._current_profile().auto_zwnj
+
+    def _effective_orthography_guard(self: Any) -> bool:
+        return self._current_profile().orthography_guard
+
+    def _effective_smart_punctuation(self: Any) -> bool:
+        return self._current_profile().smart_punctuation
+
+    def _effective_prediction_enabled(self: Any) -> bool:
+        return self._current_profile().prediction_enabled
+
+    def _effective_autofix_enabled(self: Any) -> bool:
+        return self._current_profile().autofix_enabled
+
+    def _effective_selection_toolbar(self: Any) -> bool:
+        return self._current_profile().selection_toolbar
+
+    def _hide_selection_toolbar(self: Any) -> None:
+        tb = getattr(self, "selection_toolbar", None)
+        if tb is not None and getattr(tb, "visible", False) is True and callable(getattr(tb, "hide", None)):
+            tb.hide()
+
+    def _hide_undo_chip(self: Any) -> None:
+        chip = getattr(self, "undo_chip", None)
+        if chip is not None and getattr(chip, "visible", False) is True and callable(getattr(chip, "hide", None)):
+            chip.hide()
+
+    def _popup_avoid_rects(self: Any, exclude: Any = None) -> list[tuple[int, int, int, int]]:
+        rects: list[tuple[int, int, int, int]] = []
+        for attr in ("overlay", "undo_chip", "selection_toolbar"):
+            w_obj = getattr(self, attr, None)
+            if w_obj is None or w_obj is exclude:
+                continue
+            if getattr(w_obj, "visible", False) is not True:
+                continue
+            bounds_fn = getattr(w_obj, "bounds", None)
+            if callable(bounds_fn):
+                b = bounds_fn()
+                if isinstance(b, tuple) and len(b) == 4:
+                    rects.append(b)
+                    continue
+            top = getattr(w_obj, "_top", None)
+            if top is not None:
+                try:
+                    rx, ry = int(top.winfo_rootx()), int(top.winfo_rooty())
+                    rw, rh = int(top.winfo_width()), int(top.winfo_height())
+                    if rw > 0 and rh > 0:
+                        rects.append((rx, ry, rx + rw, ry + rh))
+                except Exception:
+                    pass
+        return rects
+
+    def _record_quick_undo(
+        self: Any,
+        *,
+        kind: str,
+        original: str,
+        replacement: str,
+        delimiter: str,
+        blacklist_token: str = "",
+    ) -> None:
+        self._last_quick_undo = {
+            "kind": kind,
+            "original": original,
+            "replacement": replacement,
+            "delimiter": delimiter,
+            "blacklist_token": blacklist_token or original,
+            "timestamp": time.monotonic(),
+        }
+        cfg = getattr(self, "cfg", None)
+        if not bool(getattr(cfg, "quick_undo_chip_enabled", True)):
+            return
+        chip = getattr(self, "undo_chip", None)
+        if chip is None or not callable(getattr(chip, "show", None)):
+            return
+        if hasattr(chip, "parent"):
+            ov_root = getattr(getattr(self, "overlay", None), "_root", None)
+            if ov_root is not None:
+                chip.parent = ov_root
+        try:
+            from ravan.platform.caret import get_caret_rect
+
+            rect = get_caret_rect()
+            cx = getattr(rect, "x", None)
+            cy = getattr(rect, "y", None)
+        except Exception:
+            cx, cy = None, None
+        avoid = self._popup_avoid_rects(exclude=chip)
+        chip.show(
+            replacement=replacement,
+            original=original,
+            x=cx if isinstance(cx, int) else None,
+            y=cy if isinstance(cy, int) else None,
+            avoid_rect=avoid[0] if avoid else None,
+            duration_ms=2600,
+            theme_mode=getattr(cfg, "theme_mode", "auto"),
+        )
+
+    def _undo_quick_fix(self: Any) -> bool:
+        """Revert the latest ZWNJ/orthography auto-change and persist it to blacklist."""
+        rec = getattr(self, "_last_quick_undo", None)
+        if not isinstance(rec, dict):
             return False
-        before = text[: -len(suffix_with_spaces)]
-        i = len(before) - 1
-        while i >= 0 and not before[i].isspace():
-            i -= 1
-        prev_word = before[i + 1 :]
-        if not prev_word or not should_attach_suffix(prev_word, suffix):
+        self._last_quick_undo = None
+        self._hide_undo_chip()
+
+        original = str(rec.get("original", ""))
+        replacement = str(rec.get("replacement", ""))
+        delimiter = str(rec.get("delimiter", ""))
+        token = str(rec.get("blacklist_token", original))
+        kind = str(rec.get("kind", "zwnj"))
+        if not replacement:
             return False
 
-        delete_n = len(suffix) + 2
-        replace_text = f"{ZWNJ}{suffix} "
+        delete_n = len(replacement) + len(delimiter)
+        self._replace_journal_span(delete_n, f"{original}{delimiter}")
+
+        cfg = getattr(self, "cfg", None)
+        if cfg is not None and kind in ("zwnj", "orthography"):
+            from ravan.core.orthography import add_blacklist_token
+
+            cur_bl = list(getattr(cfg, "zwnj_orthography_blacklist", []))
+            updated_bl = add_blacklist_token(cur_bl, token)
+            cfg.zwnj_orthography_blacklist = updated_bl
+            try:
+                from ravan.core.config import save_config
+
+                save_config(cfg)
+            except Exception as exc:  # noqa: BLE001
+                log.debug("Failed to save ZWNJ/orthography blacklist: %s", exc)
+        return True
+
+    def _on_selection_toolbar_action(self: Any, action_id: str) -> None:
+        """Handle clicks from Floating Selection Mini-Toolbar without stealing focus."""
+        self._suppress_until = time.monotonic() + 0.15
+        if action_id == "convert":
+            self._convert_selection_or_last_word()
+        elif action_id == "normalize":
+            from ravan.core.normalizer import normalize_persian
+            from ravan.platform.clipboard import try_convert_selection
+
+            smart_punct = self._effective_smart_punctuation()
+            use_grammar = self._effective_orthography_guard()
+
+            def _polish(txt: str) -> str:
+                return normalize_persian(
+                    txt,
+                    digits="keep",
+                    fix_zwnj=True,
+                    fix_spacing=True,
+                    fix_punctuation=smart_punct,
+                    fix_grammar=use_grammar,
+                )
+
+            try_convert_selection(_polish)
+        elif action_id == "digits":
+            self._toggle_digits_selection_or_last_word()
+        elif action_id == "ai":
+            if hasattr(self, "_trigger_ai_assistant"):
+                self._trigger_ai_assistant()
+
+    def _replace_journal_span(self: Any, delete_n: int, replacement: str) -> None:
+        """Replace trailing characters in both active app and journal cleanly."""
         self._suppress_until = time.monotonic() + 0.03
-        replace_last_n_with(delete_n, replace_text)
+        replace_last_n_with(delete_n, replacement)
         for _ in range(delete_n):
             if self.journal._chars:
                 self.journal._chars.pop()
-        for c in replace_text:
+        for c in replacement:
             self.journal.push(c)
-        log.info("Attached suffix ZWNJ: %r + %r", prev_word, suffix)
+
+    def _dict_contains_fn(self: Any):
+        """Return a real Dictionary.contains callable, or None if unavailable/mocked."""
+        predictor = getattr(self, "predictor", None)
+        fa_dict = getattr(predictor, "persian", None) if predictor is not None else None
+        contains_fn = getattr(fa_dict, "contains", None)
+        if callable(contains_fn) and isinstance(contains_fn(""), bool):
+            return contains_fn
+        return None
+
+    def _maybe_apply_live_zwnj(self: Any, word: str, delimiter: str = " ") -> bool:
+        """Apply live Persian ZWNJ rules for compounds, spaced suffixes, and joined words."""
+        if not self._effective_auto_zwnj():
+            return False
+        if not word or delimiter in ("\n", "\r"):
+            return False
+        if not any("\u0600" <= c <= "\u06ff" for c in word):
+            return False
+        from ravan.core.orthography import is_token_blacklisted
+        from ravan.core.zwnj import (
+            ZWNJ,
+            fix_joined_zwnj,
+            match_trailing_compound,
+            should_attach_suffix,
+        )
+
+        blacklist = getattr(getattr(self, "cfg", None), "zwnj_orthography_blacklist", [])
+        if is_token_blacklisted(word, blacklist):
+            return False
+
+        text = self.journal.text()
+        if not text or (delimiter and not text.endswith(delimiter)):
+            return False
+        text_before_delim = text[: -len(delimiter)] if delimiter else text
+
+        # 1. Multi-word spaced compounds (e.g. برنامه نویس -> برنامه‌نویس, گفت و گو -> گفت‌وگو)
+        comp = match_trailing_compound(text_before_delim)
+        if comp is not None:
+            phrase, fixed_comp = comp
+            if fixed_comp != phrase and not is_token_blacklisted(phrase, blacklist):
+                delete_n = len(phrase) + len(delimiter)
+                self._replace_journal_span(delete_n, f"{fixed_comp}{delimiter}")
+                self._record_quick_undo(
+                    kind="zwnj",
+                    original=phrase,
+                    replacement=fixed_comp,
+                    delimiter=delimiter,
+                    blacklist_token=phrase,
+                )
+                log.info("Attached compound ZWNJ: %r -> %r", phrase, fixed_comp)
+                return True
+
+        # 2. Spaced suffix attached to previous word (e.g. کتاب ها، -> کتاب‌ها،)
+        if word and word.strip() == word and text_before_delim.endswith(f" {word}"):
+            before_space = text_before_delim[: -len(word) - 1]
+            i = len(before_space) - 1
+            while i >= 0 and not before_space[i].isspace():
+                i -= 1
+            prev_word = before_space[i + 1 :]
+            orig_span = f"{prev_word} {word}"
+            if (
+                prev_word
+                and should_attach_suffix(prev_word, word)
+                and not is_token_blacklisted(orig_span, blacklist)
+            ):
+                delete_n = len(word) + 1 + len(delimiter)
+                self._replace_journal_span(delete_n, f"{ZWNJ}{word}{delimiter}")
+                self._record_quick_undo(
+                    kind="zwnj",
+                    original=orig_span,
+                    replacement=f"{prev_word}{ZWNJ}{word}",
+                    delimiter=delimiter,
+                    blacklist_token=orig_span,
+                )
+                log.info("Attached suffix ZWNJ: %r + %r", prev_word, word)
+                return True
+
+        # 3. Joined words typed without space (e.g. میروم -> می‌روم, برنامهها -> برنامه‌ها)
+        if word and text_before_delim.endswith(word):
+            fixed_joined = fix_joined_zwnj(word, dict_contains=self._dict_contains_fn())
+            if fixed_joined and fixed_joined != word:
+                delete_n = len(word) + len(delimiter)
+                self._replace_journal_span(delete_n, f"{fixed_joined}{delimiter}")
+                self._record_quick_undo(
+                    kind="zwnj",
+                    original=word,
+                    replacement=fixed_joined,
+                    delimiter=delimiter,
+                    blacklist_token=word,
+                )
+                log.info("Fixed joined ZWNJ: %r -> %r", word, fixed_joined)
+                return True
+
+        return False
+
+    def _maybe_apply_live_orthography(self: Any, word: str, delimiter: str = " ") -> bool:
+        """Apply real-time Persian Orthography Guard rules on completed words."""
+        if not self._effective_orthography_guard():
+            return False
+        if not word or delimiter in ("\n", "\r"):
+            return False
+        cfg = getattr(self, "cfg", None)
+        if cfg is not None and callable(getattr(cfg, "is_word_ignored", None)) and cfg.is_word_ignored(word):
+            return False
+
+        from ravan.core.orthography import check_live_orthography
+
+        text = self.journal.text()
+        if not text or (delimiter and not text.endswith(delimiter)):
+            return False
+        text_before_delim = text[: -len(delimiter)] if delimiter else text
+        recent_words = text_before_delim.split()[-4:]
+
+        mode = str(getattr(cfg, "orthography_guard_mode", "safe"))
+        blacklist = getattr(cfg, "zwnj_orthography_blacklist", [])
+        sug = check_live_orthography(
+            word,
+            recent_words=recent_words,
+            mode=mode,
+            blacklist=blacklist,
+        )
+        if sug is None or sug.replacement == sug.original:
+            return False
+        if not text_before_delim.endswith(sug.original):
+            return False
+
+        delete_n = len(sug.original) + len(delimiter)
+        self._replace_journal_span(delete_n, f"{sug.replacement}{delimiter}")
+        self._record_quick_undo(
+            kind="orthography",
+            original=sug.original,
+            replacement=sug.replacement,
+            delimiter=delimiter,
+            blacklist_token=sug.original,
+        )
+        log.info("Orthography Guard (%s): %r -> %r", sug.reason, sug.original, sug.replacement)
         return True
+
+    def _maybe_attach_suffix_zwnj(self: Any, suffix: str, delimiter: str = " ") -> bool:
+        return self._maybe_apply_live_zwnj(suffix, delimiter=delimiter)
 
     def _get_diagnostics_snapshot(self: Any) -> dict[str, Any]:
         from ravan import __version__
@@ -430,16 +735,27 @@ class AppActionsMixin:
             self._stats_popup = StatsPopupWindow(parent=getattr(self.overlay, "_root", None))
         self._stats_popup.show(stats, x=caret.x, y=caret.y + caret.height + 6)
 
-    def toggle_power_mode(self: Any, duration_min: int | None = None) -> bool:
+    def toggle_power_mode(
+        self: Any, duration_min: int | None = None, force_state: bool | None = None
+    ) -> bool:
         """Toggle Power Mode (Focus Typing) to suppress all popups."""
-        self.power_mode_active = not getattr(self, "power_mode_active", False)
+        self.power_mode_active = (
+            bool(force_state)
+            if force_state is not None
+            else not getattr(self, "power_mode_active", False)
+        )
         from ravan.core.i18n import t
 
         if self.power_mode_active:
+            self._pending_predict = False
             self.overlay.hide()
             from ravan.ui.app import set_popup_visible
 
             set_popup_visible(False)
+            if hasattr(self, "_hide_selection_toolbar"):
+                self._hide_selection_toolbar()
+            if hasattr(self, "_hide_undo_chip"):
+                self._hide_undo_chip()
             if hasattr(self, "_stats_popup") and self._stats_popup is not None:
                 self._stats_popup.hide()
             if hasattr(self.tray, "set_power_mode"):

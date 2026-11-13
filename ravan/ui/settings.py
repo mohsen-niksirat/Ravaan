@@ -101,9 +101,11 @@ class SettingsWindow:
         self,
         cfg: Config,
         on_saved: Callable[[Config], None] | None = None,
+        learning_engine: Any = None,
     ) -> None:
         self.cfg = cfg
         self.on_saved = on_saved
+        self.learning_engine = learning_engine
         self._open = False
         self._built = False
         self._root: tk.Toplevel | None = None
@@ -355,16 +357,18 @@ class SettingsWindow:
         tab_prediction = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
         tab_hotkeys = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
         tab_exclusions = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
+        tab_profiles = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
         tab_snippets = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
         tab_sync = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
         tab_about = _ScrollableTab(nb, palette, rtl=rtl, padding=10)
 
         nav_items = [
-            (tab_general.outer, "⚙️", t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "زبان", "شروع", "صدا"]),
+            (tab_general.outer, "⚙️", t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "orthography", "toolbar", "undo", "زبان", "شروع", "صدا", "ویراستار", "نوار"]),
             (tab_autofix.outer, "⚡", t("settings.tab_autofix", "Auto-Fix"), ["autofix", "layout", "undo", "switch", "اصلاح", "چیدمان"]),
-            (tab_prediction.outer, "🔮", t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "style", "پیش‌بینی", "نیم‌فاصله", "استایل"]),
+            (tab_prediction.outer, "🔮", t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "style", "learn", "corpus", "blacklist", "پیش‌بینی", "نیم‌فاصله", "استایل", "یادگیری"]),
             (tab_hotkeys.outer, "⌨️", t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید", "میانبر"]),
             (tab_exclusions.outer, "🚫", t("settings.tab_exclusions", "Exclusions"), ["exclude", "blacklist", "app", "مستثنی"]),
+            (tab_profiles.outer, "🎯", t("settings.tab_profiles", "App Profiles"), ["profile", "code", "chat", "formal", "app", "layout", "پروفایل", "برنامه"]),
             (tab_snippets.outer, "📝", t("settings.tab_snippets", "Snippets"), ["snippet", "trigger", "متن", "قطعه"]),
             (tab_sync.outer, "☁️", t("settings.tab_sync", "Cloud Sync"), ["sync", "gist", "webdav", "همگام", "ابری"]),
             (tab_about.outer, "ℹ️", t("settings.tab_about", "About"), ["about", "version", "درباره"]),
@@ -438,12 +442,14 @@ class SettingsWindow:
             build_snippets_section,
             build_sync_section,
         )
+        from ravan.ui.settings_profiles import build_profiles_section
 
         build_general_section(self, tab_general.inner, 0, pad)
         build_autofix_section(self, tab_autofix.inner, 0, pad)
         build_prediction_section(self, tab_prediction.inner, 0, pad)
         build_hotkeys_section(self, tab_hotkeys.inner, 0, pad)
         build_exclusions_section(self, tab_exclusions.inner, 0, pad)
+        build_profiles_section(self, tab_profiles.inner, 0, pad)
         build_snippets_section(self, tab_snippets.inner, 0, pad)
         build_sync_section(self, tab_sync.inner, 0, pad)
         build_about_section(tab_about.inner)
@@ -454,6 +460,7 @@ class SettingsWindow:
             tab_prediction,
             tab_hotkeys,
             tab_exclusions,
+            tab_profiles,
             tab_snippets,
             tab_sync,
             tab_about,

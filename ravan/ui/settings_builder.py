@@ -401,6 +401,24 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
             t("settings.enable_translit", "Phonetic Finglish typing (Experimental)"),
             t("settings.enable_translit_example", "Example: Type 'salam' to convert to 'سلام' phonetically with candidates popup"),
         ),
+        (
+            "_orthography_guard_var",
+            getattr(win.cfg, "orthography_guard_enabled", True),
+            t("settings.enable_orthography_guard", "Real-time Persian Orthography Guard"),
+            t("settings.enable_orthography_guard_example", "Example: Fixes 'انشاالله' → 'ان‌شاءالله', 'حتما' → 'حتماً', 'گفتگو' → 'گفت‌وگو'"),
+        ),
+        (
+            "_quick_undo_chip_var",
+            getattr(win.cfg, "quick_undo_chip_enabled", True),
+            t("settings.enable_quick_undo_chip", "Show Quick-Undo chip with auto-exception learn"),
+            t("settings.enable_quick_undo_chip_example", "Example: Revert auto-ZWNJ/orthography in 1 click and never re-fix that word"),
+        ),
+        (
+            "_selection_toolbar_var",
+            getattr(win.cfg, "selection_toolbar_enabled", True),
+            t("settings.enable_selection_toolbar", "Floating mini-toolbar on selected text"),
+            t("settings.enable_selection_toolbar_example", "Example: Quick buttons to convert layout, polish Persian, or toggle digits near selection"),
+        ),
     ]
 
     for attr_name, init_val, label_txt, ex_txt in smart_toggles:
@@ -423,6 +441,24 @@ def build_general_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[st
             pady=(0, 4),
         )
         c3_r += 1
+
+    ortho_row = ttk.Frame(card3)
+    ortho_row.grid(row=c3_r, column=0, columnspan=3, sticky=align, padx=10, pady=(4, 2))
+    ttk.Label(
+        ortho_row,
+        text=t("settings.orthography_mode_label", "Orthography Guard strictness:"),
+    ).pack(side="right" if rtl else "left", padx=(0, 8) if not rtl else (8, 0))
+    win._orthography_mode_var = tk.StringVar(
+        value=getattr(win.cfg, "orthography_guard_mode", "safe")
+    )
+    ttk.Combobox(
+        ortho_row,
+        textvariable=win._orthography_mode_var,
+        values=["safe", "strict", "off"],
+        state="readonly",
+        width=12,
+    ).pack(side="right" if rtl else "left")
+    c3_r += 1
 
     ttk.Button(
         frm,
@@ -940,7 +976,7 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     def _do_export_data() -> None:
         from tkinter import filedialog, messagebox
 
-        from ravan.core.learning import UserLearningEngine
+        from ravan.ui.settings_learning import _get_engine
 
         dest = filedialog.asksaveasfilename(
             parent=win._root,
@@ -951,7 +987,7 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
         )
         if dest:
             try:
-                engine = UserLearningEngine(auto_load=True)
+                engine = _get_engine(win)
                 engine.export_profile(target_path=dest)
                 messagebox.showinfo(
                     "Ravaan",
@@ -964,7 +1000,7 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
     def _do_clear_data() -> None:
         from tkinter import messagebox
 
-        from ravan.core.learning import UserLearningEngine
+        from ravan.ui.settings_learning import _get_engine
 
         confirmed = messagebox.askyesno(
             t("settings.clear_data_confirm_title", "Clear Learned Data"),
@@ -973,8 +1009,10 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
         )
         if confirmed:
             try:
-                engine = UserLearningEngine(auto_load=True)
+                engine = _get_engine(win)
                 engine.clear_learned_data()
+                if callable(getattr(win, "_refresh_learning_list", None)):
+                    win._refresh_learning_list()
                 messagebox.showinfo(
                     "Ravaan",
                     t("settings.clear_data_success", "All learned data has been cleared successfully."),
@@ -995,6 +1033,10 @@ def build_prediction_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
         text=t("settings.btn_clear_data", "🗑️ Clear learned data"),
         command=_do_clear_data,
     ).pack(side=btn_pack_side, padx=(0, 6) if not rtl else (6, 0))
+
+    from ravan.ui.settings_learning import build_learning_and_exceptions_card
+
+    row = build_learning_and_exceptions_card(win, frm, row, pad)
 
     ttk.Button(
         frm,

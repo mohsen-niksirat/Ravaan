@@ -22,7 +22,11 @@
     "quick_tips": "💡 Quick Tips & Shortcuts",
     "pause": "⏸ Pause Ravaan",
     "quit": "Quit",
-    "translit": "Finglish Mode (Experimental) (Ctrl+Alt+T)"
+    "translit": "Finglish Mode (Experimental) (Ctrl+Alt+T)",
+    "status_active": "🟢 Ravaan: Active (Click to Pause)",
+    "status_paused": "⏸ Ravaan: Paused (Click to Resume)",
+    "status_paused_timed": "⏸ Ravaan: Paused ({min}m) — Click to Resume",
+    "paused_manual_msg": "Ravaan paused until you resume it."
   },
   "settings": {
     "digit_mode_label": "Digit formatting:",
@@ -196,7 +200,52 @@
     "placement.top_left": "Top left",
     "placement.click": "At the click point (next to the caret)",
     "style_preview": "Live preview:",
-    "saved_flash": "Saved & applied — window stays open"
+    "saved_flash": "Saved & applied — window stays open",
+    "tab_profiles": "App Profiles",
+    "profiles_master_title": "Profile Engine",
+    "profiles_enable": "Enable Per-App Smart Profiles (includes automatic IDE/terminal safety defaults)",
+    "profiles_list_title": "Configured App Rules",
+    "prof_col_exe": "App (.exe)",
+    "prof_col_preset": "Preset",
+    "prof_col_zwnj": "ZWNJ",
+    "prof_col_ortho": "Ortho",
+    "prof_col_punct": "Punct",
+    "prof_col_pred": "Predict",
+    "prof_col_toolbar": "Toolbar",
+    "prof_col_layout": "Layout",
+    "profiles_editor_title": "Add / Edit App Profile",
+    "prof_exe_label": "Executable:",
+    "prof_preset_label": "Preset:",
+    "prof_layout_label": "Auto Layout:",
+    "prof_flag_zwnj": "Auto-ZWNJ",
+    "prof_flag_ortho": "Orthography Guard",
+    "prof_flag_punct": "Smart Punctuation",
+    "prof_flag_pred": "Word Prediction",
+    "prof_flag_autofix": "Auto-Fix Layout",
+    "prof_flag_toolbar": "Selection Toolbar",
+    "prof_exe_required": "Enter an executable name (e.g. code.exe).",
+    "prof_btn_apply": "? Save / Update Rule",
+    "prof_btn_remove": "??? Remove Rule",
+    "enable_orthography_guard": "Real-time Persian Orthography Guard",
+    "enable_orthography_guard_example": "Example: Fixes '????????' ? '??????????', '????' ? '?????', '?????' ? '???????'",
+    "orthography_mode_label": "Orthography Guard strictness:",
+    "enable_quick_undo_chip": "Show Quick-Undo chip with auto-exception learn",
+    "enable_quick_undo_chip_example": "Example: Revert auto-ZWNJ/orthography in 1 click and never re-fix that word",
+    "enable_selection_toolbar": "Floating mini-toolbar on selected text",
+    "enable_selection_toolbar_example": "Example: Quick buttons to convert layout, polish Persian, or toggle digits near selection",
+    "learn_filter": "Filter:",
+    "learn_col_word": "Learned Word",
+    "learn_col_weight": "Frequency / Score",
+    "learn_count": "{total} words learned",
+    "import_corpus_title": "Select Personal Text Corpus (.txt)",
+    "import_corpus_done": "Imported {unique} unique words ({total} tokens, {trans} phrases).",
+    "learn_btn_refresh": "?? Refresh",
+    "learn_btn_forget": "??? Forget Selected",
+    "learn_btn_ignore": "?? Block Word",
+    "learn_btn_import": "?? Import Text Corpus (.txt)",
+    "zwnj_blacklist_label": "Auto-ZWNJ & Orthography Exception List (never auto-modified):",
+    "btn_add_exception": "+ Add Exception",
+    "btn_remove_exception": "? Remove Selected"
   },
   "stats": {
     "header": "📊 Text Statistics",
@@ -397,7 +446,9 @@
     "trust_tray_desc": "Right-click the Ravaan tray icon near the Windows clock to pause, toggle features, or open Settings."
   },
   "toast": {
-    "translit_undo": "Reverted Finglish: {orig}"
+    "translit_undo": "Reverted Finglish: {orig}",
+    "translit_enabled": "Finglish mode enabled{hotkey}",
+    "translit_disabled": "Finglish mode disabled{hotkey}"
   },
   "form_dialog": {
     "title": "Ravaan — Fill Snippet Form",
@@ -437,5 +488,14 @@
     "btn_import_action": "Import Package",
     "export_success": "Package '{name}' exported successfully ({count} snippets).",
     "import_success": "Successfully imported {count} snippets from package '{name}'."
+  },
+  "undo_chip": {
+    "btn_undo": "? Undo"
+  },
+  "sel_tb": {
+    "convert": "?? Layout",
+    "normalize": "? Polish",
+    "digits": "??/12",
+    "ai": "?? AI"
   }
 }

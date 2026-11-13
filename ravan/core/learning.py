@@ -4,13 +4,26 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any
 
 from ravan.core.config import config_dir
+from ravan.core.normalizer import (
+    is_numeric_or_symbol_token,
+    is_persian_script_token,
+    is_valid_prediction_context_word,
+    normalize_arabic_chars,
+)
 
 log = logging.getLogger(__name__)
+
+_CORPUS_SENTENCE_SPLIT_RE = re.compile(r"[.!?؟؛\r\n]+")
+_CORPUS_URL_EMAIL_RE = re.compile(
+    r"(https?://\S+|www\.\S+|[A-Za-z0-9_.+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9-.]+)"
+)
+_CORPUS_TOKEN_RE = re.compile(r"[\u0621-\u06FF\u200c]+|[A-Za-z][A-Za-z'’-]*")
 
 # Seeded bigrams for instant next-word prediction
 _SEEDED_PERSIAN_TRANSITIONS: dict[str, list[str]] = {
@@ -108,7 +121,7 @@ class UserLearningEngine:
         if not self.learning_enabled:
             return
         clean = word.strip()
-        if not clean or len(clean) < 2:
+        if not clean or len(clean) < 2 or is_numeric_or_symbol_token(clean):
             return
         self.word_counts[clean] = self.word_counts.get(clean, 0.0) + 1.0
         self._top_cache = None
@@ -122,7 +135,7 @@ class UserLearningEngine:
         if not self.learning_enabled:
             return
         w1, w2 = prev_word.strip(), next_word.strip()
-        if not w1 or not w2:
+        if not w1 or not w2 or is_numeric_or_symbol_token(w1) or is_numeric_or_symbol_token(w2):
             return
         self.learn_word(w2, app_name=app_name)
         trans = self.transitions.setdefault(w1, {})
@@ -132,7 +145,14 @@ class UserLearningEngine:
         if not self.learning_enabled:
             return
         k1, k2, target = w1.strip(), w2.strip(), w3.strip()
-        if not k1 or not k2 or not target:
+        if (
+            not k1
+            or not k2
+            or not target
+            or is_numeric_or_symbol_token(k1)
+            or is_numeric_or_symbol_token(k2)
+            or is_numeric_or_symbol_token(target)
+        ):
             return
         self.learn_word(target, app_name=app_name)
         self.learn_transition(k2, target, app_name=app_name)
@@ -185,6 +205,8 @@ class UserLearningEngine:
         words = raw.split()
         w1 = words[-2] if len(words) >= 2 else None
         w2 = words[-1]
+        if not is_valid_prediction_context_word(w2):
+            return []
 
         candidates: set[str] = set()
         if w1 and w2:
@@ -194,8 +216,21 @@ class UserLearningEngine:
 
         if len(candidates) < limit:
             if self._top_cache is None:
-                self._top_cache = [w for w, _ in sorted(self.word_counts.items(), key=lambda x: x[1], reverse=True)[:15]]
-            candidates.update(self._top_cache[:10])
+                self._top_cache = [
+                    w
+                    for w, _ in sorted(self.word_counts.items(), key=lambda x: x[1], reverse=True)
+                    if not is_numeric_or_symbol_token(w)
+                ][:20]
+            ctx_is_fa = is_persian_script_token(w2)
+            w2_low = w2.lower()
+            for top_w in self._top_cache:
+                if top_w.lower() == w2_low:
+                    continue
+                if is_persian_script_token(top_w) != ctx_is_fa:
+                    continue
+                candidates.add(top_w)
+                if len(candidates) >= limit + 5:
+                    break
 
         scored = [
             (c, self.compute_smoothed_score(c, w2=w2, w1=w1) * 100.0 + self.get_word_boost(c, app_name=app_name) * 2.0)
@@ -355,6 +390,199 @@ class UserLearningEngine:
         self._top_cache = None
         self._seed_defaults()
         self.save()
+
+    def list_learned_words(
+        self,
+        query: str = "",
+        limit: int = 100,
+        app_name: str | None = None,
+    ) -> list[tuple[str, float]]:
+        """Return top learned words matching optional query/app filter, highest weight first."""
+        q = normalize_arabic_chars(query or "").strip().lower()
+        results: list[tuple[str, float]] = []
+        if app_name:
+            source_words = self.app_word_counts.get(app_name.strip().lower(), {})
+            for word, count in source_words.items():
+                if count <= 0:
+                    continue
+                if q and q not in normalize_arabic_chars(word).lower():
+                    continue
+                results.append((word, float(count)))
+        else:
+            for word, count in self.word_counts.items():
+                if count <= 0:
+                    continue
+                if q and q not in normalize_arabic_chars(word).lower():
+                    continue
+                results.append((word, float(count)))
+        results.sort(key=lambda item: (-item[1], item[0]))
+        return results[: max(1, limit)]
+
+    def forget_word(self, word: str, save_now: bool = True) -> bool:
+        """Remove a learned word from vocabulary, per-app counts, bigrams, and trigrams."""
+        clean = word.strip()
+        if not clean:
+            return False
+        targets = {clean, clean.lower(), normalize_arabic_chars(clean), normalize_arabic_chars(clean).lower()}
+        removed = False
+
+        def _matches(key: str) -> bool:
+            k_norm = normalize_arabic_chars(key).strip()
+            return key in targets or key.lower() in targets or k_norm in targets or k_norm.lower() in targets
+
+        for wk in [k for k in self.word_counts if _matches(k)]:
+            del self.word_counts[wk]
+            removed = True
+
+        for app_key in list(self.app_word_counts.keys()):
+            app_map = self.app_word_counts[app_key]
+            for wk in [k for k in app_map if _matches(k)]:
+                del app_map[wk]
+                removed = True
+            if not app_map:
+                del self.app_word_counts[app_key]
+
+        for pk in list(self.transitions.keys()):
+            if _matches(pk):
+                del self.transitions[pk]
+                removed = True
+                continue
+            sub = self.transitions[pk]
+            for nk in [k for k in sub if _matches(k)]:
+                del sub[nk]
+                removed = True
+            if not sub:
+                del self.transitions[pk]
+
+        for tk in list(self.trigrams.keys()):
+            parts = tk.split(" ", 1)
+            if any(_matches(p) for p in parts):
+                del self.trigrams[tk]
+                removed = True
+                continue
+            sub = self.trigrams[tk]
+            for nk in [k for k in sub if _matches(k)]:
+                del sub[nk]
+                removed = True
+            if not sub:
+                del self.trigrams[tk]
+
+        if removed:
+            self._top_cache = None
+            self._dirty = True
+            if save_now:
+                self.save()
+        return removed
+
+    def exclude_word(self, word: str, cfg: Any | None = None, save_now: bool = True) -> bool:
+        """Forget word from learning model and add it to Config.ignored_words when provided."""
+        clean = word.strip()
+        if not clean:
+            return False
+        forgot = self.forget_word(clean, save_now=save_now)
+        added_ignore = False
+        if cfg is not None and hasattr(cfg, "ignored_words"):
+            existing = {str(w).strip().lower() for w in cfg.ignored_words}
+            if clean.lower() not in existing:
+                cfg.ignored_words.append(clean)
+                added_ignore = True
+        return forgot or added_ignore
+
+    def import_corpus_text(
+        self,
+        text: str,
+        *,
+        app_name: str | None = None,
+        min_len: int = 2,
+        max_words: int = 25000,
+        save_now: bool = True,
+    ) -> dict[str, int]:
+        """Learn words, bigrams, and trigrams from plain text without crossing sentences."""
+        if not text or not text.strip():
+            return {"words_added": 0, "unique_words": 0, "transitions_added": 0, "trigrams_added": 0}
+
+        cleaned_text = _CORPUS_URL_EMAIL_RE.sub(" ", text)
+        prev_enabled = self.learning_enabled
+        self.learning_enabled = True
+        words_added = 0
+        transitions_added = 0
+        trigrams_added = 0
+        unique_seen: set[str] = set()
+
+        try:
+            for segment in _CORPUS_SENTENCE_SPLIT_RE.split(cleaned_text):
+                if words_added >= max_words:
+                    break
+                tokens: list[str] = []
+                for raw_tok in _CORPUS_TOKEN_RE.findall(segment):
+                    tok = raw_tok.strip("\u200c'’-")
+                    if any("\u0600" <= c <= "\u06ff" for c in tok):
+                        tok = normalize_arabic_chars(tok)
+                    if len(tok) < min_len:
+                        continue
+                    if tok.isdigit() or all(c in "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩" for c in tok):
+                        continue
+                    tokens.append(tok)
+                    if words_added + len(tokens) >= max_words:
+                        break
+
+                app_key = app_name.strip().lower() if app_name else ""
+                app_map = self.app_word_counts.setdefault(app_key, {}) if app_key else None
+                for idx, tok in enumerate(tokens):
+                    self.word_counts[tok] = self.word_counts.get(tok, 0.0) + 1.0
+                    if app_map is not None:
+                        app_map[tok] = app_map.get(tok, 0.0) + 1.0
+                    words_added += 1
+                    unique_seen.add(tok)
+                    if idx >= 1:
+                        prev_w = tokens[idx - 1]
+                        trans = self.transitions.setdefault(prev_w, {})
+                        trans[tok] = trans.get(tok, 0.0) + 1.0
+                        transitions_added += 1
+                    if idx >= 2:
+                        k1, k2 = tokens[idx - 2].lower(), tokens[idx - 1].lower()
+                        tri_map = self.trigrams.setdefault(f"{k1} {k2}", {})
+                        tri_map[tok] = tri_map.get(tok, 0.0) + 1.0
+                        trigrams_added += 1
+
+            if words_added > 0:
+                self._top_cache = None
+                self._dirty = True
+                if save_now:
+                    self.save()
+        finally:
+            self.learning_enabled = prev_enabled
+
+        return {
+            "words_added": words_added,
+            "unique_words": len(unique_seen),
+            "transitions_added": transitions_added,
+            "trigrams_added": trigrams_added,
+        }
+
+    def import_corpus_file(
+        self,
+        source_path: str | Path,
+        *,
+        app_name: str | None = None,
+        max_bytes: int = 2_000_000,
+        save_now: bool = True,
+    ) -> dict[str, int]:
+        """Read a plain text corpus file (UTF-8 / UTF-8-SIG / Windows-1256) and learn from it."""
+        path = Path(source_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"Corpus file not found: {path}")
+        raw_bytes = path.read_bytes()[:max_bytes]
+        text = ""
+        for enc in ("utf-8-sig", "utf-8", "cp1256"):
+            try:
+                text = raw_bytes.decode(enc)
+                break
+            except UnicodeDecodeError:
+                continue
+        if not text and raw_bytes:
+            text = raw_bytes.decode("utf-8", errors="ignore")
+        return self.import_corpus_text(text, app_name=app_name, save_now=save_now)
 
     def save(self, lazy: bool = False) -> None:
         if lazy:

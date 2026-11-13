@@ -35,6 +35,12 @@ def get_last_caret_source() -> str:
     return _last_caret_source
 
 
+def invalidate_caret_cache() -> None:
+    """Clear only the short-lived caret rectangle cache (preserve UIA handles)."""
+    global _cached_caret
+    _cached_caret = None
+
+
 def reset_caret_cache() -> None:
     """Reset cached caret position and UIA cooldown."""
     global _cached_caret, _last_caret_source, _cached_uia_automation
@@ -253,6 +259,230 @@ def _caret_from_element(element, UIA) -> CaretRect | None:
                         return caret
     except Exception:  # noqa: BLE001
         pass
+    return None
+
+
+def _read_range_before_caret(text_pattern_obj, rng, UIA, max_chars: int) -> str | None:
+    """Read up to max_chars immediately preceding a degenerate UIA text range."""
+    try:
+        moved = rng.MoveEndpointByUnit(
+            UIA.TextPatternRangeEndpoint_Start,
+            UIA.TextUnit_Character,
+            -max_chars,
+        )
+        if moved < 0:
+            raw = rng.GetText(max_chars)
+            if not isinstance(raw, str):
+                return None
+            line = raw.replace("\r\n", "\n").replace("\r", "\n").rsplit("\n", 1)[-1]
+            if "\ufffc" in line:
+                line = line.rsplit("\ufffc", 1)[-1]
+            return line
+        if moved == 0:
+            doc_range = text_pattern_obj.DocumentRange
+            if doc_range is not None:
+                doc_preview = doc_range.GetText(4)
+                if doc_preview == "":
+                    return ""
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def _text_before_caret_from_element(element, UIA, max_chars: int) -> str | None:
+    try:
+        if bool(getattr(element, "CurrentIsPassword", False)):
+            return None
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        pattern = element.GetCurrentPattern(UIA_TextPattern2Id)
+        if _pattern_ok(pattern):
+            pattern2 = pattern.QueryInterface(UIA.IUIAutomationTextPattern2)
+            result = pattern2.GetCaretRange()
+            caret_range = result[-1] if isinstance(result, tuple) else result
+            if caret_range is not None and bool(caret_range):
+                txt = _read_range_before_caret(pattern2, caret_range, UIA, max_chars)
+                if txt is not None:
+                    return txt
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        pattern = element.GetCurrentPattern(UIA_TextPatternId)
+        if _pattern_ok(pattern):
+            text_pattern = pattern.QueryInterface(UIA.IUIAutomationTextPattern)
+            selections = text_pattern.GetSelection()
+            if selections is not None:
+                count = selections.Length if hasattr(selections, "Length") else 0
+                if count > 0:
+                    rng = selections.GetElement(0)
+                    if (
+                        rng is not None
+                        and rng.CompareEndpoints(
+                            UIA.TextPatternRangeEndpoint_Start,
+                            rng,
+                            UIA.TextPatternRangeEndpoint_End,
+                        )
+                        == 0
+                    ):
+                        txt = _read_range_before_caret(text_pattern, rng.Clone(), UIA, max_chars)
+                        if txt is not None:
+                            return txt
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def get_text_before_caret(max_chars: int = 64) -> str | None:
+    """Best-effort UIA read of text immediately before the focused caret on the current line."""
+    active_pid = _get_active_pid()
+    now = time.monotonic()
+    if active_pid and active_pid in _uia_failed_until and now <= _uia_failed_until[active_pid]:
+        return None
+    try:
+        import comtypes
+        import comtypes.client
+        from comtypes.gen import UIAutomationClient as UIA
+    except Exception:  # noqa: BLE001
+        return None
+
+    try:
+        comtypes.CoInitialize()
+    except Exception:  # noqa: BLE001
+        pass
+
+    global _cached_uia_automation
+    try:
+        if _cached_uia_automation is None:
+            _cached_uia_automation = comtypes.client.CreateObject(
+                UIA.CUIAutomation, interface=UIA.IUIAutomation
+            )
+        automation = _cached_uia_automation
+        element = automation.GetFocusedElement()
+        if element is None:
+            return None
+
+        res = _text_before_caret_from_element(element, UIA, max_chars)
+        if res is not None:
+            return res
+
+        walker = automation.ControlViewWalker
+        current = element
+        for _ in range(6):
+            parent = walker.GetParentElement(current)
+            if parent is None:
+                break
+            res = _text_before_caret_from_element(parent, UIA, max_chars)
+            if res is not None:
+                return res
+            current = parent
+    except Exception:  # noqa: BLE001
+        _cached_uia_automation = None
+        if active_pid:
+            _uia_failed_until[active_pid] = now + 3.0
+    return None
+
+
+_mock_selection: tuple[str, CaretRect | None] | None = None
+
+
+def set_mock_selection(value: tuple[str, CaretRect | None] | None) -> None:
+    """Mock hook for testing UIA selection detection without Windows UIA."""
+    global _mock_selection
+    _mock_selection = value
+
+
+def _selection_from_element(element, UIA, max_chars: int) -> tuple[str, CaretRect | None] | None:
+    try:
+        if bool(getattr(element, "CurrentIsPassword", False)):
+            return None
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        pattern = element.GetCurrentPattern(UIA_TextPatternId)
+        if not _pattern_ok(pattern):
+            return None
+        text_pattern = pattern.QueryInterface(UIA.IUIAutomationTextPattern)
+        selections = text_pattern.GetSelection()
+        if selections is None or getattr(selections, "Length", 0) <= 0:
+            return None
+        rng = selections.GetElement(0)
+        if rng is None:
+            return None
+        if (
+            rng.CompareEndpoints(
+                UIA.TextPatternRangeEndpoint_Start,
+                rng,
+                UIA.TextPatternRangeEndpoint_End,
+            )
+            == 0
+        ):
+            return None
+        raw = rng.GetText(max_chars)
+        if not isinstance(raw, str) or not raw.strip():
+            return None
+        rect = None
+        try:
+            rects = rng.GetBoundingRectangles()
+            rect = _rects_to_caret(rects)
+        except Exception:  # noqa: BLE001
+            rect = None
+        return raw, rect
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def get_selected_text_and_rect(max_chars: int = 200) -> tuple[str, CaretRect | None] | None:
+    """Best-effort non-destructive UIA read of the currently selected text and its bounds."""
+    if _mock_selection is not None:
+        txt, rect = _mock_selection
+        return (txt, rect) if txt and txt.strip() else None
+
+    active_pid = _get_active_pid()
+    now = time.monotonic()
+    if active_pid and active_pid in _uia_failed_until and now <= _uia_failed_until[active_pid]:
+        return None
+    try:
+        import comtypes
+        import comtypes.client
+        from comtypes.gen import UIAutomationClient as UIA
+    except Exception:  # noqa: BLE001
+        return None
+
+    try:
+        comtypes.CoInitialize()
+    except Exception:  # noqa: BLE001
+        pass
+
+    global _cached_uia_automation
+    try:
+        if _cached_uia_automation is None:
+            _cached_uia_automation = comtypes.client.CreateObject(
+                UIA.CUIAutomation, interface=UIA.IUIAutomation
+            )
+        automation = _cached_uia_automation
+        element = automation.GetFocusedElement()
+        if element is None:
+            return None
+
+        res = _selection_from_element(element, UIA, max_chars)
+        if res is not None:
+            return res
+
+        walker = automation.ControlViewWalker
+        current = element
+        for _ in range(6):
+            parent = walker.GetParentElement(current)
+            if parent is None:
+                break
+            res = _selection_from_element(parent, UIA, max_chars)
+            if res is not None:
+                return res
+            current = parent
+    except Exception:  # noqa: BLE001
+        _cached_uia_automation = None
+        if active_pid:
+            _uia_failed_until[active_pid] = now + 3.0
     return None
 
 

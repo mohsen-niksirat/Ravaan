@@ -12,6 +12,7 @@ from .config import Config
 from .dict import DictEntry, Dictionary
 from .events import Candidate, CandidateKind
 from .learning import UserLearningEngine
+from .normalizer import is_numeric_or_symbol_token, is_valid_prediction_context_word
 
 _URL_DOMAIN_SUFFIXES = (
     ".com", ".org", ".net", ".ir", ".io", ".me", ".edu", ".gov", ".co", ".app", ".dev", ".xyz", ".info"
@@ -244,7 +245,7 @@ class DictPredictor(Predictor):
         self, word: str, context: str | None = None, app_name: str | None = None
     ) -> None:
         key = word.strip().lower()
-        if key:
+        if key and not is_numeric_or_symbol_token(word):
             self._selection_counts[key] = self._selection_counts.get(key, 0) + 1
             self.learning.learn_word(word, app_name=app_name)
             if context:
@@ -318,9 +319,16 @@ class DictPredictor(Predictor):
         self, prefix: str, context: str, limit: int, app_name: str | None = None
     ) -> list[Candidate]:
         if not prefix:
-            if not context:
+            if not context or not context.strip():
                 return []
-            next_words = self.learning.predict_next_words(context, limit, app_name=app_name)
+            last_ctx = context.strip().split()[-1]
+            if not is_valid_prediction_context_word(last_ctx):
+                return []
+            next_words = [
+                w
+                for w in self.learning.predict_next_words(context, limit + len(self.ignored_words), app_name=app_name)
+                if w.strip().lower() not in self.ignored_words
+            ][:limit]
             return [
                 Candidate(
                     text=w,
@@ -329,6 +337,8 @@ class DictPredictor(Predictor):
                 )
                 for i, w in enumerate(next_words)
             ]
+        if is_numeric_or_symbol_token(prefix):
+            return []
 
         dict_ = self._dict_for(prefix)
         if dict_ is None:
@@ -338,9 +348,11 @@ class DictPredictor(Predictor):
         seen_texts: set[str] = set()
 
         # 1. Learned completions from user typing history (highest priority)
-        learned_matches = self.learning.top_learned_completions(prefix, limit, app_name=app_name)
+        learned_matches = self.learning.top_learned_completions(
+            prefix, limit + len(self.ignored_words), app_name=app_name
+        )
         for w in learned_matches:
-            if w.lower() != prefix.lower():
+            if w.lower() != prefix.lower() and w.strip().lower() not in self.ignored_words:
                 candidates.append(
                     Candidate(
                         text=w,

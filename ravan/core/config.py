@@ -144,6 +144,13 @@ class Config:
     pause_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Pause", ["Ctrl", "Alt"]))
     enable_feature_hints: bool = True
     shown_hints: list[str] = field(default_factory=list)
+    app_profiles_enabled: bool = True
+    app_profiles: dict[str, dict[str, Any]] = field(default_factory=dict)
+    orthography_guard_enabled: bool = True
+    orthography_guard_mode: str = "safe"  # "off" | "safe" | "strict"
+    quick_undo_chip_enabled: bool = True
+    zwnj_orthography_blacklist: list[str] = field(default_factory=list)
+    selection_toolbar_enabled: bool = True
 
     @property
     def auto_zwnj(self) -> bool:
@@ -378,6 +385,12 @@ def _valid_hex(val: Any, default: str) -> str:
     return default
 
 
+def _sanitize_profiles(raw: Any) -> dict[str, dict[str, Any]]:
+    from ravan.core.profiles import sanitize_app_profiles
+
+    return sanitize_app_profiles(raw)
+
+
 def config_from_dict(raw_data: dict[str, Any]) -> Config:
     data = migrate_config_dict(dict(raw_data))
     snippets = [
@@ -584,6 +597,23 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         pause_hotkey=_hotkey_from_dict(data.get("pause_hotkey"), HotkeySpec("Pause", ["Ctrl", "Alt"])),
         enable_feature_hints=bool(data.get("enable_feature_hints", True)),
         shown_hints=[str(h) for h in data.get("shown_hints", []) if str(h).strip()],
+        app_profiles_enabled=bool(data.get("app_profiles_enabled", True)),
+        app_profiles=_sanitize_profiles(data.get("app_profiles", {})),
+        orthography_guard_enabled=bool(data.get("orthography_guard_enabled", True)),
+        orthography_guard_mode=(
+            str(data.get("orthography_guard_mode", "safe")).lower()
+            if str(data.get("orthography_guard_mode", "safe")).lower() in ("off", "safe", "strict")
+            else "safe"
+        ),
+        quick_undo_chip_enabled=bool(data.get("quick_undo_chip_enabled", True)),
+        zwnj_orthography_blacklist=[
+            str(w).strip()
+            for w in data.get("zwnj_orthography_blacklist", [])
+            if isinstance(w, str) and w.strip()
+        ]
+        if isinstance(data.get("zwnj_orthography_blacklist", []), list)
+        else [],
+        selection_toolbar_enabled=bool(data.get("selection_toolbar_enabled", True)),
     )
 
     # Sanitize hotkey conflicts that might exist in old or misconfigured configs
