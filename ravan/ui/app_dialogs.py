@@ -20,6 +20,7 @@ class AppDialogsMixin:
             self.cfg,
             on_saved=self._on_settings_saved,
             learning_engine=getattr(getattr(self, "predictor", None), "learning", None),
+            parent=getattr(self.overlay, "_root", None),
         )
         self._settings_window.show()
 
@@ -32,6 +33,7 @@ class AppDialogsMixin:
             self.cfg.snippets,
             on_saved=self._on_snippets_saved,
             groups=getattr(self.cfg, "snippet_groups", None),
+            parent=getattr(self.overlay, "_root", None),
         )
         self._snippet_window.show()
 
@@ -58,7 +60,8 @@ class AppDialogsMixin:
         from ravan.ui.diagnostics import DiagnosticsWindow
 
         self._diagnostics_window = DiagnosticsWindow(
-            snapshot_fn=self._get_diagnostics_snapshot
+            snapshot_fn=self._get_diagnostics_snapshot,
+            parent=getattr(self.overlay, "_root", None),
         )
         self._diagnostics_window.show()
 

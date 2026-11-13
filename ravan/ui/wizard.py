@@ -19,6 +19,8 @@ from ravan.core.i18n import get_locale, is_rtl, set_locale, t
 from ravan.ui.theme import (
     apply_theme_to_ttk,
     apply_window_decorations,
+    create_managed_toplevel,
+    destroy_managed_toplevel,
     get_active_palette,
     get_ui_font,
 )
@@ -90,6 +92,7 @@ class FirstRunWizard:
         self._open = False
         self._built = False
         self._root: tk.Toplevel | None = None
+        self._owned_tk_root: tk.Tk | None = None
         self._step = 1  # 1: Language & Preset, 2: Hotkeys, 3: Interactive Demo
         self._total_steps = 3
 
@@ -146,12 +149,9 @@ class FirstRunWizard:
 
         save_config(self.cfg)
         self._open = False
-        if self._root is not None:
-            try:
-                self._root.destroy()
-            except tk.TclError:
-                pass
-            self._root = None
+        destroy_managed_toplevel(self._root, self._owned_tk_root)
+        self._root = None
+        self._owned_tk_root = None
         if self.on_complete is not None:
             try:
                 self.on_complete()
@@ -160,8 +160,7 @@ class FirstRunWizard:
 
     def _build(self) -> None:
         palette = get_active_palette()
-        parent = self.parent or getattr(tk, "_default_root", None)
-        win = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
+        win, self._owned_tk_root = create_managed_toplevel(self.parent)
         self._root = win
 
         win.title(t("wizard.title", "Welcome to Ravaan • به روان خوش آمدید"))

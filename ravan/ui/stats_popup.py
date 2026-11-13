@@ -8,7 +8,13 @@ from typing import Any
 
 from ravan.core.normalizer import en_to_fa_digits
 from ravan.platform import winapi as wapi
-from ravan.ui.theme import apply_popup_window_attributes, get_active_palette, get_ui_font
+from ravan.ui.theme import (
+    apply_popup_window_attributes,
+    create_managed_toplevel,
+    destroy_managed_toplevel,
+    get_active_palette,
+    get_ui_font,
+)
 
 log = logging.getLogger(__name__)
 
@@ -19,14 +25,14 @@ class StatsPopupWindow:
     def __init__(self, parent: tk.Tk | tk.Toplevel | None = None) -> None:
         self._parent = parent
         self._root: tk.Toplevel | None = None
+        self._owned_tk_root: tk.Tk | None = None
         self._dismiss_job: str | None = None
 
     def show(self, stats: dict[str, Any], x: int = 100, y: int = 100) -> None:
         self.close()
 
         palette = get_active_palette()
-        parent = self._parent or tk._default_root
-        win = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
+        win, self._owned_tk_root = create_managed_toplevel(self._parent)
         self._root = win
         win.withdraw()
         win.title("Text Stats — Ravaan")
@@ -133,8 +139,6 @@ class StatsPopupWindow:
                 except Exception:
                     pass
                 self._dismiss_job = None
-            try:
-                self._root.destroy()
-            except tk.TclError:
-                pass
-            self._root = None
+        destroy_managed_toplevel(self._root, self._owned_tk_root)
+        self._root = None
+        self._owned_tk_root = None

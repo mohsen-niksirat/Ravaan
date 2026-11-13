@@ -38,6 +38,9 @@ ravan = ["data/*.txt", "data/*.bin", "data/*.ico", "data/*.json"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Use Python sys.stdout/sys.stderr capture instead of OS fd dup2 capture;
+# repeated dup2 cycling destabilizes Windows Tcl/Tk 8.6.12 init scripts.
+addopts = "--capture=sys"
 markers = [
     "windows: tests that require Windows APIs",
 ]

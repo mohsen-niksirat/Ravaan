@@ -37,6 +37,7 @@ def test_tooltip_lifecycle():
 
 def test_settings_search_filtering():
     """Verify live search in Settings dynamically filters tabs and clear button resets."""
+    prev_root = getattr(tk, "_default_root", None)
     try:
         cfg = Config()
         win = SettingsWindow(cfg=cfg)
@@ -60,6 +61,7 @@ def test_settings_search_filtering():
 
         win._close()
         assert win._root is None
+        assert getattr(tk, "_default_root", None) is prev_root
     except (tk.TclError, Exception) as exc:
         pytest.skip(f"Tkinter display not available: {exc}")
 

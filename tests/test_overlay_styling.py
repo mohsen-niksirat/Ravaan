@@ -100,7 +100,7 @@ def test_overlay_hint_always_at_bottom():
         for row in overlay._rows[: len(cands2)]:
             assert row in packed2
     finally:
-        overlay._root.destroy()
+        overlay.destroy()
 
 
 def test_candidate_row_custom_colors_respected_for_all_styles():

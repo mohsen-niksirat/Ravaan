@@ -9,6 +9,7 @@ import tkinter as tk
 from dataclasses import dataclass, replace
 from pathlib import Path
 from tkinter import ttk
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -962,6 +963,50 @@ def _hex_to_colorref(hex_color: str) -> int | None:
         return None
 
 
+def _set_window_composition_accent(hwnd: int, accent_state: int, gradient_color: int = 0) -> bool:
+    """Invoke Win32 SetWindowCompositionAttribute with explicit ctypes HWND signature."""
+    from ctypes import wintypes
+
+    class ACCENT_POLICY(ctypes.Structure):
+        _fields_ = [
+            ("AccentState", ctypes.c_int),
+            ("AccentFlags", ctypes.c_int),
+            ("GradientColor", ctypes.c_uint),
+            ("AnimationId", ctypes.c_int),
+        ]
+
+    class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
+        _fields_ = [
+            ("dwAttribute", ctypes.c_int),
+            ("pData", ctypes.c_void_p),
+            ("cbData", ctypes.c_size_t),
+        ]
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    fn = user32.SetWindowCompositionAttribute
+    fn.argtypes = [wintypes.HWND, ctypes.c_void_p]
+    fn.restype = wintypes.BOOL
+
+    policy = ACCENT_POLICY(accent_state, 0, gradient_color, 0)
+    data = WINDOWCOMPOSITIONATTRIBDATA(
+        19,
+        ctypes.cast(ctypes.byref(policy), ctypes.c_void_p),
+        ctypes.sizeof(policy),
+    )
+    return bool(fn(wintypes.HWND(hwnd), ctypes.byref(data)))
+
+
+def _set_dwm_attribute(hwnd: int, attribute: int, value: Any) -> int:
+    """Invoke Win32 DwmSetWindowAttribute with explicit ctypes HWND signature."""
+    from ctypes import wintypes
+
+    dwmapi = ctypes.WinDLL("dwmapi", use_last_error=True)
+    fn = dwmapi.DwmSetWindowAttribute
+    fn.argtypes = [wintypes.HWND, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD]
+    fn.restype = ctypes.c_long
+    return int(fn(wintypes.HWND(hwnd), attribute, ctypes.byref(value), ctypes.sizeof(value)))
+
+
 def _enable_acrylic_blur(hwnd: int, hex_color: str) -> bool:
     """Enable acrylic blur-behind behind a popup window (SetWindowCompositionAttribute).
 
@@ -973,37 +1018,9 @@ def _enable_acrylic_blur(hwnd: int, hex_color: str) -> bool:
         rgb = int(hex_color.lstrip("#"), 16)
         r, g, b = (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF
         tint = (0xC8 << 24) | (b << 16) | (g << 8) | r  # ABGR with ~78% opacity
-
-        class ACCENT_POLICY(ctypes.Structure):
-            _fields_ = [
-                ("AccentState", ctypes.c_int),
-                ("AccentFlags", ctypes.c_int),
-                ("GradientColor", ctypes.c_uint),
-                ("AnimationId", ctypes.c_int),
-            ]
-
-        class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
-            _fields_ = [
-                ("dwAttribute", ctypes.c_int),
-                ("pData", ctypes.c_void_p),
-                ("cbData", ctypes.c_size_t),
-            ]
-
-        # ACCENT_ENABLE_ACRYLICBLURBEHIND = 4, WCA_ACCENT_POLICY = 19
-        accent = ACCENT_POLICY(4, 0, tint, 0)
-        data = WINDOWCOMPOSITIONATTRIBDATA(
-            19,
-            ctypes.cast(ctypes.byref(accent), ctypes.c_void_p),
-            ctypes.sizeof(accent),
-        )
-        user32 = ctypes.WinDLL("user32", use_last_error=True)
         # Force-refresh: re-tinting requires toggling the accent off and on.
-        disable = ACCENT_POLICY(0, 0, 0, 0)  # ACCENT_DISABLED
-        data_off = WINDOWCOMPOSITIONATTRIBDATA(
-            19, ctypes.cast(ctypes.byref(disable), ctypes.c_void_p), ctypes.sizeof(disable)
-        )
-        user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data_off))
-        return bool(user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data)))
+        _set_window_composition_accent(hwnd, 0, 0)
+        return _set_window_composition_accent(hwnd, 4, tint)
     except Exception as exc:  # noqa: BLE001
         log.debug("Acrylic blur unavailable: %s", exc)
         return False
@@ -1012,30 +1029,7 @@ def _enable_acrylic_blur(hwnd: int, hex_color: str) -> bool:
 def _disable_acrylic_blur(hwnd: int) -> None:
     """Remove any acrylic accent previously applied to the window."""
     try:
-
-        class ACCENT_POLICY(ctypes.Structure):
-            _fields_ = [
-                ("AccentState", ctypes.c_int),
-                ("AccentFlags", ctypes.c_int),
-                ("GradientColor", ctypes.c_uint),
-                ("AnimationId", ctypes.c_int),
-            ]
-
-        class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
-            _fields_ = [
-                ("dwAttribute", ctypes.c_int),
-                ("pData", ctypes.c_void_p),
-                ("cbData", ctypes.c_size_t),
-            ]
-
-        disable = ACCENT_POLICY(0, 0, 0, 0)  # ACCENT_DISABLED
-        data = WINDOWCOMPOSITIONATTRIBDATA(
-            19,
-            ctypes.cast(ctypes.byref(disable), ctypes.c_void_p),
-            ctypes.sizeof(disable),
-        )
-        user32 = ctypes.WinDLL("user32", use_last_error=True)
-        user32.SetWindowCompositionAttribute(hwnd, ctypes.byref(data))
+        _set_window_composition_accent(hwnd, 0, 0)
     except Exception:  # noqa: BLE001
         pass
 
@@ -1075,8 +1069,6 @@ def apply_popup_window_attributes(
         if show:
             wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
 
-        dwmapi = ctypes.WinDLL("dwmapi", use_last_error=True)
-
         # DWM rounded corners (DWMWA_WINDOW_CORNER_PREFERENCE = 33)
         # 1 = DWMWCP_DONOTROUND, 2 = DWMWCP_ROUND, 3 = DWMWCP_ROUNDSMALL
         if corner_radius <= 0:
@@ -1086,18 +1078,14 @@ def apply_popup_window_attributes(
         else:
             corner_val = 2
         corner_pref = ctypes.c_int(corner_val)
-        dwmapi.DwmSetWindowAttribute(
-            wapi.wintypes.HWND(root_hwnd), 33, ctypes.byref(corner_pref), ctypes.sizeof(corner_pref)
-        )
+        _set_dwm_attribute(root_hwnd, 33, corner_pref)
 
         # Crisp 1px material border (DWMWA_BORDER_COLOR = 34, Win11)
         if border_color:
             cref = _hex_to_colorref(border_color)
             if cref is not None:
                 val = ctypes.c_uint(cref)
-                dwmapi.DwmSetWindowAttribute(
-                    wapi.wintypes.HWND(root_hwnd), 34, ctypes.byref(val), ctypes.sizeof(val)
-                )
+                _set_dwm_attribute(root_hwnd, 34, val)
 
         # macOS-style acrylic material (falls back to plain window alpha)
         if acrylic:
@@ -1173,20 +1161,16 @@ def apply_window_decorations(win: tk.Tk | tk.Toplevel, palette: Palette | None =
         if not root_hwnd:
             return
 
-        dwmapi = ctypes.WinDLL("dwmapi", use_last_error=True)
-
         # 1. Immersive dark mode (DWMWA_USE_IMMERSIVE_DARK_MODE = 20, fallback 19)
         is_dark = 1 if palette.name in ("dark", "high_contrast") else 0
         val = ctypes.c_int(is_dark)
-        res = dwmapi.DwmSetWindowAttribute(root_hwnd, 20, ctypes.byref(val), ctypes.sizeof(val))
+        res = _set_dwm_attribute(root_hwnd, 20, val)
         if res != 0:
-            dwmapi.DwmSetWindowAttribute(root_hwnd, 19, ctypes.byref(val), ctypes.sizeof(val))
+            _set_dwm_attribute(root_hwnd, 19, val)
 
         # 2. Window corner preference (DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_ROUND = 2)
         corner_pref = ctypes.c_int(2)
-        dwmapi.DwmSetWindowAttribute(
-            root_hwnd, 33, ctypes.byref(corner_pref), ctypes.sizeof(corner_pref)
-        )
+        _set_dwm_attribute(root_hwnd, 33, corner_pref)
     except Exception as exc:
         log.debug("apply_window_decorations error: %s", exc)
 
@@ -1533,3 +1517,45 @@ def apply_theme_to_ttk(
     style.configure("TSeparator", background=border)
 
     return style
+
+
+def _resolve_live_tk_parent(parent: tk.Misc | None) -> tk.Misc | None:
+    """Return `parent` or `tk._default_root` only if its Tcl/Tk interpreter is still alive."""
+    for candidate in (parent, getattr(tk, "_default_root", None)):
+        if candidate is None:
+            continue
+        try:
+            if candidate.winfo_exists():
+                return candidate
+        except (tk.TclError, RuntimeError):
+            continue
+    return None
+
+
+def create_managed_toplevel(parent: tk.Misc | None = None) -> tuple[tk.Toplevel, tk.Tk | None]:
+    """Create a Toplevel attached to a live root, or spawn a dedicated hidden root to own and clean up.
+
+    Prevents unparented `tk.Toplevel()` calls from leaking an orphaned `tk._default_root`
+    across dialog lifecycles or test runs.
+    """
+    live_parent = _resolve_live_tk_parent(parent)
+    if live_parent is not None:
+        return tk.Toplevel(live_parent), None
+    owned_root = tk.Tk()
+    owned_root.withdraw()
+    return tk.Toplevel(owned_root), owned_root
+
+
+def destroy_managed_toplevel(toplevel: tk.Misc | None, owned_root: tk.Tk | None) -> None:
+    """Flush pending idle callbacks and destroy a managed Toplevel plus any owned hidden root."""
+    for win in (toplevel, owned_root):
+        if win is None:
+            continue
+        try:
+            win.update_idletasks()
+        except (tk.TclError, RuntimeError):
+            pass
+        try:
+            win.destroy()
+        except (tk.TclError, RuntimeError):
+            pass

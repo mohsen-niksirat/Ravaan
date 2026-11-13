@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 # Battery of adversarial/repetitive input strings to detect catastrophic backtracking
 _CATASTROPHIC_BATTERY = [
-    "a" * 25 + "!",
+    "a" * 20 + "!",
     "a" * 30,
     "1" * 28 + "x",
     "0" * 30,

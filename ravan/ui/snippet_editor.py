@@ -22,6 +22,8 @@ from ravan.ui.snippet_groups_ui import SnippetGroupSelector, pick_image_file
 from ravan.ui.theme import (
     apply_theme_to_ttk,
     apply_window_decorations,
+    create_managed_toplevel,
+    destroy_managed_toplevel,
     get_active_palette,
 )
 
@@ -34,12 +36,15 @@ class SnippetEditorWindow:
         snippets: list[Snippet],
         on_saved: Callable[[list[Snippet]], None],
         groups: list[SnippetGroup] | None = None,
+        parent: tk.Misc | None = None,
     ) -> None:
         self.snippets: list[Snippet] = copy.deepcopy(snippets)
         self.on_saved = on_saved
         self.groups: list[SnippetGroup] = list(groups or [])
+        self._parent = parent
         self._open = self._built = False
         self._root = self._selected_index = self._tree = None
+        self._owned_tk_root: tk.Tk | None = None
         self._filter_var = self._trigger_var = self._test_input_var = self._image_path_var = None
         self._type_var: tk.StringVar | None = None
         self._test_status_lbl = self._text_editor = self._preview_text = None
@@ -67,7 +72,7 @@ class SnippetEditorWindow:
             pass
 
     def _build(self) -> None:
-        self._root = tk.Toplevel()
+        self._root, self._owned_tk_root = create_managed_toplevel(self._parent)
         self._root.title(t("snippets_editor.title", "Ravaan — Snippet Editor"))
         self._root.geometry("880x620")
         self._root.minsize(780, 520)
@@ -389,10 +394,7 @@ class SnippetEditorWindow:
 
     def _close(self) -> None:
         self._open = False
-        if self._root is not None:
-            try:
-                self._root.destroy()
-            except Exception:  # noqa: BLE001
-                pass
-            self._root = None
+        destroy_managed_toplevel(self._root, self._owned_tk_root)
+        self._root = None
+        self._owned_tk_root = None
         self._built = False

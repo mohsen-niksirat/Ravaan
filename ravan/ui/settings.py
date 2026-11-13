@@ -17,6 +17,8 @@ from ravan.ui.theme import (
     Palette,
     apply_theme_to_ttk,
     apply_window_decorations,
+    create_managed_toplevel,
+    destroy_managed_toplevel,
     get_active_palette,
     get_ui_font,
 )
@@ -102,13 +104,17 @@ class SettingsWindow:
         cfg: Config,
         on_saved: Callable[[Config], None] | None = None,
         learning_engine: Any = None,
+        parent: tk.Misc | None = None,
     ) -> None:
         self.cfg = cfg
         self.on_saved = on_saved
         self.learning_engine = learning_engine
+        self._parent = parent
         self._open = False
         self._built = False
         self._root: tk.Toplevel | None = None
+        self._owned_tk_root: tk.Tk | None = None
+        self._saved_flash_job: str | None = None
         self._snippet_editor: Any = None
         self._managed_snippets = list(self.cfg.snippets)
         self._last_snip_text = ""
@@ -134,12 +140,9 @@ class SettingsWindow:
                 self._build()
             except Exception as exc:  # noqa: BLE001
                 self._open = False
-                if self._root is not None:
-                    try:
-                        self._root.destroy()
-                    except Exception:  # noqa: BLE001
-                        pass
-                    self._root = None
+                destroy_managed_toplevel(self._root, self._owned_tk_root)
+                self._root = None
+                self._owned_tk_root = None
                 log.exception("SettingsWindow build failed: %s", exc)
                 return
         if self._snippet_editor is not None and self._snippet_editor.open:
@@ -155,7 +158,7 @@ class SettingsWindow:
     # ── UI construction ──────────────────────────────────────────────
 
     def _build(self) -> None:
-        self._root = tk.Toplevel()
+        self._root, self._owned_tk_root = create_managed_toplevel(self._parent)
         self._root.withdraw()
         self._root.attributes("-topmost", True)
         self._root.resizable(True, True)
@@ -623,6 +626,7 @@ class SettingsWindow:
             self._managed_snippets,
             on_saved=on_editor_saved,
             groups=getattr(self.cfg, "snippet_groups", None),
+            parent=self._root,
         )
         if self._snippet_editor is not None:
             self._snippet_editor.show()
@@ -1230,12 +1234,21 @@ class SettingsWindow:
     def _close(self) -> None:
         self._open = False
         self._built = False
-        if self._root is not None:
+        if self._saved_flash_job is not None and self._root is not None:
             try:
-                self._root.destroy()
-            except tk.TclError:
+                self._root.after_cancel(self._saved_flash_job)
+            except Exception:  # noqa: BLE001
                 pass
-            self._root = None
+            self._saved_flash_job = None
+        if self._snippet_editor is not None:
+            try:
+                self._snippet_editor._close()
+            except Exception:  # noqa: BLE001
+                pass
+            self._snippet_editor = None
+        destroy_managed_toplevel(self._root, self._owned_tk_root)
+        self._root = None
+        self._owned_tk_root = None
 
     def _reset_tab_defaults(self, tab_name: str) -> None:
         from ravan.ui.settings_reset import reset_tab_defaults

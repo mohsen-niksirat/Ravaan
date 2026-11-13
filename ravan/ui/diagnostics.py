@@ -14,6 +14,8 @@ from ravan import __version__
 from ravan.ui.theme import (
     apply_theme_to_ttk,
     apply_window_decorations,
+    create_managed_toplevel,
+    destroy_managed_toplevel,
     get_active_palette,
 )
 
@@ -25,12 +27,15 @@ class DiagnosticsWindow:
         self,
         snapshot_fn: Callable[[], dict[str, Any]],
         on_close: Callable[[], None] | None = None,
+        parent: tk.Misc | None = None,
     ) -> None:
         self.snapshot_fn = snapshot_fn
         self.on_close = on_close
+        self._parent = parent
         self._open = False
         self._built = False
         self._root: tk.Toplevel | None = None
+        self._owned_tk_root: tk.Tk | None = None
         self._refresh_after: str | None = None
 
     @property
@@ -55,7 +60,7 @@ class DiagnosticsWindow:
             pass
 
     def _build(self) -> None:
-        self._root = tk.Toplevel()
+        self._root, self._owned_tk_root = create_managed_toplevel(self._parent)
         self._root.title("Ravan — Diagnostics")
         self._root.geometry("700x520")
         self._root.minsize(620, 420)
@@ -245,11 +250,8 @@ class DiagnosticsWindow:
             except Exception:
                 pass
             self._refresh_after = None
-        if self._root is not None:
-            try:
-                self._root.destroy()
-            except tk.TclError:
-                pass
-            self._root = None
+        destroy_managed_toplevel(self._root, self._owned_tk_root)
+        self._root = None
+        self._owned_tk_root = None
         if self.on_close:
             self.on_close()

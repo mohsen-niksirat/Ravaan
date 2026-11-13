@@ -815,19 +815,30 @@ class OverlayWindow:
         except (tk.TclError, RuntimeError):
             pass
 
+    def _cancel_fade_jobs(self) -> None:
+        """Cancel any pending Tk fade timers before hiding or destroying the root."""
+        for attr in ("_fade_job", "_fade_after"):
+            job = getattr(self, attr, None)
+            if job:
+                try:
+                    self._root.after_cancel(job)
+                except Exception:  # noqa: BLE001
+                    pass
+                setattr(self, attr, None)
+
     def destroy(self) -> None:
+        self._cancel_fade_jobs()
+        try:
+            self._root.update_idletasks()
+        except (tk.TclError, RuntimeError):
+            pass
         try:
             self._root.destroy()
         except tk.TclError:
             pass
 
     def hide(self) -> None:
-        if hasattr(self, "_fade_job") and self._fade_job:
-            try:
-                self._root.after_cancel(self._fade_job)
-            except Exception:
-                pass
-            self._fade_job = None
+        self._cancel_fade_jobs()
         self._mode = "idle"
         self._candidates = []
         self._clip_items = []
@@ -852,12 +863,6 @@ class OverlayWindow:
                     wapi.user32.ShowWindow(root_hwnd, 0)
             except Exception:  # noqa: BLE001
                 pass
-        if self._fade_after is not None:
-            try:
-                self._root.after_cancel(self._fade_after)
-            except Exception:  # noqa: BLE001
-                pass
-            self._fade_after = None
         try:
             from ravan.platform.hook import set_popup_visible
 
