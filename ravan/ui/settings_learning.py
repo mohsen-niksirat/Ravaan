@@ -9,6 +9,8 @@ from typing import Any
 from ravan.core.i18n import is_rtl, t
 from ravan.core.orthography import add_blacklist_token
 from ravan.ui.settings_builder import _get_win_palette, _make_card
+from ravan.ui.theme import get_ui_font
+from ravan.ui.widgets import FluentPillButton
 
 
 def _get_engine(win: Any):
@@ -51,16 +53,28 @@ def build_learning_and_exceptions_card(
     row += 1
 
     # 1. Search + stats header
-    top_bar = ttk.Frame(card)
+    top_bar = tk.Frame(card, bg=palette.bg_surface)
     top_bar.pack(fill="x", pady=(0, 6))
 
     win._learning_search_var = tk.StringVar(value="")
     win._learning_stats_var = tk.StringVar(value="")
 
-    ttk.Label(top_bar, text=t("settings.learn_filter", "Filter:")).pack(side=side, padx=(0, 6))
+    tk.Label(
+        top_bar,
+        text=t("settings.learn_filter", "Filter:"),
+        bg=palette.bg_surface,
+        fg=palette.fg,
+        font=get_ui_font(9, rtl=rtl),
+    ).pack(side=side, padx=(0, 6))
     search_entry = ttk.Entry(top_bar, textvariable=win._learning_search_var, width=22)
     search_entry.pack(side=side, padx=(0, 8))
-    ttk.Label(top_bar, textvariable=win._learning_stats_var, style="Sub.TLabel").pack(side=side, padx=4)
+    tk.Label(
+        top_bar,
+        textvariable=win._learning_stats_var,
+        bg=palette.bg_surface,
+        fg=palette.subtext,
+        font=get_ui_font(8, rtl=rtl),
+    ).pack(side=side, padx=4)
 
     # 2. Learned words table
     tree = ttk.Treeview(card, columns=("word", "weight"), show="headings", height=5)
@@ -140,37 +154,57 @@ def build_learning_and_exceptions_card(
         except Exception as exc:  # noqa: BLE001
             messagebox.showerror("Ravaan", str(exc), parent=win._root)
 
-    action_row = ttk.Frame(card)
+    action_row = tk.Frame(card, bg=palette.bg_surface)
     action_row.pack(fill="x", pady=(0, 8))
-    ttk.Button(
+    FluentPillButton(
         action_row,
-        text=t("settings.learn_btn_refresh", "🔄 Refresh"),
+        text=t("settings.learn_btn_refresh", "Refresh"),
+        icon="reset",
+        variant="secondary",
+        palette=palette,
+        height=28,
         command=_refresh_learned,
     ).pack(side=side, padx=3)
-    ttk.Button(
+    FluentPillButton(
         action_row,
-        text=t("settings.learn_btn_forget", "🗑️ Forget Selected"),
+        text=t("settings.learn_btn_forget", "Forget Selected"),
+        icon="close",
+        variant="secondary",
+        palette=palette,
+        height=28,
         command=_forget_selected,
     ).pack(side=side, padx=3)
-    ttk.Button(
+    FluentPillButton(
         action_row,
-        text=t("settings.learn_btn_ignore", "🚫 Block Word"),
+        text=t("settings.learn_btn_ignore", "Block Word"),
+        icon="shield",
+        variant="secondary",
+        palette=palette,
+        height=28,
         command=_ignore_selected,
     ).pack(side=side, padx=3)
-    ttk.Button(
+    FluentPillButton(
         action_row,
-        text=t("settings.learn_btn_import", "📥 Import Text Corpus (.txt)"),
+        text=t("settings.learn_btn_import", "Import Text Corpus (.txt)"),
+        icon="code",
+        variant="secondary",
+        palette=palette,
+        height=28,
         command=_import_corpus,
     ).pack(side=side, padx=3)
 
     # 3. Auto-Learn ZWNJ & Orthography Exclusion Blacklist
     ttk.Separator(card, orient="horizontal").pack(fill="x", pady=6)
-    ttk.Label(
+    tk.Label(
         card,
         text=t(
             "settings.zwnj_blacklist_label",
             "Auto-ZWNJ & Orthography Exception List (never auto-modified):",
         ),
+        bg=palette.bg_surface,
+        fg=palette.fg,
+        anchor=align,
+        font=get_ui_font(9, rtl=rtl),
     ).pack(anchor=align, pady=(0, 4))
 
     win._managed_zwnj_blacklist = list(getattr(win.cfg, "zwnj_orthography_blacklist", []))
@@ -198,7 +232,7 @@ def build_learning_and_exceptions_card(
     _refresh_blacklist_box()
 
     win._zwnj_bl_entry_var = tk.StringVar(value="")
-    bl_ctrl = ttk.Frame(card)
+    bl_ctrl = tk.Frame(card, bg=palette.bg_surface)
     bl_ctrl.pack(fill="x")
     ttk.Entry(bl_ctrl, textvariable=win._zwnj_bl_entry_var, width=24).pack(side=side, padx=(0, 6))
 
@@ -219,12 +253,24 @@ def build_learning_and_exceptions_card(
             del win._managed_zwnj_blacklist[idx]
             _refresh_blacklist_box()
 
-    ttk.Button(bl_ctrl, text=t("settings.btn_add_exception", "+ Add Exception"), command=_add_bl).pack(
-        side=side, padx=3
-    )
-    ttk.Button(bl_ctrl, text=t("settings.btn_remove_exception", "✓ Remove Selected"), command=_remove_bl).pack(
-        side=side, padx=3
-    )
+    FluentPillButton(
+        bl_ctrl,
+        text=t("settings.btn_add_exception", "+ Add Exception"),
+        icon="check",
+        variant="secondary",
+        palette=palette,
+        height=28,
+        command=_add_bl,
+    ).pack(side=side, padx=3)
+    FluentPillButton(
+        bl_ctrl,
+        text=t("settings.btn_remove_exception", "Remove Selected"),
+        icon="close",
+        variant="secondary",
+        palette=palette,
+        height=28,
+        command=_remove_bl,
+    ).pack(side=side, padx=3)
 
     if getattr(win, "learning_engine", None) is not None:
         _refresh_learned()

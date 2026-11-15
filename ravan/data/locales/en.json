@@ -224,10 +224,10 @@
     "prof_flag_autofix": "Auto-Fix Layout",
     "prof_flag_toolbar": "Selection Toolbar",
     "prof_exe_required": "Enter an executable name (e.g. code.exe).",
-    "prof_btn_apply": "? Save / Update Rule",
-    "prof_btn_remove": "??? Remove Rule",
+    "prof_btn_apply": "Save / Update Rule",
+    "prof_btn_remove": "Remove Rule",
     "enable_orthography_guard": "Real-time Persian Orthography Guard",
-    "enable_orthography_guard_example": "Example: Fixes '????????' ? '??????????', '????' ? '?????', '?????' ? '???????'",
+    "enable_orthography_guard_example": "Example: Fixes 'انشاالله' → 'ان‌شاءالله', 'حتما' → 'حتماً', 'گفتگو' → 'گفت‌وگو'",
     "orthography_mode_label": "Orthography Guard strictness:",
     "enable_quick_undo_chip": "Show Quick-Undo chip with auto-exception learn",
     "enable_quick_undo_chip_example": "Example: Revert auto-ZWNJ/orthography in 1 click and never re-fix that word",
@@ -239,13 +239,14 @@
     "learn_count": "{total} words learned",
     "import_corpus_title": "Select Personal Text Corpus (.txt)",
     "import_corpus_done": "Imported {unique} unique words ({total} tokens, {trans} phrases).",
-    "learn_btn_refresh": "?? Refresh",
-    "learn_btn_forget": "??? Forget Selected",
-    "learn_btn_ignore": "?? Block Word",
-    "learn_btn_import": "?? Import Text Corpus (.txt)",
+    "learn_btn_refresh": "Refresh",
+    "learn_btn_forget": "Forget Selected",
+    "learn_btn_ignore": "Block Word",
+    "learn_btn_import": "Import Text Corpus (.txt)",
     "zwnj_blacklist_label": "Auto-ZWNJ & Orthography Exception List (never auto-modified):",
     "btn_add_exception": "+ Add Exception",
-    "btn_remove_exception": "? Remove Selected"
+    "btn_remove_exception": "Remove Selected",
+    "tab_autofix": "Auto-Fix"
   },
   "stats": {
     "header": "📊 Text Statistics",
@@ -490,12 +491,12 @@
     "import_success": "Successfully imported {count} snippets from package '{name}'."
   },
   "undo_chip": {
-    "btn_undo": "? Undo"
+    "btn_undo": "Undo"
   },
   "sel_tb": {
-    "convert": "?? Layout",
-    "normalize": "? Polish",
-    "digits": "??/12",
-    "ai": "?? AI"
+    "convert": "Layout",
+    "normalize": "Polish",
+    "digits": "۱۲/12",
+    "ai": "AI"
   }
 }

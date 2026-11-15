@@ -16,6 +16,7 @@ from ravan.core.profiles import (
     sanitize_app_profiles,
 )
 from ravan.ui.settings_builder import _get_win_palette, _make_card, _make_section_banner
+from ravan.ui.widgets import FluentPillButton, FluentToggleSwitch
 
 _TRISTATE_VALUES = ("inherit", "on", "off")
 
@@ -49,7 +50,6 @@ def build_profiles_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     """Build the Per-App Smart Profiles configuration tab."""
     rtl = is_rtl()
     palette = _get_win_palette(win)
-    align = "e" if rtl else "w"
     side = "right" if rtl else "left"
     frm.columnconfigure(0, weight=1)
 
@@ -60,7 +60,7 @@ def build_profiles_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     )
     banner = _make_section_banner(
         frm,
-        "🎯",
+        "sliders",
         t("settings.tab_profiles", "App Profiles"),
         sub,
         palette,
@@ -70,22 +70,24 @@ def build_profiles_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
 
     win._managed_app_profiles = sanitize_app_profiles(getattr(win.cfg, "app_profiles", {}))
 
-    master_card = _make_card(frm, t("settings.profiles_master_title", "Profile Engine"), padding=10)
+    master_card = _make_card(frm, t("settings.profiles_master_title", "Profile Engine"), padding=10, palette=palette, rtl=rtl, icon="sliders")
     master_card.pack(fill="x", pady=(0, 8))
     win._app_profiles_enabled_var = tk.BooleanVar(
         value=bool(getattr(win.cfg, "app_profiles_enabled", True))
     )
-    ttk.Checkbutton(
+    FluentToggleSwitch(
         master_card,
         text=t(
             "settings.profiles_enable",
             "Enable Per-App Smart Profiles (includes automatic IDE/terminal safety defaults)",
         ),
         variable=win._app_profiles_enabled_var,
-    ).pack(anchor=align)
+        palette=palette,
+        rtl=rtl,
+    ).pack(fill="x")
 
     # Configured rules table
-    list_card = _make_card(frm, t("settings.profiles_list_title", "Configured App Rules"), padding=10)
+    list_card = _make_card(frm, t("settings.profiles_list_title", "Configured App Rules"), padding=10, palette=palette, rtl=rtl, icon="code")
     list_card.pack(fill="both", expand=True, pady=(0, 8))
 
     cols = ("exe", "preset", "zwnj", "ortho", "punct", "pred", "toolbar", "layout")
@@ -108,7 +110,7 @@ def build_profiles_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     win._profiles_tree = tree
 
     # Editor card
-    edit_card = _make_card(frm, t("settings.profiles_editor_title", "Add / Edit App Profile"), padding=10)
+    edit_card = _make_card(frm, t("settings.profiles_editor_title", "Add / Edit App Profile"), padding=10, palette=palette, rtl=rtl, icon="settings")
     edit_card.pack(fill="x", pady=(0, 8))
 
     win._profile_exe_var = tk.StringVar(value="")
@@ -118,11 +120,11 @@ def build_profiles_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
         fname: tk.StringVar(value="inherit") for fname in PROFILE_BOOL_FIELDS
     }
 
-    row1 = ttk.Frame(edit_card)
+    row1 = tk.Frame(edit_card, bg=palette.bg_surface)
     row1.pack(fill="x", pady=(0, 6))
-    ttk.Label(row1, text=t("settings.prof_exe_label", "Executable:")).pack(side=side, padx=(0, 6))
+    ttk.Label(row1, text=t("settings.prof_exe_label", "Executable:"), style="Card.TLabel").pack(side=side, padx=(0, 6))
     ttk.Entry(row1, textvariable=win._profile_exe_var, width=22).pack(side=side, padx=(0, 10))
-    ttk.Label(row1, text=t("settings.prof_preset_label", "Preset:")).pack(side=side, padx=(0, 6))
+    ttk.Label(row1, text=t("settings.prof_preset_label", "Preset:"), style="Card.TLabel").pack(side=side, padx=(0, 6))
     preset_cb = ttk.Combobox(
         row1,
         textvariable=win._profile_preset_var,
@@ -132,7 +134,7 @@ def build_profiles_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     )
     preset_cb.pack(side=side, padx=(0, 10))
 
-    ttk.Label(row1, text=t("settings.prof_layout_label", "Auto Layout:")).pack(side=side, padx=(0, 6))
+    ttk.Label(row1, text=t("settings.prof_layout_label", "Auto Layout:"), style="Card.TLabel").pack(side=side, padx=(0, 6))
     ttk.Combobox(
         row1,
         textvariable=win._profile_layout_var,
@@ -152,7 +154,7 @@ def build_profiles_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
 
     preset_cb.bind("<<ComboboxSelected>>", _apply_preset_to_editor)
 
-    grid_frm = ttk.Frame(edit_card)
+    grid_frm = tk.Frame(edit_card, bg=palette.bg_surface)
     grid_frm.pack(fill="x", pady=(2, 6))
     labels_map = {
         "auto_zwnj": t("settings.prof_flag_zwnj", "Auto-ZWNJ"),
@@ -164,10 +166,10 @@ def build_profiles_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     }
     for idx, fname in enumerate(PROFILE_BOOL_FIELDS):
         r, c = divmod(idx, 3)
-        cell = ttk.Frame(grid_frm)
+        cell = tk.Frame(grid_frm, bg=palette.bg_surface)
         cell.grid(row=r, column=c, sticky="ew", padx=6, pady=3)
         grid_frm.columnconfigure(c, weight=1)
-        ttk.Label(cell, text=labels_map[fname], width=17).pack(side="left")
+        ttk.Label(cell, text=labels_map[fname], width=17, style="Card.TLabel").pack(side="left")
         ttk.Combobox(
             cell,
             textvariable=win._profile_bool_vars[fname],
@@ -251,31 +253,63 @@ def build_profiles_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
         win._profile_preset_var.set(preset_name)
         _apply_preset_to_editor()
 
-    btn_bar = ttk.Frame(edit_card)
+    btn_bar = tk.Frame(edit_card, bg=palette.bg_surface)
     btn_bar.pack(fill="x", pady=(4, 0))
-    ttk.Button(btn_bar, text=t("settings.prof_btn_apply", "✓ Save / Update Rule"), command=_add_or_update).pack(
-        side=side, padx=3
-    )
-    ttk.Button(btn_bar, text=t("settings.prof_btn_remove", "🗑️ Remove Rule"), command=_remove_selected).pack(
-        side=side, padx=3
-    )
-    ttk.Button(btn_bar, text="VS Code (code)", command=lambda: _fill_quick("code.exe", "code")).pack(
-        side=side, padx=3
-    )
-    ttk.Button(btn_bar, text="Telegram (chat)", command=lambda: _fill_quick("telegram.exe", "chat")).pack(
-        side=side, padx=3
-    )
-    ttk.Button(btn_bar, text="Word (formal)", command=lambda: _fill_quick("winword.exe", "formal")).pack(
-        side=side, padx=3
-    )
+    FluentPillButton(
+        btn_bar,
+        text=t("settings.prof_btn_apply", "Save / Update Rule"),
+        icon="check",
+        variant="primary",
+        palette=palette,
+        rtl=rtl,
+        command=_add_or_update,
+    ).pack(side=side, padx=3)
+    FluentPillButton(
+        btn_bar,
+        text=t("settings.prof_btn_remove", "Remove Rule"),
+        icon="close",
+        variant="danger",
+        palette=palette,
+        rtl=rtl,
+        command=_remove_selected,
+    ).pack(side=side, padx=3)
+    FluentPillButton(
+        btn_bar,
+        text="VS Code (code)",
+        variant="secondary",
+        palette=palette,
+        height=26,
+        command=lambda: _fill_quick("code.exe", "code"),
+    ).pack(side=side, padx=3)
+    FluentPillButton(
+        btn_bar,
+        text="Telegram (chat)",
+        variant="secondary",
+        palette=palette,
+        height=26,
+        command=lambda: _fill_quick("telegram.exe", "chat"),
+    ).pack(side=side, padx=3)
+    FluentPillButton(
+        btn_bar,
+        text="Word (formal)",
+        variant="secondary",
+        palette=palette,
+        height=26,
+        command=lambda: _fill_quick("winword.exe", "formal"),
+    ).pack(side=side, padx=3)
 
     _refresh_tree()
 
-    bottom = ttk.Frame(frm)
+    bottom = tk.Frame(frm, bg=palette.bg_base)
     bottom.pack(fill="x", pady=(4, 4))
-    ttk.Button(
+    FluentPillButton(
         bottom,
-        text=t("settings.reset_tab_btn", "↺ Reset tab defaults"),
+        text=t("settings.reset_tab_btn", "Reset tab defaults"),
+        icon="reset",
+        variant="secondary",
+        palette=palette,
+        rtl=rtl,
+        parent_bg=palette.bg_base,
         command=lambda: win._reset_tab_defaults("profiles"),
     ).pack(side=side)
     return start_row + 1

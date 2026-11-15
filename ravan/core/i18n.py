@@ -114,29 +114,32 @@ def unregister_locale_listener(callback: Callable[[str], None]) -> None:
         _change_listeners.remove(callback)
 
 
+def _resolve_parts(node: Any, parts: list[str]) -> Any:
+    """Resolve dot-separated path, falling back to flat dotted keys at each dict level."""
+    if not parts:
+        return node
+    if not isinstance(node, dict):
+        return None
+    head = parts[0]
+    if head in node:
+        res = _resolve_parts(node[head], parts[1:])
+        if res is not None:
+            return res
+    joined = ".".join(parts)
+    if joined in node:
+        return node[joined]
+    return None
+
+
 def t(key: str, default: str | None = None, **kwargs: Any) -> str:
     """Translate dot-separated key (e.g. 'settings.tab_general') with optional kwargs."""
     current_data = load_locale(_current_locale)
     fallback_data = load_locale("en")
 
     parts = key.split(".")
-    val: Any = current_data
-    for p in parts:
-        if isinstance(val, dict) and p in val:
-            val = val[p]
-        else:
-            val = None
-            break
-
+    val: Any = _resolve_parts(current_data, parts)
     if val is None:
-        # Fallback to English
-        val = fallback_data
-        for p in parts:
-            if isinstance(val, dict) and p in val:
-                val = val[p]
-            else:
-                val = None
-                break
+        val = _resolve_parts(fallback_data, parts)
 
     if val is None or not isinstance(val, str):
         val = default if default is not None else key

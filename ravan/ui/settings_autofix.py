@@ -8,7 +8,8 @@ from typing import Any
 
 from ravan.core.config import hotkey_to_text
 from ravan.core.i18n import is_rtl, t
-from ravan.ui.settings_builder import _get_win_palette, _make_section_banner
+from ravan.ui.settings_builder import _get_win_palette, _make_card, _make_section_banner
+from ravan.ui.widgets import FluentPillButton, FluentToggleSwitch
 
 
 def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict[str, int]) -> int:
@@ -24,7 +25,7 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     )
     banner = _make_section_banner(
         parent,
-        "⚡",
+        "bolt",
         t("settings.tab_autofix", "Auto-Fix"),
         sub,
         palette,
@@ -33,10 +34,13 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     banner.pack(fill="x", pady=(0, 8))
 
     # 1. Mode selector
-    mode_frame = ttk.LabelFrame(
+    mode_frame = _make_card(
         parent,
-        text=f"  {t('settings.autofix_mode_title', 'Automatic Layout Correction Mode')}  ",
+        t("settings.autofix_mode_title", "Automatic Layout Correction Mode"),
         padding=12,
+        palette=palette,
+        rtl=rtl,
+        icon="bolt",
     )
     mode_frame.pack(fill="x", pady=(0, 8))
 
@@ -44,14 +48,21 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     win._autofix_master_var = tk.BooleanVar(value=initial_af_mode != "off")
     win._autofix_mode_var = tk.StringVar(value=initial_af_mode)
 
-    master_cb = ttk.Checkbutton(
+    ex_autofix = t(
+        "settings.autofix_example",
+        "Example: Typing 'sghl ' in English layout auto-converts to 'سلام '",
+    )
+    master_sw = FluentToggleSwitch(
         mode_frame,
         text=t("settings.autofix_master_enable", "Enable automatic wrong-layout correction (sghl → سلام)"),
+        subtitle=f"↳ {ex_autofix}",
         variable=win._autofix_master_var,
+        palette=palette,
+        rtl=rtl,
     )
-    master_cb.pack(anchor="w" if not rtl else "e", pady=(0, 6))
+    master_sw.pack(fill="x", pady=(0, 6))
 
-    rb_container = ttk.Frame(mode_frame)
+    rb_container = tk.Frame(mode_frame, bg=palette.bg_surface)
     rb_container.pack(fill="x", padx=(18, 0) if not rtl else (0, 18))
 
     modes = [
@@ -65,6 +76,7 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
             text=lbl,
             value=val,
             variable=win._autofix_mode_var,
+            style="Card.TRadiobutton",
         )
         rb.pack(anchor="w" if not rtl else "e", pady=2)
 
@@ -98,39 +110,29 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     win._autofix_master_var.trace_add("write", _sync_af_from_master)
     win._autofix_mode_var.trace_add("write", _sync_af_from_mode)
 
-    from ravan.ui.tooltip import ToolTip
-
-    ex_autofix = t(
-        "settings.autofix_example",
-        "Example: Typing 'sghl ' in English layout auto-converts to 'سلام '",
-    )
-    ex_lbl = ttk.Label(
-        mode_frame,
-        text=f"↳ {ex_autofix}",
-        style="Sub.TLabel",
-    )
-    ex_lbl.pack(anchor="w" if not rtl else "e", padx=10, pady=(4, 2))
-    ToolTip(ex_lbl, ex_autofix)
-
     # 2. Auto layout switch
-    layout_frame = ttk.LabelFrame(
+    layout_frame = _make_card(
         parent,
-        text=f"  {t('settings.auto_layout_title', 'Windows Keyboard Layout Switching')}  ",
+        t("settings.auto_layout_title", "Windows Keyboard Layout Switching"),
         padding=12,
+        palette=palette,
+        rtl=rtl,
+        icon="keyboard",
     )
     layout_frame.pack(fill="x", pady=(0, 8))
 
     win._auto_layout_switch_var = tk.BooleanVar(value=bool(getattr(win.cfg, "auto_layout_switch", False)))
-    cb_layout = ttk.Checkbutton(
+    FluentToggleSwitch(
         layout_frame,
         text=t("settings.auto_layout_enable", "Switch active Windows keyboard layout when wrong layout is detected"),
         variable=win._auto_layout_switch_var,
-    )
-    cb_layout.pack(anchor="w" if not rtl else "e", pady=2)
+        palette=palette,
+        rtl=rtl,
+    ).pack(fill="x", pady=2)
 
-    sub_frame = ttk.Frame(layout_frame)
+    sub_frame = tk.Frame(layout_frame, bg=palette.bg_surface)
     sub_frame.pack(fill="x", pady=6)
-    ttk.Label(sub_frame, text=t("settings.auto_layout_mode_label", "Action:")).pack(
+    ttk.Label(sub_frame, text=t("settings.auto_layout_mode_label", "Action:"), style="Card.TLabel").pack(
         side=side, padx=(0, 6) if not rtl else (6, 0)
     )
 
@@ -145,10 +147,13 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     mode_combo.pack(side=side)
 
     # 3. Global Undo Hotkey
-    undo_frame = ttk.LabelFrame(
+    undo_frame = _make_card(
         parent,
-        text=f"  {t('settings.global_undo_title', 'Global Undo Hotkey')}  ",
+        t("settings.global_undo_title", "Global Undo Hotkey"),
         padding=12,
+        palette=palette,
+        rtl=rtl,
+        icon="reset",
     )
     undo_frame.pack(fill="x", pady=(0, 8))
 
@@ -156,18 +161,21 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     win._global_undo_var = tk.StringVar(
         value=hotkey_to_text(default_undo) if default_undo else "Ctrl+Shift+Pause"
     )
-    u_row = ttk.Frame(undo_frame)
+    u_row = tk.Frame(undo_frame, bg=palette.bg_surface)
     u_row.pack(fill="x")
-    ttk.Label(u_row, text=t("settings.undo_shortcut_label", "Undo correction (up to 50 steps):")).pack(
+    ttk.Label(u_row, text=t("settings.undo_shortcut_label", "Undo correction (up to 50 steps):"), style="Card.TLabel").pack(
         side=side, padx=(0, 6) if not rtl else (6, 0)
     )
     ttk.Entry(u_row, textvariable=win._global_undo_var, width=22, justify="center").pack(side=side)
 
     # 4. Recent Corrections & Blacklist
-    corr_frame = ttk.LabelFrame(
+    corr_frame = _make_card(
         parent,
-        text=f"  {t('settings.recent_corrections_title', 'Recent Corrections & Blacklist')}  ",
+        t("settings.recent_corrections_title", "Recent Corrections & Blacklist"),
         padding=12,
+        palette=palette,
+        rtl=rtl,
+        icon="shield",
     )
     corr_frame.pack(fill="both", expand=True, pady=(0, 8))
 
@@ -187,7 +195,7 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
     for orig, fixed in blacklist_set:
         tree.insert("", "end", values=(orig, fixed, t("settings.blacklisted", "Blacklisted")))
 
-    btn_row = ttk.Frame(corr_frame)
+    btn_row = tk.Frame(corr_frame, bg=palette.bg_surface)
     btn_row.pack(fill="x")
 
     def _blacklist_selected() -> None:
@@ -215,23 +223,36 @@ def build_autofix_section(win: Any, parent: ttk.Frame, start_row: int, pad: dict
             win._managed_blacklist = [p for p in win._managed_blacklist if [p[0].lower(), p[1].lower()] != [orig, fixed]]
             tree.delete(sel[0])
 
-    ttk.Button(
+    FluentPillButton(
         btn_row,
-        text=t("settings.btn_blacklist", "⛔ Blacklist Selected Pair"),
+        text=t("settings.btn_blacklist", "Blacklist Selected Pair"),
+        icon="shield",
+        variant="secondary",
+        palette=palette,
+        rtl=rtl,
         command=_blacklist_selected,
     ).pack(side=side, padx=(0, 6) if not rtl else (6, 0))
 
-    ttk.Button(
+    FluentPillButton(
         btn_row,
-        text=t("settings.btn_remove_blacklist", "✓ Remove from Blacklist"),
+        text=t("settings.btn_remove_blacklist", "Remove from Blacklist"),
+        icon="check",
+        variant="secondary",
+        palette=palette,
+        rtl=rtl,
         command=_remove_selected,
     ).pack(side=side)
 
-    bottom_frame = ttk.Frame(parent)
+    bottom_frame = tk.Frame(parent, bg=palette.bg_base)
     bottom_frame.pack(fill="x", pady=(4, 4))
-    ttk.Button(
+    FluentPillButton(
         bottom_frame,
-        text=t("settings.reset_defaults", "↺ Reset Defaults"),
+        text=t("settings.reset_defaults", "Reset Defaults"),
+        icon="reset",
+        variant="secondary",
+        palette=palette,
+        rtl=rtl,
+        parent_bg=palette.bg_base,
         command=lambda: win._reset_tab_defaults("autofix"),
     ).pack(side="left" if rtl else "right")
 

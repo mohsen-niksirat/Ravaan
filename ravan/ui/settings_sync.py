@@ -11,6 +11,7 @@ from ravan.core.i18n import is_rtl, t
 from ravan.ui.settings_builder import _get_win_palette, _make_card, _make_section_banner
 from ravan.ui.settings_sync_actions import do_sync_pull, do_sync_push
 from ravan.ui.theme import get_ui_font
+from ravan.ui.widgets import FluentPillButton, FluentToggleSwitch
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
     )
     banner = _make_section_banner(
         frm,
-        "☁️",
+        "cloud",
         t("settings.sync_header", "Cloud Sync (GitHub Gist / WebDAV)"),
         sub,
         palette,
@@ -42,7 +43,7 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
     # Privacy Badge Banner
     priv_card = tk.Frame(
         frm,
-        bg=palette.card_bg,
+        bg=palette.bg_surface,
         highlightthickness=1,
         highlightbackground=palette.success,
         padx=14,
@@ -58,7 +59,7 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
             "🛡️ Privacy Guarantee: Only your custom dictionary words, snippets, and preferences are synchronized. "
             "Ravaan NEVER logs, stores, or uploads your typed text, keystrokes, clipboard contents, or passwords.",
         ),
-        bg=palette.card_bg,
+        bg=palette.bg_surface,
         fg=palette.success,
         font=get_ui_font(size=8, rtl=rtl),
         wraplength=540,
@@ -68,13 +69,13 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
 
     # ── Card 1: Provider & Credentials ──
     prov_title = "🔑 سرویس ابری و اطلاعات اتصال" if rtl else "🔑 Cloud Provider & Credentials"
-    prov_card = _make_card(frm, prov_title, padding=12)
+    prov_card = _make_card(frm, prov_title, padding=12, palette=palette, rtl=rtl, icon="key")
     prov_card.grid(row=row, column=0, columnspan=3, sticky="ew", pady=(0, 8))
     prov_card.columnconfigure(1, weight=1)
     row += 1
 
     p_row = 0
-    ttk.Label(prov_card, text=t("settings.sync_backend", "Sync Backend:")).grid(
+    ttk.Label(prov_card, text=t("settings.sync_backend", "Sync Backend:"), style="Card.TLabel").grid(
         row=p_row, column=0, sticky=align, **pad
     )
     current_backend = getattr(win.cfg, "sync_backend", "gist").lower()
@@ -97,13 +98,13 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
     backend_box.grid(row=p_row, column=1, columnspan=2, sticky="w", **pad)
     p_row += 1
 
-    container = ttk.Frame(prov_card)
+    container = tk.Frame(prov_card, bg=palette.bg_surface)
     container.grid(row=p_row, column=0, columnspan=3, sticky="we", pady=(4, 4))
     p_row += 1
 
     # Frame 1: Gist
-    gist_frm = ttk.Frame(container)
-    ttk.Label(gist_frm, text=t("settings.sync_pat_label", "Gist Token:")).grid(
+    gist_frm = tk.Frame(container, bg=palette.bg_surface)
+    ttk.Label(gist_frm, text=t("settings.sync_pat_label", "Gist Token:"), style="Card.TLabel").grid(
         row=0, column=0, sticky=align, **pad
     )
     win._gist_token_var = tk.StringVar(value=getattr(win.cfg, "gist_token", ""))
@@ -113,14 +114,18 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
     def toggle_show_token() -> None:
         token_entry.config(show="" if token_entry.cget("show") == "*" else "*")
 
-    ttk.Button(
+    FluentPillButton(
         gist_frm,
         text=t("settings.show_hide", "Show/Hide"),
+        icon="eye",
+        variant="secondary",
+        palette=palette,
+        rtl=rtl,
+        height=26,
         command=toggle_show_token,
-        width=9,
     ).grid(row=0, column=2, sticky="w", **pad)
 
-    ttk.Label(gist_frm, text=t("settings.sync_gist_id", "Gist ID:")).grid(
+    ttk.Label(gist_frm, text=t("settings.sync_gist_id", "Gist ID:"), style="Card.TLabel").grid(
         row=1, column=0, sticky=align, **pad
     )
     win._gist_id_var = tk.StringVar(value=getattr(win.cfg, "gist_id", ""))
@@ -128,12 +133,12 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
         row=1, column=1, sticky="w", **pad
     )
     ttk.Label(
-        gist_frm, text=t("settings.gist_url_hint", "Found in gist URL"), style="Sub.TLabel"
+        gist_frm, text=t("settings.gist_url_hint", "Found in gist URL"), style="CardSub.TLabel"
     ).grid(row=1, column=2, sticky="w", **pad)
 
     # Frame 2: WebDAV
-    webdav_frm = ttk.Frame(container)
-    ttk.Label(webdav_frm, text=t("settings.sync_webdav_url", "WebDAV URL:")).grid(
+    webdav_frm = tk.Frame(container, bg=palette.bg_surface)
+    ttk.Label(webdav_frm, text=t("settings.sync_webdav_url", "WebDAV URL:"), style="Card.TLabel").grid(
         row=0, column=0, sticky=align, **pad
     )
     win._webdav_url_var = tk.StringVar(value=getattr(win.cfg, "webdav_url", ""))
@@ -141,7 +146,7 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
         row=0, column=1, columnspan=2, sticky="w", **pad
     )
 
-    ttk.Label(webdav_frm, text=t("settings.sync_webdav_username", "Username:")).grid(
+    ttk.Label(webdav_frm, text=t("settings.sync_webdav_username", "Username:"), style="Card.TLabel").grid(
         row=1, column=0, sticky=align, **pad
     )
     win._webdav_username_var = tk.StringVar(value=getattr(win.cfg, "webdav_username", ""))
@@ -149,7 +154,7 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
         row=1, column=1, sticky="w", **pad
     )
 
-    ttk.Label(webdav_frm, text=t("settings.sync_webdav_password", "Password:")).grid(
+    ttk.Label(webdav_frm, text=t("settings.sync_webdav_password", "Password:"), style="Card.TLabel").grid(
         row=2, column=0, sticky=align, **pad
     )
     win._webdav_password_var = tk.StringVar(value=getattr(win.cfg, "webdav_password", ""))
@@ -161,11 +166,15 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
     def toggle_show_pass() -> None:
         pass_entry.config(show="" if pass_entry.cget("show") == "*" else "*")
 
-    ttk.Button(
+    FluentPillButton(
         webdav_frm,
         text=t("settings.show_hide", "Show/Hide"),
+        icon="eye",
+        variant="secondary",
+        palette=palette,
+        rtl=rtl,
+        height=26,
         command=toggle_show_pass,
-        width=9,
     ).grid(row=2, column=2, sticky="w", **pad)
 
     def on_backend_selected(_event: object = None) -> None:
@@ -182,31 +191,35 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
 
     # ── Card 2: Schedule & Actions ──
     sched_title = "🔄 زمان‌بندی و عملیات همگام‌سازی" if rtl else "🔄 Sync Schedule & Manual Actions"
-    sched_card = _make_card(frm, sched_title, padding=12)
+    sched_card = _make_card(frm, sched_title, padding=12, palette=palette, rtl=rtl, icon="replace")
     sched_card.grid(row=row, column=0, columnspan=3, sticky="ew", pady=(0, 8))
     sched_card.columnconfigure(1, weight=1)
     row += 1
 
     sc_row = 0
     win._cloud_sync_var = tk.BooleanVar(value=getattr(win.cfg, "cloud_sync_enabled", False))
-    ttk.Checkbutton(
+    FluentToggleSwitch(
         sched_card,
         text=t("settings.sync_auto", "Enable automatic background sync"),
         variable=win._cloud_sync_var,
-    ).grid(row=sc_row, column=0, columnspan=2, sticky=align, **pad)
+        palette=palette,
+        rtl=rtl,
+    ).grid(row=sc_row, column=0, columnspan=2, sticky="ew", padx=10, pady=3)
     sc_row += 1
 
     win._sync_learning_var = tk.BooleanVar(
         value=getattr(win.cfg, "sync_learning_profile", False)
     )
-    ttk.Checkbutton(
+    FluentToggleSwitch(
         sched_card,
         text=t("settings.sync_learning", "Include learned typing profile in cloud sync"),
         variable=win._sync_learning_var,
-    ).grid(row=sc_row, column=0, columnspan=2, sticky=align, **pad)
+        palette=palette,
+        rtl=rtl,
+    ).grid(row=sc_row, column=0, columnspan=2, sticky="ew", padx=10, pady=3)
     sc_row += 1
 
-    ttk.Label(sched_card, text=t("settings.sync_interval_label", "Sync Interval:")).grid(
+    ttk.Label(sched_card, text=t("settings.sync_interval_label", "Sync Interval:"), style="Card.TLabel").grid(
         row=sc_row, column=0, sticky=align, **pad
     )
     cur_interval = getattr(win.cfg, "sync_interval_min", 0)
@@ -246,17 +259,24 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
     int_box.bind("<<ComboboxSelected>>", on_interval_selected)
     sc_row += 1
 
-    sync_btn_bar = ttk.Frame(sched_card)
+    sync_btn_bar = tk.Frame(sched_card, bg=palette.bg_surface)
     sync_btn_bar.grid(row=sc_row, column=0, columnspan=3, sticky=align, padx=10, pady=(8, 4))
-    ttk.Button(
+    FluentPillButton(
         sync_btn_bar,
-        text=t("settings.sync_push_btn", "⬆ Push to Cloud"),
-        style="Accent.TButton",
+        text=t("settings.sync_push_btn", "Push to Cloud"),
+        icon="cloud",
+        variant="primary",
+        palette=palette,
+        rtl=rtl,
         command=win._sync_push,
     ).pack(side=pack_side, padx=(6, 0) if rtl else (0, 6))
-    ttk.Button(
+    FluentPillButton(
         sync_btn_bar,
-        text=t("settings.sync_pull_btn", "⬇ Pull from Cloud"),
+        text=t("settings.sync_pull_btn", "Pull from Cloud"),
+        icon="replace",
+        variant="secondary",
+        palette=palette,
+        rtl=rtl,
         command=win._sync_pull,
     ).pack(side=pack_side, padx=6)
     sc_row += 1
@@ -265,20 +285,25 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
     win._last_sync_label_var = tk.StringVar(
         value=t("settings.sync_last", "Last sync: {time}", time=last_time)
     )
-    ttk.Label(sched_card, textvariable=win._last_sync_label_var, style="Sub.TLabel").grid(
+    ttk.Label(sched_card, textvariable=win._last_sync_label_var, style="CardSub.TLabel").grid(
         row=sc_row, column=0, columnspan=3, sticky=align, **pad
     )
     sc_row += 1
 
     win._sync_status_var = tk.StringVar(value="")
-    ttk.Label(sched_card, textvariable=win._sync_status_var, font=get_ui_font(size=9, bold=True, rtl=rtl)).grid(
+    ttk.Label(sched_card, textvariable=win._sync_status_var, style="Card.TLabel", font=get_ui_font(size=9, bold=True, rtl=rtl)).grid(
         row=sc_row, column=0, columnspan=3, sticky=align, **pad
     )
     sc_row += 1
 
-    ttk.Button(
+    FluentPillButton(
         frm,
-        text=t("settings.reset_tab_btn", "↺ Reset tab defaults"),
+        text=t("settings.reset_tab_btn", "Reset tab defaults"),
+        icon="reset",
+        variant="secondary",
+        palette=palette,
+        rtl=rtl,
+        parent_bg=palette.bg_base,
         command=lambda: win._reset_tab_defaults("sync"),
     ).grid(row=row, column=0, sticky=align, pady=(4, 4))
     row += 1
