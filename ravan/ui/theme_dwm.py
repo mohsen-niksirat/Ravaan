@@ -265,10 +265,16 @@ def create_managed_toplevel(parent: tk.Misc | None = None) -> tuple[tk.Toplevel,
 
 
 def destroy_managed_toplevel(toplevel: tk.Misc | None, owned_root: tk.Tk | None) -> None:
-    """Flush pending idle callbacks and destroy a managed Toplevel plus any owned hidden root."""
+    """Flush pending idle callbacks, clear cached icon handles, and destroy managed windows."""
     for win in (toplevel, owned_root):
         if win is None:
             continue
+        try:
+            from ravan.ui.widgets.icons import clear_icon_cache
+
+            clear_icon_cache(win)
+        except Exception:
+            pass
         try:
             win.update_idletasks()
         except (tk.TclError, RuntimeError):

@@ -24,4 +24,11 @@ def _cleanup_tk_objects_after_module() -> Iterator[None]:
     """
     yield
     if "tkinter" in sys.modules:
+        if "ravan.ui.widgets.icons" in sys.modules:
+            import tkinter as tk
+
+            if getattr(tk, "_default_root", None) is None:
+                from ravan.ui.widgets.icons import clear_icon_cache
+
+                clear_icon_cache()
         gc.collect()

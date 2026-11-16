@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import tkinter as tk
+import weakref
 from functools import lru_cache
 
 from PIL import Image, ImageDraw, ImageTk
@@ -348,16 +349,51 @@ def render_icon_image(
     return img.resize((target_px, target_px), Image.Resampling.LANCZOS)
 
 
-# Cache PhotoImages keyed by (root_id, canonical_name, size, color, dpi_rounded)
 _PHOTO_CACHE: dict[tuple[int, str, int, str, float], ImageTk.PhotoImage] = {}
+_HOOKED_ROOTS: dict[int, weakref.ref[tk.Misc]] = {}
+
+
+def _interp_key(master: tk.Misc) -> int:
+    return int(master.tk.interpaddr()) if hasattr(master, "tk") else id(master)
+
+
+def clear_icon_cache(master: tk.Misc | None = None, *, tk_key: int | None = None) -> None:
+    """Evict cached PhotoImages for a destroyed Tk interpreter, or clear all entries."""
+    if tk_key is None and master is not None:
+        try:
+            tk_key = _interp_key(master)
+        except Exception:
+            tk_key = id(master)
+    if tk_key is None:
+        _PHOTO_CACHE.clear()
+        _HOOKED_ROOTS.clear()
+        return
+    for key in [k for k in _PHOTO_CACHE if k[0] == tk_key]:
+        _PHOTO_CACHE.pop(key, None)
+    _HOOKED_ROOTS.pop(tk_key, None)
+
+
+def _bind_root_eviction(root: tk.Misc, tk_key: int) -> None:
+    if tk_key in _HOOKED_ROOTS:
+        return
+    try:
+        owner = root._root() if hasattr(root, "_root") else root.winfo_toplevel()  # type: ignore[attr-defined]
+    except Exception:
+        owner = root
+    try:
+        ref = weakref.ref(owner, lambda _r, k=tk_key: clear_icon_cache(tk_key=k))
+        _HOOKED_ROOTS[tk_key] = ref
+        owner.bind(
+            "<Destroy>",
+            lambda ev, r=ref, k=tk_key: clear_icon_cache(tk_key=k) if getattr(ev, "widget", None) is r() else None,
+            add="+",
+        )
+    except Exception:
+        pass
 
 
 def get_icon(
-    name: str,
-    size: int = 16,
-    color: str = "#8ab4f8",
-    dpi: float = 1.0,
-    master: tk.Misc | None = None,
+    name: str, size: int = 16, color: str = "#8ab4f8", dpi: float = 1.0, master: tk.Misc | None = None,
 ) -> ImageTk.PhotoImage | None:
     """Return a cached `ImageTk.PhotoImage` for the requested vector icon."""
     root = master or getattr(tk, "_default_root", None)
@@ -366,21 +402,17 @@ def get_icon(
     try:
         if not root.winfo_exists():
             return None
-        tk_key = int(root.tk.interpaddr()) if hasattr(root, "tk") else id(root)
+        tk_key = _interp_key(root)
     except Exception:
         return None
-
-    canon = resolve_icon_name(name)
+    _bind_root_eviction(root, tk_key)
     dpi_r = round(max(1.0, float(dpi)), 2)
-    cache_key = (tk_key, canon, int(size), color.lower(), dpi_r)
-    cached = _PHOTO_CACHE.get(cache_key)
-    if cached is not None:
+    cache_key = (tk_key, resolve_icon_name(name), int(size), color.lower(), dpi_r)
+    if (cached := _PHOTO_CACHE.get(cache_key)) is not None:
         return cached
-
     try:
-        pil_img = render_icon_image(canon, size=size, color=color, dpi=dpi_r)
-        photo = ImageTk.PhotoImage(pil_img, master=root)
-        if len(_PHOTO_CACHE) > 512:
+        photo = ImageTk.PhotoImage(render_icon_image(cache_key[1], size=size, color=color, dpi=dpi_r), master=root)
+        if len(_PHOTO_CACHE) > 256:
             _PHOTO_CACHE.clear()
         _PHOTO_CACHE[cache_key] = photo
         return photo

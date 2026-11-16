@@ -123,6 +123,7 @@ def test_fluent_widgets_interactive_lifecycle() -> None:
     except tk.TclError as exc:
         pytest.skip(f"Tkinter display unavailable: {exc}")
 
+    ic_key = int(top.tk.interpaddr())
     try:
         pal = get_active_palette("dark")
         ic = get_icon("sparkle", size=16, color=pal.accent, master=top)
@@ -231,6 +232,9 @@ def test_fluent_widgets_interactive_lifecycle() -> None:
         assert entry._showing_placeholder is True
     finally:
         destroy_managed_toplevel(top, owned_root)
+        from ravan.ui.widgets.icons import _PHOTO_CACHE
+
+        assert all(k[0] != ic_key for k in _PHOTO_CACHE)
 
 
 def test_phase1_modules_respect_line_ceiling() -> None:
