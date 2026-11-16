@@ -94,6 +94,7 @@ def apply_popup_window_attributes(
     acrylic: bool = False,
     border_color: str | None = None,
     corner_radius: float = 8.0,
+    activate: bool = False,
 ) -> dict[str, bool]:
     """Apply unified frameless, topmost, opacity, and DWM rounded corners to a popup window."""
     result = {"acrylic": False}
@@ -115,12 +116,16 @@ def apply_popup_window_attributes(
         if not root_hwnd:
             return result
 
-        # WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST
+        # WS_EX_TOOLWINDOW | WS_EX_TOPMOST (plus WS_EX_NOACTIVATE unless interactive activate=True)
+        ex_flags = 0x00000088 if activate else 0x08000088
         style = wapi.user32.GetWindowLongW(root_hwnd, -20)
-        wapi.user32.SetWindowLongW(root_hwnd, -20, style | 0x08000088)
+        wapi.user32.SetWindowLongW(root_hwnd, -20, style | ex_flags)
         wapi.user32.SetWindowPos(root_hwnd, -1, 0, 0, 0, 0, 0x0037)
         if show:
-            wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
+            if activate:
+                win.deiconify()
+            else:
+                wapi.user32.ShowWindow(root_hwnd, wapi.SW_SHOWNOACTIVATE)
 
         if corner_radius <= 0:
             corner_val = 1

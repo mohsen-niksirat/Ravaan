@@ -116,6 +116,49 @@ def save_settings_window(win: Any) -> None:
             return
         cfg.global_undo_hotkey = val
 
+    # Validate & persist AI and Voice hotkeys + settings
+    for hk_attr, cfg_attr, lbl in (
+        ("_ai_hotkey_var", "ai_assistant_hotkey", "AI assistant"),
+        ("_voice_hotkey_var", "voice_dictation_hotkey", "Voice dictation"),
+    ):
+        if hasattr(win, hk_attr):
+            raw_hk = str(getattr(win, hk_attr).get()).strip()
+            if raw_hk:
+                parsed_hk = text_to_hotkey(raw_hk)
+                if parsed_hk is None:
+                    messagebox.showwarning("Ravan", f"Invalid {lbl} hotkey", parent=win._root)
+                    return
+                setattr(cfg, cfg_attr, parsed_hk)
+
+    if hasattr(win, "_ai_enabled_var"):
+        cfg.ai_assistant_enabled = bool(win._ai_enabled_var.get())
+    if hasattr(win, "_ai_provider_var"):
+        cfg.ai_provider = str(win._ai_provider_var.get()).strip().lower() or "ollama"
+    if hasattr(win, "_ai_endpoint_var"):
+        cfg.ai_endpoint_url = str(win._ai_endpoint_var.get()).strip()
+    if hasattr(win, "_ai_model_var"):
+        cfg.ai_model = str(win._ai_model_var.get()).strip()
+    if hasattr(win, "_ai_api_key_var"):
+        cfg.ai_api_key = str(win._ai_api_key_var.get()).strip()
+    if hasattr(win, "_voice_enabled_var"):
+        cfg.voice_dictation_enabled = bool(win._voice_enabled_var.get())
+    if hasattr(win, "_voice_mode_var"):
+        vm = str(win._voice_mode_var.get()).strip().lower()
+        cfg.voice_mode = vm if vm in ("offline", "cloud", "hybrid") else "offline"
+    if hasattr(win, "_voice_lang_var"):
+        vl = str(win._voice_lang_var.get()).strip().lower()
+        cfg.voice_language = vl if vl in ("fa", "en", "auto") else "fa"
+    if hasattr(win, "_voice_device_id_var"):
+        cfg.voice_device_id = _safe_int(win._voice_device_id_var, -1, -1, 64)
+    if hasattr(win, "_voice_model_id_var"):
+        cfg.voice_model_id = str(win._voice_model_id_var.get()).strip() or "whisper-base"
+    if hasattr(win, "_voice_cloud_endpoint_var"):
+        cfg.voice_cloud_endpoint = str(win._voice_cloud_endpoint_var.get()).strip() or "https://api.openai.com/v1"
+    if hasattr(win, "_voice_cloud_model_var"):
+        cfg.voice_cloud_model = str(win._voice_cloud_model_var.get()).strip() or "whisper-1"
+    if hasattr(win, "_voice_api_key_var"):
+        cfg.voice_api_key = str(win._voice_api_key_var.get()).strip()
+
     if hasattr(win, "_autofix_master_var") and not win._autofix_master_var.get():
         cfg.autofix_mode = "off"
     elif hasattr(win, "_autofix_mode_var"):

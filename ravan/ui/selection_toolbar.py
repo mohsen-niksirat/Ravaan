@@ -1,4 +1,4 @@
-"""Floating non-activating Selection Mini-Toolbar shown near mouse-selected text."""
+"""Floating non-activating Fluent 2 Selection Mini-Toolbar near selected text."""
 
 from __future__ import annotations
 
@@ -8,18 +8,21 @@ import tkinter as tk
 from collections.abc import Callable
 
 from ravan.core.i18n import is_rtl, t
-from ravan.ui.theme import (
-    apply_popup_window_attributes,
-    get_active_palette,
-    get_ui_font,
-    resolve_popup_position,
-)
+from ravan.ui.theme import apply_popup_window_attributes, get_active_palette, resolve_popup_position
+from ravan.ui.widgets import FluentPillButton
 
 log = logging.getLogger(__name__)
 
+_ACTION_ICONS: dict[str, str] = {
+    "convert": "replace",
+    "normalize": "sparkle",
+    "digits": "sliders",
+    "ai": "sparkle",
+}
+
 
 class SelectionToolbarWindow:
-    """Compact non-activating pill toolbar offering quick actions on selected text."""
+    """Compact non-activating Fluent 2 capsule offering quick actions on selected text."""
 
     def __init__(
         self,
@@ -30,10 +33,10 @@ class SelectionToolbarWindow:
         self.parent = parent
         self.on_action = on_action
         self.theme_mode = theme_mode
-        self._top: tk.Toplevel | None = None
+        self._top: tk.Toplevel | tk.Tk | None = None
         self._outer: tk.Frame | None = None
         self._inner: tk.Frame | None = None
-        self._buttons: dict[str, tk.Label] = {}
+        self._buttons: dict[str, FluentPillButton] = {}
         self._hide_after: str | None = None
         self._visible: bool = False
         self._root_hwnd: int | None = None
@@ -51,7 +54,7 @@ class SelectionToolbarWindow:
         return self._last_bounds if self._visible else None
 
     def contains_screen_point(self, px: int, py: int) -> bool:
-        """Return True when (px, py) falls inside the visible toolbar bounds."""
+        """Return True when `(px, py)` falls inside the visible toolbar bounds."""
         if not self._visible or self._top is None:
             return False
         if self._last_bounds is not None:
@@ -59,10 +62,8 @@ class SelectionToolbarWindow:
             if x1 <= px <= x2 and y1 <= py <= y2:
                 return True
         try:
-            wx = self._top.winfo_rootx()
-            wy = self._top.winfo_rooty()
-            ww = self._top.winfo_width()
-            wh = self._top.winfo_height()
+            wx, wy = self._top.winfo_rootx(), self._top.winfo_rooty()
+            ww, wh = self._top.winfo_width(), self._top.winfo_height()
             return wx <= px <= (wx + ww) and wy <= py <= (wy + wh)
         except Exception:
             return False
@@ -77,35 +78,34 @@ class SelectionToolbarWindow:
         try:
             p = get_active_palette(self.theme_mode)
             parent_widget = self.parent if isinstance(self.parent, tk.Misc) else None
-            top = tk.Toplevel(parent_widget) if parent_widget else tk.Tk()
+            top: tk.Toplevel | tk.Tk = tk.Toplevel(parent_widget) if parent_widget else tk.Tk()
             top.withdraw()
-            apply_popup_window_attributes(top, p, border_color=p.border, corner_radius=8.0)
+            apply_popup_window_attributes(top, p, border_color=p.border_focus, corner_radius=12.0, acrylic=False)
 
-            outer = tk.Frame(top, bg=p.border, padx=1, pady=1)
+            outer = tk.Frame(top, bg=p.border_focus, padx=1, pady=1)
             outer.pack(fill=tk.BOTH, expand=True)
 
-            inner = tk.Frame(outer, bg=p.card_bg, padx=5, pady=4)
+            inner = tk.Frame(outer, bg=p.bg_surface, padx=6, pady=5)
             inner.pack(fill=tk.BOTH, expand=True)
 
             self._buttons = {}
             for action_id in ("convert", "normalize", "digits", "ai"):
-                btn = tk.Label(
+                btn = FluentPillButton(
                     inner,
-                    bg=p.button_bg,
-                    fg=p.fg,
-                    padx=8,
-                    pady=3,
-                    cursor="hand2",
-                    font=get_ui_font(size=9, bold=True),
+                    text=action_id,
+                    icon=_ACTION_ICONS[action_id],
+                    variant="primary" if action_id == "ai" else "ghost",
+                    palette=p,
+                    rtl=is_rtl(),
+                    parent_bg=p.bg_surface,
+                    height=28,
+                    width=84,
+                    command=lambda aid=action_id: self._trigger(aid),
                 )
-                btn.bind("<Button-1>", lambda _e, aid=action_id: self._trigger(aid))
-                btn.bind("<Enter>", lambda _e, b=btn: b.config(bg=get_active_palette(self.theme_mode).highlight, fg=get_active_palette(self.theme_mode).highlight_fg))
-                btn.bind("<Leave>", lambda _e, b=btn: b.config(bg=get_active_palette(self.theme_mode).button_bg, fg=get_active_palette(self.theme_mode).fg))
+                btn.configure(takefocus=0)
                 self._buttons[action_id] = btn
 
-            self._top = top
-            self._outer = outer
-            self._inner = inner
+            self._top, self._outer, self._inner = top, outer, inner
             if sys.platform == "win32":
                 try:
                     from ravan.platform import winapi as wapi
@@ -155,14 +155,14 @@ class SelectionToolbarWindow:
         rtl = is_rtl()
 
         labels = {
-            "convert": t("sel_tb.convert", "🔄 تبدیل" if rtl else "🔄 Layout"),
-            "normalize": t("sel_tb.normalize", "✨ نگارش" if rtl else "✨ Polish"),
+            "convert": t("sel_tb.convert", "تبدیل" if rtl else "Layout"),
+            "normalize": t("sel_tb.normalize", "نگارش" if rtl else "Polish"),
             "digits": t("sel_tb.digits", "۱۲/12"),
-            "ai": t("sel_tb.ai", "🤖 AI"),
+            "ai": t("sel_tb.ai", "هوش مصنوعی" if rtl else "AI"),
         }
 
-        self._outer.config(bg=p.border)
-        self._inner.config(bg=p.card_bg)
+        self._outer.config(bg=p.border_focus)
+        self._inner.config(bg=p.bg_surface)
 
         order = ("convert", "normalize", "digits", "ai") if not rtl else ("ai", "digits", "normalize", "convert")
         for btn in self._buttons.values():
@@ -173,17 +173,16 @@ class SelectionToolbarWindow:
                 continue
             btn = self._buttons[action_id]
             txt = labels[action_id]
-            btn.config(
-                text=txt,
-                bg=p.button_bg,
-                fg=p.fg,
-                font=get_ui_font(size=9, bold=True, rtl=any(ord(c) > 127 for c in txt)),
-            )
+            btn.palette = p
+            btn.rtl = rtl
+            btn._parent_bg = p.bg_surface
+            bw = max(78, len(txt) * 8 + 40)
+            btn.configure(text=txt, width=bw, variant="primary" if action_id == "ai" else "secondary")
             btn.pack(side=tk.LEFT, padx=2)
 
         self._top.update_idletasks()
-        w = max(140, int(self._top.winfo_reqwidth()))
-        h = max(30, int(self._top.winfo_reqheight()))
+        w = max(160, int(self._top.winfo_reqwidth()))
+        h = max(36, int(self._top.winfo_reqheight()))
 
         center_x = x + max(0, width) // 2
         px = center_x - (w // 2)
@@ -195,11 +194,7 @@ class SelectionToolbarWindow:
         self._top.geometry(f"{w}x{h}+{px}+{py}")
         self._top.deiconify()
         apply_popup_window_attributes(
-            self._top,
-            p,
-            show=True,
-            border_color=p.border,
-            corner_radius=8.0,
+            self._top, p, show=True, border_color=p.border_focus, corner_radius=12.0, acrylic=False
         )
         self._last_bounds = (px, py, px + w, py + h)
         self._visible = True

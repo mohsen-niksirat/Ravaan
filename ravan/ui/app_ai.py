@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
+from collections.abc import Iterator
 from typing import Any
 
-from ravan.core.ai import AIAssistantEngine, OllamaProvider, OpenAICompatibleProvider
+from ravan.core.ai import (
+    AI_PROVIDER_PRESETS,
+    AIAssistantEngine,
+    OllamaProvider,
+    OpenAICompatibleProvider,
+)
 from ravan.platform import winapi as w
 from ravan.platform.caret import get_caret_rect
 from ravan.platform.clipboard import get_clipboard_text, set_clipboard_text
@@ -16,7 +23,7 @@ log = logging.getLogger(__name__)
 
 
 class AppAIMixin:
-    """Mixin providing AI assistant hotkey invocation, text capture, and injection."""
+    """Mixin providing AI assistant hotkey invocation, streaming popup, and injection."""
 
     def _init_ai(self: Any) -> None:
         if not getattr(self.cfg, "ai_assistant_enabled", False):
@@ -24,17 +31,18 @@ class AppAIMixin:
             self.ai_popup = None
             return
 
-        provider_name = getattr(self.cfg, "ai_provider", "ollama").lower()
+        provider_name = str(getattr(self.cfg, "ai_provider", "ollama") or "ollama").strip().lower()
+        preset = AI_PROVIDER_PRESETS.get(provider_name, AI_PROVIDER_PRESETS["ollama"])
+        endpoint = str(getattr(self.cfg, "ai_endpoint_url", "") or preset.endpoint_url).strip()
+        model = str(getattr(self.cfg, "ai_model", "") or preset.default_model).strip()
+
         if provider_name == "ollama":
-            provider = OllamaProvider(
-                endpoint_url=getattr(self.cfg, "ai_endpoint_url", "http://localhost:11434"),
-                model=getattr(self.cfg, "ai_model", "qwen2.5:7b"),
-            )
+            provider = OllamaProvider(endpoint_url=endpoint, model=model)
         else:
             provider = OpenAICompatibleProvider(
-                endpoint_url=getattr(self.cfg, "ai_endpoint_url", "https://api.openai.com/v1"),
+                endpoint_url=endpoint,
                 api_key_encrypted=getattr(self.cfg, "ai_api_key", ""),
-                model=getattr(self.cfg, "ai_model", "gpt-4o-mini"),
+                model=model,
             )
 
         self.ai_engine = AIAssistantEngine(provider=provider)
@@ -42,14 +50,11 @@ class AppAIMixin:
 
     def _trigger_ai_assistant(self: Any) -> None:
         """Trigger AI Assistant on current selected text or recent journal input."""
-        if not getattr(self.cfg, "ai_assistant_enabled", False):
-            from ravan.core.i18n import t
+        from ravan.core.i18n import t
 
+        if not getattr(self.cfg, "ai_assistant_enabled", False):
             self.tray.notify(
-                t(
-                    "ai.disabled_hint",
-                    "AI Assistant is disabled. Enable it in Ravan Settings.",
-                ),
+                t("ai.disabled_hint", "AI Assistant is disabled. Enable it in Ravan Settings."),
                 title="Ravaan AI",
             )
             return
@@ -57,7 +62,6 @@ class AppAIMixin:
         if not hasattr(self, "ai_engine") or self.ai_engine is None:
             self._init_ai()
 
-        # Capture selected text via Ctrl+C
         old_clip = get_clipboard_text()
         self._suppress_until = time.monotonic() + 0.15
         send_shortcut([w.VK_CONTROL], ord("C"))
@@ -73,17 +77,11 @@ class AppAIMixin:
             target_text = new_clip
             has_selection = True
         else:
-            # Fall back to recent journal text
             target_text = self.journal.text().strip()
 
         if not target_text:
-            from ravan.core.i18n import t
-
             self.tray.notify(
-                t(
-                    "ai.select_text_hint",
-                    "Please select text to rewrite, fix, or translate with AI.",
-                ),
+                t("ai.select_text_hint", "Please select text to rewrite, fix, or translate with AI."),
                 title="Ravaan AI",
             )
             return
@@ -105,11 +103,22 @@ class AppAIMixin:
 
         def _on_copy(res: str) -> None:
             set_clipboard_text(res)
-            self.tray.notify("پاسخ هوش مصنوعی در کلیپ‌بورد کپی شد.", title="Ravaan AI")
+            self.tray.notify(
+                t("ai.copied_notice", "پاسخ هوش مصنوعی در کلیپ‌بورد کپی شد."),
+                title="Ravaan AI",
+            )
 
         def _process(action: str, text: str, custom_inst: str) -> str:
             assert self.ai_engine is not None
             return self.ai_engine.process(action, text, custom_instruction=custom_inst)
+
+        def _process_stream(
+            action: str, text: str, custom_inst: str, cancel_event: threading.Event | None
+        ) -> Iterator[str]:
+            assert self.ai_engine is not None
+            return self.ai_engine.process_stream(
+                action, text, custom_instruction=custom_inst, cancel_event=cancel_event
+            )
 
         caret = get_caret_rect()
         popup = AIAssistantPopup(
@@ -118,6 +127,9 @@ class AppAIMixin:
             on_copy=_on_copy,
             process_callback=_process,
             theme_mode=getattr(self.cfg, "theme_mode", "auto"),
+            stream_callback=_process_stream,
         )
         self.ai_popup = popup
-        popup.show(target_text, caret.x, caret.y)
+        px = caret.x if caret else 400
+        py = caret.y if caret else 300
+        popup.show(target_text, px, py)

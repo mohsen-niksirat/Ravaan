@@ -165,19 +165,20 @@ class SettingsWindow(SettingsPreviewMixin):
         nb.pack(fill="both", expand=True)
         self._nb = nb
 
-        tabs_list = [_ScrollableTab(nb, palette, rtl=rtl, padding=10) for _ in range(9)]
-        (tab_general, tab_autofix, tab_prediction, tab_hotkeys, tab_exclusions, tab_profiles, tab_snippets, tab_sync, tab_about) = tabs_list
+        tabs_list = [_ScrollableTab(nb, palette, rtl=rtl, padding=10) for _ in range(10)]
+        t_gen, t_af, t_pred, t_hk, t_excl, t_prof, t_snip, t_sync, t_ai, t_about = tabs_list
 
         nav_items = [
-            (tab_general.outer, "settings", t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "orthography", "toolbar", "undo", "زبان", "شروع", "صدا", "ویراستار", "نوار"]),
-            (tab_autofix.outer, "bolt", t("settings.tab_autofix", "Auto-Fix"), ["autofix", "layout", "undo", "switch", "اصلاح", "چیدمان"]),
-            (tab_prediction.outer, "sparkle", t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "style", "learn", "corpus", "blacklist", "پیش‌بینی", "نیم‌فاصله", "استایل", "یادگیری"]),
-            (tab_hotkeys.outer, "keyboard", t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید", "میانبر"]),
-            (tab_exclusions.outer, "shield", t("settings.tab_exclusions", "Exclusions"), ["exclude", "blacklist", "app", "مستثنی"]),
-            (tab_profiles.outer, "sliders", t("settings.tab_profiles", "App Profiles"), ["profile", "code", "chat", "formal", "app", "layout", "پروفایل", "برنامه"]),
-            (tab_snippets.outer, "code", t("settings.tab_snippets", "Snippets"), ["snippet", "trigger", "متن", "قطعه"]),
-            (tab_sync.outer, "cloud", t("settings.tab_sync", "Cloud Sync"), ["sync", "gist", "webdav", "همگام", "ابری"]),
-            (tab_about.outer, "info", t("settings.tab_about", "About"), ["about", "version", "درباره"]),
+            (t_gen.outer, "settings", t("settings.tab_general", "General"), ["lang", "startup", "sound", "calc", "theme", "orthography", "toolbar", "undo", "زبان", "شروع", "صدا", "ویراستار", "نوار"]),
+            (t_af.outer, "bolt", t("settings.tab_autofix", "Auto-Fix"), ["autofix", "layout", "undo", "switch", "اصلاح", "چیدمان"]),
+            (t_pred.outer, "sparkle", t("settings.tab_prediction", "Prediction"), ["predict", "autocorrect", "zwnj", "words", "style", "learn", "corpus", "blacklist", "پیش‌بینی", "نیم‌فاصله", "استایل", "یادگیری"]),
+            (t_hk.outer, "keyboard", t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید", "میانبر"]),
+            (t_excl.outer, "shield", t("settings.tab_exclusions", "Exclusions"), ["exclude", "blacklist", "app", "مستثنی"]),
+            (t_prof.outer, "sliders", t("settings.tab_profiles", "App Profiles"), ["profile", "code", "chat", "formal", "app", "layout", "پروفایل", "برنامه"]),
+            (t_snip.outer, "code", t("settings.tab_snippets", "Snippets"), ["snippet", "trigger", "متن", "قطعه"]),
+            (t_sync.outer, "cloud", t("settings.tab_sync", "Cloud Sync"), ["sync", "gist", "webdav", "همگام", "ابری"]),
+            (t_ai.outer, "mic", t("settings.tab_ai_voice", "هوش مصنوعی و صدا" if rtl else "AI & Voice"), ["ai", "ollama", "openai", "gemini", "groq", "voice", "whisper", "mic", "dictation", "هوش", "صوت", "میکروفن", "مدل"]),
+            (t_about.outer, "info", t("settings.tab_about", "About"), ["about", "version", "درباره"]),
         ]
 
         self._nav_buttons: list[tk.Button] = []
@@ -210,7 +211,7 @@ class SettingsWindow(SettingsPreviewMixin):
             self._nav_icon_photos.append(ic_init)
             nav_btn = tk.Button(
                 sidebar, text=f"  {title}  ", image=ic_init if ic_init else None,
-                compound="right" if rtl else "left", bd=0, relief="flat", padx=12, pady=8,
+                compound="right" if rtl else "left", bd=0, relief="flat", padx=12, pady=5,
                 anchor="e" if rtl else "w", justify="right" if rtl else "left", cursor="hand2",
                 command=lambda i=idx: _select_nav(i),
             )
@@ -220,26 +221,19 @@ class SettingsWindow(SettingsPreviewMixin):
         nb.bind("<<NotebookTabChanged>>", lambda _e=None: _update_nav_highlight(nb.index("current")))
         _update_nav_highlight(0)
 
+        import ravan.ui.settings_builder as _sb
         from ravan.ui.settings_autofix import build_autofix_section
-        from ravan.ui.settings_builder import (
-            build_about_section,
-            build_exclusions_section,
-            build_general_section,
-            build_hotkeys_section,
-            build_prediction_section,
-            build_snippets_section,
-            build_sync_section,
-        )
         from ravan.ui.settings_profiles import build_profiles_section
 
         for builder, tab_obj in (
-            (build_general_section, tab_general), (build_autofix_section, tab_autofix),
-            (build_prediction_section, tab_prediction), (build_hotkeys_section, tab_hotkeys),
-            (build_exclusions_section, tab_exclusions), (build_profiles_section, tab_profiles),
-            (build_snippets_section, tab_snippets), (build_sync_section, tab_sync),
+            (_sb.build_general_section, t_gen), (_sb.build_autofix_section if hasattr(_sb, "build_autofix_section") else build_autofix_section, t_af),
+            (_sb.build_prediction_section, t_pred), (_sb.build_hotkeys_section, t_hk),
+            (_sb.build_exclusions_section, t_excl), (build_profiles_section, t_prof),
+            (_sb.build_snippets_section, t_snip), (_sb.build_sync_section, t_sync),
+            (_sb.build_ai_voice_section, t_ai),
         ):
             builder(self, tab_obj.inner, 0, pad)
-        build_about_section(tab_about.inner)
+        _sb.build_about_section(t_about.inner)
 
         for tab in tabs_list:
             tab.bind_recursive_scroll(tab.inner)
@@ -274,7 +268,9 @@ class SettingsWindow(SettingsPreviewMixin):
         if not hasattr(self, "_ui_language_var"):
             return
         from ravan.core.i18n import set_locale
+        from ravan.ui.settings_voice_panel import stop_voice_preview
 
+        stop_voice_preview(self)
         val = self._ui_language_var.get()
         self.cfg.ui_language = "fa" if "فارسی" in val else ("en" if "English" in val else "auto")
         set_locale(self.cfg.ui_language)
@@ -377,6 +373,9 @@ class SettingsWindow(SettingsPreviewMixin):
 
     def _close(self) -> None:
         self._open = self._built = False
+        from ravan.ui.settings_voice_panel import stop_voice_preview
+
+        stop_voice_preview(self)
         if self._saved_flash_job is not None and self._root is not None:
             try:
                 self._root.after_cancel(self._saved_flash_job)

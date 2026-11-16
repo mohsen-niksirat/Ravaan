@@ -239,7 +239,7 @@ class RavanApp(
         self.predictor.session_suppressed.update(session_suppressed)
         self.predictor._selection_counts.update(selection_counts)
         self.snippets = SnippetEngine.from_config(cfg)
-        for aux_attr in ("undo_chip", "selection_toolbar"):
+        for aux_attr in ("undo_chip", "selection_toolbar", "voice_pill"):
             aux = getattr(self, aux_attr, None)
             if aux is not None and hasattr(aux, "theme_mode"):
                 aux.theme_mode = getattr(cfg, "theme_mode", "auto")
@@ -264,6 +264,10 @@ class RavanApp(
             self.autofix.load_blacklist(getattr(cfg, "autofix_blacklist", []))
             self.autofix.app_modes = dict(getattr(cfg, "autofix_app_modes", {}))
         self._init_accent()
+        if hasattr(self, "_init_ai"):
+            self._init_ai()
+        if hasattr(self, "_init_voice"):
+            self._init_voice()
         if hasattr(self, "tray") and self.tray is not None:
             try:
                 self.tray.update_menu()

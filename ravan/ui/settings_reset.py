@@ -205,3 +205,38 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._sync_interval_var.set(str(d.sync_interval_min))
         if hasattr(win, "_sync_status_var"):
             win._sync_status_var.set("")
+    elif tab_name == "ai_voice":
+        from ravan.core.ai import AI_PROVIDER_PRESETS
+
+        if hasattr(win, "_ai_enabled_var"):
+            win._ai_enabled_var.set(d.ai_assistant_enabled)
+        if hasattr(win, "_ai_hotkey_var"):
+            win._ai_hotkey_var.set(hotkey_to_text(d.ai_assistant_hotkey))
+        if hasattr(win, "_ai_provider_var"):
+            win._ai_provider_var.set(d.ai_provider)
+        if hasattr(win, "_ai_endpoint_var"):
+            win._ai_endpoint_var.set(d.ai_endpoint_url)
+        if hasattr(win, "_ai_model_var"):
+            win._ai_model_var.set(AI_PROVIDER_PRESETS["ollama"].default_model)
+        if hasattr(win, "_ai_api_key_var"):
+            win._ai_api_key_var.set(d.ai_api_key)
+        if hasattr(win, "_ai_test_status_var"):
+            win._ai_test_status_var.set("")
+        if hasattr(win, "_voice_enabled_var"):
+            win._voice_enabled_var.set(d.voice_dictation_enabled)
+        if hasattr(win, "_voice_hotkey_var"):
+            win._voice_hotkey_var.set(hotkey_to_text(d.voice_dictation_hotkey))
+        if hasattr(win, "_voice_mode_var"):
+            win._voice_mode_var.set(d.voice_mode)
+        if hasattr(win, "_voice_lang_var"):
+            win._voice_lang_var.set(d.voice_language)
+        if hasattr(win, "_voice_device_id_var"):
+            win._voice_device_id_var.set(d.voice_device_id)
+        if hasattr(win, "_voice_model_id_var"):
+            win._voice_model_id_var.set(d.voice_model_id)
+        if hasattr(win, "_voice_cloud_endpoint_var"):
+            win._voice_cloud_endpoint_var.set(d.voice_cloud_endpoint)
+        if hasattr(win, "_voice_cloud_model_var"):
+            win._voice_cloud_model_var.set(d.voice_cloud_model)
+        if hasattr(win, "_voice_api_key_var"):
+            win._voice_api_key_var.set(d.voice_api_key)

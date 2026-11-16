@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from ravan.core.i18n import is_rtl
+from ravan.ui.settings_ai_voice import build_ai_voice_section
 from ravan.ui.settings_general import (
     _bind_live_capture,
     _get_win_palette,
@@ -112,6 +113,7 @@ __all__ = [
     "_make_section_banner",
     "_style_text_widget",
     "build_about_section",
+    "build_ai_voice_section",
     "build_exclusions_section",
     "build_general_section",
     "build_hotkeys_section",

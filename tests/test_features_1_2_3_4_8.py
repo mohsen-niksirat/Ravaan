@@ -716,8 +716,8 @@ def test_config_roundtrip_and_settings_window_integration(tmp_path):
                 win.tick()
             assert win._root is not None
 
-            # Verify notebook structure: Hotkeys kept at index 3, App Profiles added at index 5
-            assert win._nb.index("end") == 9
+            # Verify notebook structure: Hotkeys kept at index 3, App Profiles at index 5, AI & Voice at index 8
+            assert win._nb.index("end") == 10
             assert win._orthography_mode_var.get() == "strict"
 
             win._orthography_guard_var.set(False)
