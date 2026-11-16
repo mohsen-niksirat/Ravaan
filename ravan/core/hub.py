@@ -195,6 +195,19 @@ class HubManager:
         info = self.installed_info(pack.pack_id)
         return bool(info and is_newer_version(pack.version, str(info.get("version", "0.0.0"))))
 
+    def load_cached_or_builtin(self, cache_ttl_sec: int = DEFAULT_CACHE_TTL_SEC) -> tuple[list[HubPack], bool]:
+        """Return `(packs, needs_refresh)` purely from local cache or curated built-in packs (zero network I/O)."""
+        if self.cache_path.is_file():
+            try:
+                cached = json.loads(self.cache_path.read_text(encoding="utf-8"))
+                fetched_at = float(cached.get("fetched_at", 0.0))
+                parsed = [p for raw in cached.get("packs", []) if isinstance(raw, dict) and (p := _pack_from_dict(raw))]
+                if parsed:
+                    return parsed, (time.time() - fetched_at) > cache_ttl_sec
+            except Exception:  # noqa: BLE001
+                pass
+        return list(BUILTIN_HUB_PACKS), True
+
     def fetch_index(
         self,
         *,
@@ -203,16 +216,10 @@ class HubManager:
         timeout: float = 6.0,
     ) -> list[HubPack]:
         """Return Hub packs from cache or remote JSON index, falling back to curated packs."""
-        if not force_refresh and self.cache_path.is_file():
-            try:
-                cached = json.loads(self.cache_path.read_text(encoding="utf-8"))
-                fetched_at = float(cached.get("fetched_at", 0.0))
-                if (time.time() - fetched_at) <= cache_ttl_sec:
-                    parsed = [p for raw in cached.get("packs", []) if isinstance(raw, dict) and (p := _pack_from_dict(raw))]
-                    if parsed:
-                        return parsed
-            except Exception:  # noqa: BLE001
-                pass
+        if not force_refresh:
+            packs, stale = self.load_cached_or_builtin(cache_ttl_sec=cache_ttl_sec)
+            if not stale:
+                return packs
 
         try:
             req = urllib.request.Request(self.index_url, headers={"User-Agent": "Ravaan-Hub/3.0"}, method="GET")

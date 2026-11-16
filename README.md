@@ -19,7 +19,10 @@
 - ⚡ **Wrong Keyboard Layout Auto-Fix:** Automatically converts mistakenly typed text between Persian and English (e.g. `sghl` $\leftrightarrow$ `سلام`) as soon as you press space or punctuation.
 - ✍️ **Persian Typography & ZWNJ (نیم‌فاصله):** Automatic normalization of Arabic characters (`ي`/`ك` $\to$ `ی`/`ک`) and intelligent zero-width non-joiner placement for prefixes (`می‌`, `نمی‌`) and suffixes (`‌ها`, `‌تر`, `‌ترین`, `‌مند`).
 - 🔤 **Finglish Phonetic Typing:** Converts Latin transliteration into canonical Persian (`salam` $\to$ `سلام`, `khosh amadid` $\to$ `خوش آمدید`) using a 162k+ Persian lexicon trie.
-- 🚀 **Snippets 3.0 & .ravaanpack Hub-lite:** Text, dynamic placeholders (`{{shamsi}}`), interactive forms, regex triggers, clipboard images, per-app groups, and portable `.ravaanpack` bundles with SHA-256 tamper verification.
+- ✨ **AI 2.0 Spotlight Command Palette (`Ctrl+Shift+G`):** Streamed rewrite, formal Persian, grammar guard, Pinglish-to-Persian, translate, summarize & Before/After diff via local Ollama or DPAPI-encrypted OpenAI/Gemini/Groq/OpenRouter endpoints.
+- 🎙️ **Voice 2.0 Dictation (`Ctrl+Alt+V`):** RAM-only WinMM 16kHz microphone capture with live floating waveform capsule, offline Whisper model manager (SHA-256 verified), or Cloud Whisper API.
+- 📦 **Snippets 3.0 & Ravaan Hub:** Text, dynamic placeholders (`{{shamsi}}`), interactive forms, regex triggers, clipboard images, per-app groups, and an in-app searchable `.ravaanpack` Hub browser with SHA-256 integrity checks.
+- 🖥️ **Fluent 2 Bilingual Studio UI:** Crisp 2x DPI-supersampled custom switches, vector icons, and mirrored RTL/LTR Dark & Light themes with bundled `Vazirmatn` + `Segoe UI`.
 - 🧮 **Inline Math Calculator:** Evaluate expressions directly in any text box by typing `125*8=` $\to$ `1000`.
 - 🛡️ **Zero Telemetry & Local-Only Privacy:** Ephemeral RAM buffers (max 32 characters), no keystroke logging to disk, and no background outbound network connections.
 - 📦 **Modern Windows Packaging:** Available via **Winget**, **Scoop**, **Chocolatey**, Inno Setup per-user installer, or standalone Portable ZIP.
@@ -49,7 +52,7 @@ choco install ravaan
 
 ---
 
-### 2. Windows Installer (`Ravaan-Setup-2.0.0.exe`)
+### 2. Windows Installer (`Ravaan-Setup-3.0.0.exe`)
 Download the latest installer from [GitHub Releases](https://github.com/mohsen-niksirat/Ravaan/releases/latest).
 - **Per-User Non-Admin Installation:** Installs into `{autopf}\Ravaan` without requiring UAC administrator prompts.
 - **Data Preservation:** Keeps `%APPDATA%\Ravaan` intact across upgrades.
@@ -58,7 +61,7 @@ Download the latest installer from [GitHub Releases](https://github.com/mohsen-n
 
 ---
 
-### 3. Portable Archive (`Ravaan-Portable-2.0.0.zip`)
+### 3. Portable Archive (`Ravaan-Portable-3.0.0.zip`)
 - Zero-installation standalone package containing `Ravaan.exe` and documentation.
 - Extract anywhere and run immediately (great for USB drives and restricted environments).
 
@@ -81,6 +84,8 @@ python -m ravan
 | `Space` / `Punctuation` | **Auto-Fix** | Auto-corrects wrong layout or typos on word boundaries |
 | `Backspace` (< 4.0s) | **Instant Undo** | Immediately reverts auto-fixed or transliterated word |
 | `Ctrl+Shift+Z` | **Global Undo** | Reverts the last layout or text transformation |
+| `Ctrl+Shift+G` | **AI Command Palette** | Streams rewrite, formal FA, Pinglish, grammar fix & diff |
+| `Ctrl+Alt+V` | **Voice Dictation** | Push-to-talk RAM mic capture with floating waveform pill |
 | `F12` | **Manual Layout Switch** | Converts selected text or last typed word (EN $\leftrightarrow$ FA) |
 | `Shift+Space` | **Manual ZWNJ** | Inserts standard Persian Zero-Width Non-Joiner (نیم‌فاصله) |
 | `Alt+V` | **Clipboard Ring** | Opens local clipboard history overlay |

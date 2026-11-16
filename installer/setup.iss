@@ -4,7 +4,7 @@
 ; Prompts the user upon uninstall with an optional clean data removal choice.
 
 #ifndef MyAppVersion
-#define MyAppVersion "2.7.4"
+#define MyAppVersion "3.0.0"
 #endif
 
 #define MyAppName "Ravaan"

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-16
+
+### Added
+- **Phase 1 — Fluent 2 UI Widget Kit & Settings Modularization (`ravan/ui/widgets/`, `ravan/ui/theme*.py`, `ravan/ui/settings*.py`)**:
+  - Built 2x-DPI supersampled Pillow widget kit (`FluentToggleSwitch`, `FluentPillButton`, `FluentSegmentedControl`, `FluentEntry`, `FluentBadge`, `FluentCard`, `FluentSectionBanner`) with 22 crisp vector icons (`icons.py`) and eliminated legacy emojis/jagged borders across Settings controls.
+  - Split oversized Settings and Theme monoliths into single-responsibility modules under 425 lines and refactored `i18n.py` for nested dotted-key lookup with 100% EN/FA locale parity.
+- **Phase 2 — Voice 2.0 Offline & Hybrid Dictation (`ravan/platform/audio.py`, `ravan/core/model_manager.py`, `ravan/core/voice.py`, `ravan/ui/waveform_pill.py`)**:
+  - Added zero-dependency WinMM (`winmm.dll`) 16kHz mono 16-bit microphone PCM capture streaming strictly in RAM (zero disk temp `.wav` writes).
+  - Added `ModelManager` for atomic Whisper downloads with SHA-256 checksum verification (`%APPDATA%\Ravaan\models\`), Cloud Whisper/Groq API support with DPAPI keys, Persian grammar/ZWNJ post-processing, and a non-activating floating `WaveformPillWindow` equalizer capsule with `Esc` cancel.
+- **Phase 3 — AI 2.0 Streaming Command Palette & Settings Studio (`ravan/core/ai.py`, `ravan/ui/ai_popup.py`, `ravan/ui/ai_diff.py`, `ravan/ui/selection_toolbar.py`, `ravan/ui/settings_ai_voice.py`, `ravan/ui/settings_voice_panel.py`)**:
+  - Added real NDJSON/SSE streaming (`generate_stream`), Ollama model probing, provider presets (`Ollama`, `OpenAI`, `Gemini`, `Groq`, `OpenRouter`, `Custom`), and 7 bilingual presets (`rewrite`, `formal_fa`, `pro_en`, `fix_grammar`, `pinglish_to_fa`, `translate`, `summarize`).
+  - Redesigned `AIAssistantPopup` into a Spotlight-grade draggable command palette with Before/After word diff toggle, upgraded `SelectionToolbarWindow` to Fluent vector pills, and added the `AI & Voice` Settings tab with connection test & live mic RMS level meter.
+- **Phase 4 — Ravaan Hub `.ravaanpack` Browser (`ravan/core/hub.py`, `ravan/ui/hub_browser.py`, `ravan/ui/hub_preview_modal.py`)**:
+  - Added cached community pack index fetching with curated 4-category offline packs (`Official Letters`, `Coding Prompts`, `Medical & Legal`, `Proverbs & Symbols`), HTTPS & SHA-256 verification via `package.py`, searchable card grid UI, preview modal, and 1-click install/update/uninstall.
+- **Phase 5 — v3.0.0 Hardening & Packaging**:
+  - Added cross-platform AST 3-layer dependency enforcement and core parity tests (`tests/test_v3_core_parity.py`), enabled them on Ubuntu CI, and bumped all installers and manifests (`Winget`, `Scoop`, `Chocolatey`, `Inno Setup`, `pyproject.toml`) to `3.0.0`.
+
 ## [2.7.4] - 2026-11-13
 
 ### Fixed

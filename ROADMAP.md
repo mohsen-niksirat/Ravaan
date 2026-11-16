@@ -1,5 +1,21 @@
 # Roadmap
 
+## Completed (v3.0.0 Major Release)
+
+- **Phase 1: Fluent 2 UI Widget Kit & Modular Settings Architecture**
+  - 2x DPI-supersampled `FluentToggleSwitch`, `FluentPillButton`, `FluentSegmentedControl`, `FluentEntry`, `FluentCard`, `FluentBadge`, `FluentSectionBanner`, and 22 vector Pillow icons (`ravan/ui/widgets/`).
+  - Modularized oversized theme and settings files into focused components with full FA/EN dotted i18n parity.
+- **Phase 2: Voice 2.0 — Real Offline + Hybrid Voice Dictation**
+  - Zero-dependency Win32 `winmm.dll` 16kHz mono PCM capture strictly in RAM (`ravan/platform/audio.py`).
+  - Curated Whisper `ModelManager` with SHA-256 verification (`ravan/core/model_manager.py`), OpenAI/Groq Whisper fallback (`ravan/core/voice.py`), and floating non-activating `WaveformPillWindow` equalizer capsule.
+- **Phase 3: AI 2.0 — Streaming Command Palette & Settings Studio**
+  - Real NDJSON/SSE token streaming in `ravan/core/ai.py`, Ollama local probing, Gemini/OpenAI/Groq/OpenRouter presets, and 7 bilingual writing actions.
+  - Borderless Spotlight-grade `AIAssistantPopup` with Before/After word diff toggle, matching Fluent `SelectionToolbarWindow`, and full `AI & Voice` Settings tab with live mic level meter.
+- **Phase 4: Ravaan Hub (`.ravaanpack` Community Pack Browser)**
+  - Searchable category-filtered card grid, preview modal, SHA-256 verified installs/updates, and trigger-safe uninstalls (`ravan/core/hub.py`, `ravan/ui/hub_browser.py`).
+- **Phase 5: Cross-Platform Hardening & v3.0.0 Release Packaging**
+  - AST 3-layer dependency invariant checks (`core/` isolated from `platform/` and `ui/`), Ubuntu + Windows CI parity, and updated `3.0.0` packaging manifests.
+
 ## Completed (v2.0.0 Stable Release)
 
 - **Phase 1: Automatic Wrong-Layout Correction (Target A - Punto/Caramba Parity)**

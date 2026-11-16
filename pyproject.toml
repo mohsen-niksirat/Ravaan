@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ravan"
-version = "2.7.4"
+version = "3.0.0"
 
 description = "Ravan (روان) — Windows typing assistant for bilingual Persian/English typists"
 readme = "README.md"
@@ -33,7 +33,7 @@ where = ["."]
 include = ["ravan*"]
 
 [tool.setuptools.package-data]
-ravan = ["data/*.txt", "data/*.bin", "data/*.ico", "data/*.json"]
+ravan = ["data/*.txt", "data/*.bin", "data/*.ico", "data/*.png", "data/*.json", "data/locales/*.json", "data/fonts/*.ttf"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

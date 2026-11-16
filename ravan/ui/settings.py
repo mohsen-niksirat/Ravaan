@@ -233,7 +233,7 @@ class SettingsWindow(SettingsPreviewMixin):
             (_sb.build_ai_voice_section, t_ai),
         ):
             builder(self, tab_obj.inner, 0, pad)
-        _sb.build_about_section(t_about.inner)
+        _sb.build_about_section(t_about.inner, getattr(self.cfg, "theme_mode", "auto"))
 
         for tab in tabs_list:
             tab.bind_recursive_scroll(tab.inner)

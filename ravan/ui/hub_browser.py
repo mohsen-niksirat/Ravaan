@@ -51,7 +51,7 @@ class RavaanHubPanel:
         self._cards_frame.columnconfigure(0, weight=1, uniform="hubcol")
         self._cards_frame.columnconfigure(1, weight=1, uniform="hubcol")
 
-        self._packs = self.manager.fetch_index(force_refresh=False)
+        self._packs, _stale = self.manager.load_cached_or_builtin()
         self._render_cards()
 
     def _build_controls(self) -> None:

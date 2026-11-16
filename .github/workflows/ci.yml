@@ -40,4 +40,4 @@ jobs:
       - name: Run cross-platform core tests
         if: runner.os != 'Windows'
         run: |
-          pytest tests/test_calc.py tests/test_config.py tests/test_dict.py tests/test_jalali.py tests/test_journal.py tests/test_layout.py tests/test_normalizer.py tests/test_num2words.py tests/test_predictor.py tests/test_snippet.py tests/test_transform.py tests/test_user_dict.py tests/test_cliphistory.py
+          pytest tests/test_calc.py tests/test_config.py tests/test_dict.py tests/test_jalali.py tests/test_journal.py tests/test_layout.py tests/test_normalizer.py tests/test_num2words.py tests/test_predictor.py tests/test_snippet.py tests/test_transform.py tests/test_user_dict.py tests/test_cliphistory.py tests/test_v3_core_parity.py

@@ -174,7 +174,7 @@
     "about_subtitle": "Windows typing assistant for bilingual Persian/English typists",
     "about_version": "Version {version} — MIT License",
     "about_github": "GitHub: https://github.com/mohsen-niksirat/Ravaan",
-    "about_features": "Key Features:\n• Layout Conversion (Pause)\n• Word Prediction & Autocorrect\n• Smart Half-Space (ZWNJ)\n• Clipboard History (Alt+V)\n• Quick Text Stats (Ctrl+Alt+S)\n• Math & Jalali Macros\n• Snippets 2.0 & Cloud Sync",
+    "about_features": "Key Features:\n• Layout Conversion (Pause) & Auto-Fix\n• Word Prediction & Smart Half-Space (ZWNJ)\n• AI 2.0 Streaming Command Palette (Ctrl+Shift+G)\n• Voice 2.0 RAM-Only Dictation & Waveform Capsule (Ctrl+Alt+V)\n• Snippets 3.0, Ravaan Hub (.ravaanpack) & Cloud Sync\n• Clipboard History (Alt+V) & Inline Math Calculator",
     "enable_translit": "Phonetic Finglish typing (Experimental)",
     "enable_translit_example": "Example: Type 'salam' to convert to 'سلام' phonetically with candidate popup",
     "hotkey_translit": "Phonetic Finglish (Experimental):",

@@ -196,11 +196,11 @@ def build_sync_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[str, 
     return _build_sync(win, frm, start_row, pad)
 
 
-def build_about_section(frm: ttk.Frame) -> None:
+def build_about_section(frm: ttk.Frame, theme_mode: str = "auto") -> None:
     from ravan import __version__
 
     rtl = is_rtl()
-    palette = get_active_palette("auto")
+    palette = get_active_palette(theme_mode)
     anchor = "e" if rtl else "w"
     justify = "right" if rtl else "left"
 

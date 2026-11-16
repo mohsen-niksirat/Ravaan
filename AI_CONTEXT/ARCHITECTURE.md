@@ -10,9 +10,9 @@ platform/ ──▶ (فقط Win32 API)
 core/ ──▶ هیچ‌کدام از ui/platform  ← قانون مطلق
 ```
 
-- **core/** (~۴۰ ماژول): موتورهای خالص — config، layout، dict/predictor، learning، translit، zwnj/normalizer/grammar، snippet*، calc، jalali، num2words، crypto (DPAPI)، sync/webdav، updater، cliphistory، voice، package، benchmark، soak.
-- **platform/** (~۱۴ ماژول): hook (`WH_KEYBOARD_LL`)، inject (SendInput یونیکد)، caret (زنجیره UIA → GetGUIThreadInfo → نشانگر ماوس)، clipboard، focus، lang، keys، protocol (`ravan://`)، singleinstance (نام‌گذاری mutex)، startup (HKCU Run)، sound، selftest، winapi (بایندهای ctypes مشترک).
-- **ui/** (~۴۰ ماژول): `RavanApp` در `ui/app.py` کلاس مرکزی است که با **ترکیب ۸ Mixin** ساخته می‌شود: `AppAccentMixin`, `AppActionsMixin`, `AppAIMixin`, `AppAutofixMixin`, `AppDialogsMixin`, `AppPollingMixin`, `AppVoiceMixin`, `KeyHandlerMixin`. بقیه: overlay (چیپ زبان + پاپ‌آپ پیشنهاد، `WS_EX_NOACTIVATE`)، tray (pystray)، settings (چند ماژول)، snippet_editor، wizard، theme (پالت Fluent 2 و فونت Vazirmatn)، toast/tooltip و پنجره‌های کمکی.
+- **core/** (~۴۳ ماژول): موتورهای خالص — config، layout، dict/predictor، learning، translit، zwnj/normalizer/grammar، snippet*، calc، jalali، num2words، crypto (DPAPI)، sync/webdav، updater، cliphistory، voice، model_manager، ai، hub، package، benchmark، soak.
+- **platform/** (~۱۵ ماژول): hook (`WH_KEYBOARD_LL`)، inject (SendInput یونیکد)، caret (زنجیره UIA → GetGUIThreadInfo → نشانگر ماوس)، clipboard، focus، lang، keys، audio (`winmm.dll` RAM-only capture)، protocol (`ravan://`)، singleinstance، startup، sound، selftest، winapi.
+- **ui/** (~۴۸ ماژول، ماژولارسازی‌شده زیر ~۴۰۰ خط در v3.0): `RavanApp` در `ui/app.py` با ترکیب ۸ Mixin، کیت ویجت‌های Fluent 2 (`ui/widgets/`: `surface.py`, `controls.py`, `icons.py`)، `ui/ai_popup.py` و `ui/ai_diff.py`، `ui/waveform_pill.py`، `ui/hub_browser.py` و `ui/hub_preview_modal.py`، `ui/settings_ai_voice.py` و `ui/settings_voice_panel.py`.
 
 ## جریان کنترل اصلی (تایپ کاربر)
 1. `platform/hook.KeyboardHook` هر رویداد کلید را در نخ خودش می‌گیرد (WH_KEYBOARD_LL).
