@@ -189,18 +189,28 @@ def test_waveform_pill_window_recording_and_transcribing() -> None:
         nonlocal cancelled
         cancelled = True
 
+    from ravan.platform.caret import CaretRect
+
     pill = WaveformPillWindow(parent=top, theme_mode="dark", on_cancel=_on_cancel)
     try:
-        pill.show_recording(language="fa")
-        assert pill.visible is True
-        assert pill.state == "recording"
-        pill.push_rms(0.65)
-        pill._tick_anim()
-        assert pill.bounds() is not None
+        # Exercise real non-zero CaretRect anchoring (width/height fields) and near-top flip
+        with patch("ravan.ui.waveform_pill.get_caret_rect", return_value=CaretRect(320, 400, 8, 20)):
+            pill.show_recording(language="fa")
+            assert pill.visible is True
+            assert pill.state == "recording"
+            pill.push_rms(0.65)
+            pill._tick_anim()
+            assert pill.bounds() is not None
 
-        pill.show_transcribing(language="en")
-        assert pill.visible is True
-        assert pill.state == "transcribing"
+        with patch("ravan.ui.waveform_pill.get_caret_rect", return_value=CaretRect(320, 10, 4, 20)):
+            pill.show_transcribing(language="en")
+            assert pill.visible is True
+            assert pill.state == "transcribing"
+
+        # Exercise zero-caret bottom-center fallback
+        with patch("ravan.ui.waveform_pill.get_caret_rect", return_value=CaretRect(0, 0, 0, 0)):
+            pill.show_recording(language="fa")
+            assert pill.bounds() is not None
 
         # Simulate clicking the cancel chip bounds
         x1, y1, x2, y2 = pill._close_zone()

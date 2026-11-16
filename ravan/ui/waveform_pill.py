@@ -172,10 +172,12 @@ class WaveformPillWindow:
         assert self._top is not None
         caret = get_caret_rect()
         if caret is not None and (caret.x != 0 or caret.y != 0):
-            px = caret.x + max(0, caret.w // 2) - w_px // 2
+            cw = int(getattr(caret, "width", getattr(caret, "w", 0)) or 0)
+            ch = int(getattr(caret, "height", getattr(caret, "h", 22)) or 22)
+            px = caret.x + max(0, cw // 2) - w_px // 2
             py = caret.y - h_px - 14
             if py < 24:
-                py = caret.y + max(22, caret.h) + 12
+                py = caret.y + max(22, ch) + 12
             return clamp_popup_position(self._top, px, py, w_px, h_px, margin=12)
 
         if sys.platform == "win32":
