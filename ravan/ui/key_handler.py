@@ -117,6 +117,11 @@ class KeyHandlerMixin:
                 self.overlay.hide()
         if not is_modifier(vk):
             if vk == w.VK_ESCAPE:
+                voice = getattr(self, "voice", None)
+                if voice is not None and getattr(getattr(voice, "state", None), "name", "IDLE") != "IDLE":
+                    if hasattr(self, "_cancel_voice_dictation"):
+                        self._cancel_voice_dictation()
+                    return
                 if hasattr(self, "_hide_selection_toolbar"):
                     self._hide_selection_toolbar()
                 if hasattr(self, "_hide_undo_chip"):

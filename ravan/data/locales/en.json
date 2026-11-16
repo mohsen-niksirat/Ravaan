@@ -498,5 +498,17 @@
     "normalize": "Polish",
     "digits": "۱۲/12",
     "ai": "AI"
+  },
+  "voice": {
+    "disabled_hint": "Voice Dictation is disabled. Enable it in Ravan Settings.",
+    "listening": "Listening... Press hotkey again to transcribe or Esc to cancel.",
+    "listening_short": "Listening for speech...",
+    "transcribing": "Transcribing speech...",
+    "transcribing_short": "Transcribing...",
+    "cancelled": "Voice dictation cancelled.",
+    "inserted": "Inserted: {preview}...",
+    "no_text": "No speech detected.",
+    "mic_unavailable": "No microphone input device detected.",
+    "backend_missing": "Install an offline Whisper model or configure Cloud Voice API."
   }
 }

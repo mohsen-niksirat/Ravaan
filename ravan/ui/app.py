@@ -192,7 +192,13 @@ class RavanApp(
             pass
         set_popup_visible(False)
         self.overlay.hide()
-        for aux_attr in ("undo_chip", "selection_toolbar"):
+        mic = getattr(self, "_mic", None)
+        if mic is not None:
+            try:
+                mic.stop()
+            except Exception:  # noqa: BLE001
+                pass
+        for aux_attr in ("undo_chip", "selection_toolbar", "voice_pill"):
             aux = getattr(self, aux_attr, None)
             if aux is not None:
                 try:

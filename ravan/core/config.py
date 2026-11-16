@@ -141,6 +141,13 @@ class Config:
     ai_replace_selection: bool = False
     voice_dictation_enabled: bool = False
     voice_dictation_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("V", ["Ctrl", "Alt"]))
+    voice_mode: str = "offline"  # "offline" | "cloud" | "hybrid"
+    voice_model_id: str = "whisper-base"
+    voice_language: str = "fa"  # "fa" | "en" | "auto"
+    voice_device_id: int = -1
+    voice_cloud_endpoint: str = "https://api.openai.com/v1"
+    voice_cloud_model: str = "whisper-1"
+    voice_api_key: str = ""
     pause_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("Pause", ["Ctrl", "Alt"]))
     enable_feature_hints: bool = True
     shown_hints: list[str] = field(default_factory=list)
@@ -416,6 +423,7 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
     from ravan.core.crypto import (
         CRED_TARGET_AI,
         CRED_TARGET_GIST,
+        CRED_TARGET_VOICE,
         CRED_TARGET_WEBDAV,
         WINCRED_PREFIX,
         get_credential,
@@ -423,66 +431,30 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         unprotect_secret,
     )
 
-    # Only these Credential Manager targets may ever be referenced from config.json.
-    # A config file (e.g. restored from an untrusted backup) must never be able to
-    # name an arbitrary target and read another application's stored credential.
-    allowed_cred_targets = {CRED_TARGET_GIST, CRED_TARGET_WEBDAV, CRED_TARGET_AI}
+    allowed_cred_targets = {CRED_TARGET_GIST, CRED_TARGET_WEBDAV, CRED_TARGET_AI, CRED_TARGET_VOICE}
 
-    # Gist token resolution
-    raw_gist = str(data.get("gist_token", "")).strip()
-    if raw_gist.startswith(WINCRED_PREFIX):
-        target = raw_gist[len(WINCRED_PREFIX) :].strip()
-        if target not in allowed_cred_targets:
-            log.warning("Ignoring non-allowlisted credential target in config for gist token.")
-            target = CRED_TARGET_GIST
-        gist_tok = get_credential(target)
-        g_mig = False
-    elif raw_gist:
-        gist_tok, g_mig = unprotect_secret(raw_gist)
-        if gist_tok:
-            save_credential(CRED_TARGET_GIST, gist_tok)
-            g_mig = True
-    else:
-        gist_tok = get_credential(CRED_TARGET_GIST)
-        g_mig = False
+    def _resolve_cred_field(field_key: str, default_target: str, label: str) -> tuple[str, bool]:
+        raw_val = str(data.get(field_key, "")).strip()
+        if raw_val.startswith(WINCRED_PREFIX):
+            target = raw_val[len(WINCRED_PREFIX) :].strip()
+            if target not in allowed_cred_targets:
+                log.warning("Ignoring non-allowlisted credential target in config for %s.", label)
+                target = default_target
+            return get_credential(target), False
+        if raw_val:
+            plain, migrated = unprotect_secret(raw_val)
+            if plain:
+                save_credential(default_target, plain)
+                return plain, True
+            return plain, migrated
+        return get_credential(default_target), False
 
-    # WebDAV password resolution
-    raw_webdav = str(data.get("webdav_password", "")).strip()
-    if raw_webdav.startswith(WINCRED_PREFIX):
-        target = raw_webdav[len(WINCRED_PREFIX) :].strip()
-        if target not in allowed_cred_targets:
-            log.warning("Ignoring non-allowlisted credential target in config for WebDAV password.")
-            target = CRED_TARGET_WEBDAV
-        webdav_pwd = get_credential(target)
-        w_mig = False
-    elif raw_webdav:
-        webdav_pwd, w_mig = unprotect_secret(raw_webdav)
-        if webdav_pwd:
-            save_credential(CRED_TARGET_WEBDAV, webdav_pwd)
-            w_mig = True
-    else:
-        webdav_pwd = get_credential(CRED_TARGET_WEBDAV)
-        w_mig = False
+    gist_tok, g_mig = _resolve_cred_field("gist_token", CRED_TARGET_GIST, "gist token")
+    webdav_pwd, w_mig = _resolve_cred_field("webdav_password", CRED_TARGET_WEBDAV, "WebDAV password")
+    ai_key, a_mig = _resolve_cred_field("ai_api_key", CRED_TARGET_AI, "AI API key")
+    voice_key, v_mig = _resolve_cred_field("voice_api_key", CRED_TARGET_VOICE, "Voice API key")
 
-    # AI API key resolution
-    raw_ai = str(data.get("ai_api_key", "")).strip()
-    if raw_ai.startswith(WINCRED_PREFIX):
-        target = raw_ai[len(WINCRED_PREFIX) :].strip()
-        if target not in allowed_cred_targets:
-            log.warning("Ignoring non-allowlisted credential target in config for AI API key.")
-            target = CRED_TARGET_AI
-        ai_key = get_credential(target)
-        a_mig = False
-    elif raw_ai:
-        ai_key, a_mig = unprotect_secret(raw_ai)
-        if ai_key:
-            save_credential(CRED_TARGET_AI, ai_key)
-            a_mig = True
-    else:
-        ai_key = get_credential(CRED_TARGET_AI)
-        a_mig = False
-
-    if g_mig or w_mig or a_mig:
+    if g_mig or w_mig or a_mig or v_mig:
         log.info("Migrated credentials to Windows Credential Manager.")
 
     cfg = Config(
@@ -594,6 +566,21 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         ai_replace_selection=bool(data.get("ai_replace_selection", False)),
         voice_dictation_enabled=bool(data.get("voice_dictation_enabled", False)),
         voice_dictation_hotkey=_hotkey_from_dict(data.get("voice_dictation_hotkey"), HotkeySpec("V", ["Ctrl", "Alt"])),
+        voice_mode=(
+            str(data.get("voice_mode", "offline")).lower()
+            if str(data.get("voice_mode", "offline")).lower() in ("offline", "cloud", "hybrid")
+            else "offline"
+        ),
+        voice_model_id=str(data.get("voice_model_id", "whisper-base") or "whisper-base"),
+        voice_language=(
+            str(data.get("voice_language", "fa")).lower()
+            if str(data.get("voice_language", "fa")).lower() in ("fa", "en", "auto")
+            else "fa"
+        ),
+        voice_device_id=_bounded_int(data, "voice_device_id", -1, -1, 64),
+        voice_cloud_endpoint=str(data.get("voice_cloud_endpoint", "https://api.openai.com/v1") or "https://api.openai.com/v1"),
+        voice_cloud_model=str(data.get("voice_cloud_model", "whisper-1") or "whisper-1"),
+        voice_api_key=voice_key,
         pause_hotkey=_hotkey_from_dict(data.get("pause_hotkey"), HotkeySpec("Pause", ["Ctrl", "Alt"])),
         enable_feature_hints=bool(data.get("enable_feature_hints", True)),
         shown_hints=[str(h) for h in data.get("shown_hints", []) if str(h).strip()],
@@ -635,32 +622,26 @@ def config_to_dict(cfg: Config) -> dict[str, Any]:
     from ravan.core.crypto import (
         CRED_TARGET_AI,
         CRED_TARGET_GIST,
+        CRED_TARGET_VOICE,
         CRED_TARGET_WEBDAV,
         WINCRED_PREFIX,
         delete_credential,
         save_credential,
     )
 
-    if cfg.gist_token:
-        save_credential(CRED_TARGET_GIST, cfg.gist_token)
-        d["gist_token"] = f"{WINCRED_PREFIX}{CRED_TARGET_GIST}"
-    else:
-        d["gist_token"] = ""
-        delete_credential(CRED_TARGET_GIST)
-
-    if cfg.webdav_password:
-        save_credential(CRED_TARGET_WEBDAV, cfg.webdav_password)
-        d["webdav_password"] = f"{WINCRED_PREFIX}{CRED_TARGET_WEBDAV}"
-    else:
-        d["webdav_password"] = ""
-        delete_credential(CRED_TARGET_WEBDAV)
-
-    if cfg.ai_api_key:
-        save_credential(CRED_TARGET_AI, cfg.ai_api_key)
-        d["ai_api_key"] = f"{WINCRED_PREFIX}{CRED_TARGET_AI}"
-    else:
-        d["ai_api_key"] = ""
-        delete_credential(CRED_TARGET_AI)
+    for attr_name, target in (
+        ("gist_token", CRED_TARGET_GIST),
+        ("webdav_password", CRED_TARGET_WEBDAV),
+        ("ai_api_key", CRED_TARGET_AI),
+        ("voice_api_key", CRED_TARGET_VOICE),
+    ):
+        secret_val = getattr(cfg, attr_name, "")
+        if secret_val:
+            save_credential(target, secret_val)
+            d[attr_name] = f"{WINCRED_PREFIX}{target}"
+        else:
+            d[attr_name] = ""
+            delete_credential(target)
 
     return d
 

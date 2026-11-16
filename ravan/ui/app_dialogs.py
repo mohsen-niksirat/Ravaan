@@ -153,6 +153,9 @@ class AppDialogsMixin:
                     self._show_toast_sync(str(arg))
                 elif hasattr(self, "_show_toast"):
                     self._show_toast(str(arg))
+            elif action in ("voice_pill_recording", "voice_pill_transcribing", "voice_pill_hide"):
+                if hasattr(self, "_apply_voice_pill_action"):
+                    self._apply_voice_pill_action(action, arg)
             elif action == "apply_bg_sync":
                 from ravan.core.config import save_config
                 from ravan.core.snippet import SnippetEngine

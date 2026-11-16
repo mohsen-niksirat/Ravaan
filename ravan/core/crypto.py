@@ -29,6 +29,7 @@ WINCRED_PREFIX = "wincred:"
 CRED_TARGET_GIST = "Ravaan/GitHubGistToken"
 CRED_TARGET_WEBDAV = "Ravaan/WebDAVPassword"
 CRED_TARGET_AI = "Ravaan/AIApiKey"
+CRED_TARGET_VOICE = "Ravaan/VoiceApiKey"
 
 _MOCK_CREDENTIAL_STORE: dict[str, str] = {}
 
