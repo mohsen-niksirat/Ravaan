@@ -283,7 +283,8 @@
     "voice_cloud_ep": "آدرس Whisper ابری:",
     "voice_cloud_mdl": "مدل صوتی ابری:",
     "voice_api_key": "کلید API صوتی (DPAPI):",
-    "reset_tab": "بازگردانی این تب به پیش‌فرض"
+    "reset_tab": "بازگردانی این تب به پیش‌فرض",
+    "tab_snippets_hub": "اسنیپت و مخزن Hub"
   },
   "stats": {
     "header": "📊 آمار متن",
@@ -574,5 +575,30 @@
     "disabled_hint": "دستیار هوش مصنوعی غیرفعال است. آن را از تنظیمات روان فعال کنید.",
     "select_text_hint": "لطفاً متنی را برای بازنویسی، ویرایش یا ترجمه انتخاب کنید.",
     "copied_notice": "پاسخ هوش مصنوعی در کلیپ‌بورد کپی شد."
+  },
+  "hub": {
+    "card_title": "مخزن بسته‌های آماده (Ravaan Hub)",
+    "search_placeholder": "جستجو در بسته‌های آماده...",
+    "refresh_btn": "بروزرسانی فهرست",
+    "cat_all": "همه بسته‌ها",
+    "cat_official": "نامه‌های اداری",
+    "cat_coding": "پرامپت و کدنویسی",
+    "cat_medical_legal": "پزشکی و حقوقی",
+    "cat_proverbs": "ضرب‌المثل و ایموجی",
+    "no_matches": "بسته‌ای با این مشخصات یافت نشد.",
+    "sha_verified": "SHA-256 ✓",
+    "builtin_sha": "امضای SHA-256 خودکار حین نصب",
+    "preview_header": "نمونه میانبرهای این بسته:",
+    "btn_preview": "پیش‌نمایش",
+    "btn_install_short": "نصب",
+    "btn_install": "نصب یک‌کلیکی",
+    "btn_update_short": "بروزرسانی",
+    "btn_update": "بروزرسانی بسته",
+    "btn_uninstall": "حذف",
+    "btn_close": "بستن (Esc)",
+    "refreshing": "در حال دریافت...",
+    "packs_count": "بسته",
+    "installing": "در حال نصب و بررسی SHA-256...",
+    "uninstalled": "حذف شد:"
   }
 }

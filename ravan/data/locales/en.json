@@ -283,7 +283,8 @@
     "voice_cloud_ep": "Cloud Endpoint:",
     "voice_cloud_mdl": "Cloud Model:",
     "voice_api_key": "Voice API Key (DPAPI):",
-    "reset_tab": "Reset Tab to Defaults"
+    "reset_tab": "Reset Tab to Defaults",
+    "tab_snippets_hub": "Snippets & Hub"
   },
   "stats": {
     "header": "📊 Text Statistics",
@@ -574,5 +575,30 @@
     "disabled_hint": "AI Assistant is disabled. Enable it in Ravan Settings.",
     "select_text_hint": "Please select text to rewrite, fix, or translate with AI.",
     "copied_notice": "AI response copied to clipboard."
+  },
+  "hub": {
+    "card_title": "Ravaan Hub — Community Snippet Packs",
+    "search_placeholder": "Search community packs...",
+    "refresh_btn": "Refresh",
+    "cat_all": "All Packs",
+    "cat_official": "Official Letters",
+    "cat_coding": "Coding Prompts",
+    "cat_medical_legal": "Medical & Legal",
+    "cat_proverbs": "Proverbs & Symbols",
+    "no_matches": "No matching packs found.",
+    "sha_verified": "SHA-256 ✓",
+    "builtin_sha": "Verified via manifest SHA-256 digest",
+    "preview_header": "Included Snippet Previews:",
+    "btn_preview": "Preview",
+    "btn_install_short": "Install",
+    "btn_install": "1-Click Install",
+    "btn_update_short": "Update",
+    "btn_update": "Update Pack",
+    "btn_uninstall": "Uninstall",
+    "btn_close": "Close (Esc)",
+    "refreshing": "Refreshing...",
+    "packs_count": "packs",
+    "installing": "Installing & verifying...",
+    "uninstalled": "Uninstalled:"
   }
 }

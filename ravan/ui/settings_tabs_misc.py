@@ -81,7 +81,7 @@ def build_exclusions_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict
 
     FluentPillButton(
         frm,
-        text=t("settings.reset_tab_btn", "Reset tab defaults"),
+        text=t("settings.reset_tab_btn", "Reset tab defaults").replace("↺", "").strip(),
         icon="reset",
         variant="secondary",
         palette=palette,
@@ -169,9 +169,15 @@ def build_snippets_section(win: Any, frm: ttk.Frame, start_row: int, pad: dict[s
     grp_frm.grid(row=row, column=0, columnspan=3, sticky="ew", pady=(0, 8))
     row += 1
 
+    from ravan.ui.hub_browser import RavaanHubPanel
+
+    win._hub_browser = RavaanHubPanel(frm, win, palette=palette, rtl=rtl)
+    win._hub_browser.card.grid(row=row, column=0, columnspan=3, sticky="ew", pady=(0, 8))
+    row += 1
+
     FluentPillButton(
         frm,
-        text=t("settings.reset_tab_btn", "Reset tab defaults"),
+        text=t("settings.reset_tab_btn", "Reset tab defaults").replace("↺", "").strip(),
         icon="reset",
         variant="secondary",
         palette=palette,

@@ -175,7 +175,7 @@ class SettingsWindow(SettingsPreviewMixin):
             (t_hk.outer, "keyboard", t("settings.tab_hotkeys", "Hotkeys"), ["f12", "hotkey", "convert", "clip", "case", "کلید", "میانبر"]),
             (t_excl.outer, "shield", t("settings.tab_exclusions", "Exclusions"), ["exclude", "blacklist", "app", "مستثنی"]),
             (t_prof.outer, "sliders", t("settings.tab_profiles", "App Profiles"), ["profile", "code", "chat", "formal", "app", "layout", "پروفایل", "برنامه"]),
-            (t_snip.outer, "code", t("settings.tab_snippets", "Snippets"), ["snippet", "trigger", "متن", "قطعه"]),
+            (t_snip.outer, "code", t("settings.tab_snippets_hub", "اسنیپت و مخزن Hub" if rtl else "Snippets & Hub"), ["snippet", "trigger", "hub", "pack", "ravaanpack", "متن", "قطعه", "بسته", "مخزن"]),
             (t_sync.outer, "cloud", t("settings.tab_sync", "Cloud Sync"), ["sync", "gist", "webdav", "همگام", "ابری"]),
             (t_ai.outer, "mic", t("settings.tab_ai_voice", "هوش مصنوعی و صدا" if rtl else "AI & Voice"), ["ai", "ollama", "openai", "gemini", "groq", "voice", "whisper", "mic", "dictation", "هوش", "صوت", "میکروفن", "مدل"]),
             (t_about.outer, "info", t("settings.tab_about", "About"), ["about", "version", "درباره"]),
