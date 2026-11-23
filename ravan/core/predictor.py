@@ -337,6 +337,13 @@ class DictPredictor(Predictor):
                 )
                 for i, w in enumerate(next_words)
             ]
+        if prefix.startswith(":") and len(prefix) >= 2:
+            from .emoji_search import search_emoji_candidates
+
+            emoji_cands = search_emoji_candidates(prefix, limit=limit)
+            if emoji_cands:
+                return emoji_cands
+
         if is_numeric_or_symbol_token(prefix):
             return []
 

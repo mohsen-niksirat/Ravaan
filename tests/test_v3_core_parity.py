@@ -68,7 +68,7 @@ def test_v3_new_and_refactored_modules_respect_size_budget() -> None:
 
 def test_v3_cross_platform_core_pipeline_smoke(tmp_path: Path) -> None:
     """Verify Voice 2.0 core, AI 2.0 core, and Hub core work with zero Win32/Tk deps."""
-    assert __version__ == "3.0.0"
+    assert __version__ == "3.1.0"
 
     # Voice 2.0 core: RAM-only WAV encoding, catalog, Persian grammar postprocess
     wav = pcm16_to_wav_bytes(b"\x01\x00" * 1600, sample_rate=16000)

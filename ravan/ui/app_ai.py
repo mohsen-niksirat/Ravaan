@@ -133,3 +133,92 @@ class AppAIMixin:
         px = caret.x if caret else 400
         py = caret.y if caret else 300
         popup.show(target_text, px, py)
+
+    def _trigger_direct_ai_magic(
+        self: Any,
+        action_override: str | None = None,
+        *,
+        synchronous: bool = False,
+    ) -> bool:
+        """Execute direct in-place AI transformation without opening a modal dialog."""
+        from ravan.core.i18n import t
+
+        if not getattr(self.cfg, "ai_assistant_enabled", False):
+            self.tray.notify(
+                t("ai.disabled_hint", "AI Assistant is disabled. Enable it in Ravan Settings."),
+                title="Ravaan AI",
+            )
+            return False
+
+        if not hasattr(self, "ai_engine") or self.ai_engine is None:
+            self._init_ai()
+        if self.ai_engine is None:
+            return False
+
+        old_clip = get_clipboard_text()
+        self._suppress_until = time.monotonic() + 0.15
+        send_shortcut([w.VK_CONTROL], ord("C"))
+        time.sleep(0.06)
+
+        new_clip = get_clipboard_text()
+        if old_clip is not None:
+            set_clipboard_text(old_clip)
+
+        target_text = ""
+        has_selection = False
+        if new_clip and new_clip.strip() and new_clip != old_clip:
+            target_text = new_clip.strip()
+            has_selection = True
+        elif hasattr(self, "journal"):
+            target_text = self.journal.text().strip()
+
+        if not target_text:
+            self.tray.notify(
+                t("ai.select_text_hint", "Please select text to rewrite, fix, or translate with AI."),
+                title="Ravaan AI",
+            )
+            return False
+
+        action = (
+            action_override
+            or str(getattr(self.cfg, "ai_magic_action", "formal_fa") or "formal_fa").strip()
+        )
+
+        def _apply_result(res_text: str) -> None:
+            cleaned = (res_text or "").strip()
+            if not cleaned or cleaned.startswith("❌"):
+                if hasattr(self, "_show_toast"):
+                    self._show_toast(cleaned or "خطا در ارتباط با هوش مصنوعی")
+                return
+            self._suppress_until = time.monotonic() + 0.12
+            if has_selection:
+                set_clipboard_text(cleaned)
+                time.sleep(0.02)
+                send_shortcut([w.VK_CONTROL], ord("V"))
+            else:
+                span_len = len(target_text)
+                replace_last_n_with(span_len, cleaned)
+                if hasattr(self, "journal"):
+                    self.journal.pop_last_n_chars(span_len)
+                    for ch in cleaned:
+                        self.journal.push(ch)
+                if hasattr(self, "_record_quick_undo"):
+                    self._record_quick_undo(
+                        kind="ai_magic",
+                        original=target_text,
+                        replacement=cleaned,
+                        delimiter="",
+                    )
+            if hasattr(self, "_show_toast"):
+                self._show_toast(f"✨ AI ({action})")
+
+        def _worker() -> None:
+            assert self.ai_engine is not None
+            out = self.ai_engine.process(action, target_text)
+            _apply_result(out)
+
+        if synchronous:
+            _worker()
+        else:
+            threading.Thread(target=_worker, daemon=True).start()
+        return True

@@ -66,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
     p_soak.add_argument("-k", "--keystrokes", type=int, default=10000, help="Max keystrokes (default: 10000)")
     p_translit = sub.add_parser("translit", help="Transliterate Finglish words to Persian script")
     p_translit.add_argument("text", nargs="+", help="Finglish text to transliterate")
+    p_translit.add_argument("--google", action="store_true", help="Use hybrid Google Input Tools + offline engine")
     p_pack = sub.add_parser("pack", help="Export or import snippet packages (.ravaanpack)")
     p_pack.add_argument("action", choices=["export", "import"])
     p_pack.add_argument("path", help="Path to .ravaanpack file")
@@ -75,6 +76,16 @@ def main(argv: list[str] | None = None) -> int:
     p_grammar = sub.add_parser("grammar", help="Check and fix Persian grammar, prepositions, and tanween")
     p_grammar.add_argument("text", help="Text to inspect or correct")
     p_grammar.add_argument("--fix", action="store_true", help="Output corrected text directly")
+    p_emoji = sub.add_parser("emoji", help="Search bilingual Persian/English emojis and symbols")
+    p_emoji.add_argument("query", help="Emoji keyword e.g. 'تیک' or 'rocket'")
+    p_thes = sub.add_parser("thesaurus", help="Lookup Persian synonyms, homophones, or harakat variants")
+    p_thes.add_argument("text", help="Word or sentence to inspect")
+    p_thes.add_argument("--homophones", action="store_true", help="Check and fix homophones in text")
+    p_paste = sub.add_parser("paste", help="Transform text with Advanced Paste offline modes")
+    p_paste.add_argument("text", help="Input text to transform")
+    p_paste.add_argument("--mode", default="clean_fa", help="Paste mode (clean_fa, tsv_to_markdown, tsv_to_json, etc.)")
+    p_ocr = sub.add_parser("ocr", help="Extract and normalize Persian/English text from an image file")
+    p_ocr.add_argument("path", help="Image file path")
 
     args = parser.parse_args(argv)
     if args.version or args.check_updates:
@@ -361,10 +372,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if summary.passed else 1
 
     if args.cmd == "translit":
+        full_text = " ".join(args.text)
+        if getattr(args, "google", False):
+            from ravan.core.online_predictor import hybrid_transliterate
+
+            cands = hybrid_transliterate(full_text, use_google=True, limit=5)
+            print(cands[0] if cands else full_text)
+            return 0
         from ravan.core.translit import TranslitEngine
 
         t_engine = TranslitEngine()
-        full_text = " ".join(args.text)
         print(t_engine.transliterate_text(full_text))
         return 0
 
@@ -388,6 +405,43 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {i}. [{issue.category}] {issue.description}")
         print("\nCorrected:")
         print(correct_persian_grammar(args.text))
+        return 0
+
+    if args.cmd == "emoji":
+        from ravan.core.emoji_search import search_emoji
+
+        for entry in search_emoji(args.query, limit=5):
+            print(f"{entry.symbol}  :{entry.code_fa}: / :{entry.code_en}:")
+        return 0
+
+    if args.cmd == "thesaurus":
+        from ravan.core.thesaurus import (
+            apply_homophone_fixes,
+            lookup_harakat_variants,
+            lookup_synonyms,
+        )
+
+        if args.homophones:
+            print(apply_homophone_fixes(args.text))
+            return 0
+        syns = lookup_synonyms(args.text)
+        harakat = lookup_harakat_variants(args.text)
+        if syns:
+            print("Synonyms:", "، ".join(syns))
+        if harakat:
+            print("Harakat:", " | ".join(harakat))
+        return 0 if (syns or harakat) else 1
+
+    if args.cmd == "paste":
+        from ravan.core.advanced_paste import transform_clipboard_content
+
+        print(transform_clipboard_content(args.text, mode=args.mode))
+        return 0
+
+    if args.cmd == "ocr":
+        from ravan.platform.ocr import extract_text_from_image
+
+        print(extract_text_from_image(args.path))
         return 0
 
     return 1

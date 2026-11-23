@@ -175,6 +175,16 @@ def check_live_orthography(
                     reason="compound",
                 )
 
+        from ravan.core.thesaurus import check_trailing_homophone
+
+        homo_hit = check_trailing_homophone(recent_words)
+        if homo_hit is not None and not is_token_blacklisted(homo_hit.original, blacklist):
+            return OrthographySuggestion(
+                original=homo_hit.original,
+                replacement=homo_hit.replacement,
+                reason="homophone",
+            )
+
     # 2. Single-token normalization + rule lookup
     table = _STRICT_SINGLE_MAP if m == "strict" else _SAFE_SINGLE_MAP
     arabic_fixed = normalize_arabic_chars(word)
@@ -190,6 +200,16 @@ def check_live_orthography(
         elif arabic_fixed in COMPOUND_CORRECTIONS:
             reason = "compound"
         return OrthographySuggestion(original=word, replacement=rule_repl, reason=reason)
+
+    from ravan.core.thesaurus import check_trailing_homophone
+
+    single_homo = check_trailing_homophone([arabic_fixed])
+    if single_homo is not None and single_homo.replacement != word:
+        return OrthographySuggestion(
+            original=word,
+            replacement=single_homo.replacement,
+            reason="homophone",
+        )
 
     # 3. Standalone Arabic character cleanup (ي -> ی, ك -> ک, ى -> ی, tatweel removal)
     if arabic_fixed != word and is_eligible_persian_token(arabic_fixed):

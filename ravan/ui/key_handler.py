@@ -304,6 +304,7 @@ class KeyHandlerMixin:
         for hk_name, fn_name in (
             ("translit_hotkey", "_toggle_translit"),
             ("ai_assistant_hotkey", "_trigger_ai_assistant"),
+            ("ai_magic_hotkey", "_trigger_direct_ai_magic"),
             ("voice_dictation_hotkey", "_toggle_voice_dictation"),
         ):
             if hasattr(self.cfg, hk_name) and _matches_event_hotkey(event, vk, getattr(self.cfg, hk_name)):
@@ -632,6 +633,26 @@ class KeyHandlerMixin:
                             return
 
         # Clean trailing space error before punctuation in Persian typing (e.g. "کتاب ." -> "کتاب.")
+        if ch == ":":
+            from ravan.core.emoji_search import expand_colon_emoji
+
+            last_w = self.journal.last_word()
+            if last_w and last_w.startswith(":") and len(last_w) >= 2:
+                emoji_sym = expand_colon_emoji(last_w + ":")
+                if emoji_sym is not None:
+                    self._suppress_until = time.monotonic() + 0.05
+                    replace_last_n_with(len(last_w) + 1, emoji_sym)
+                    for _ in range(len(last_w)):
+                        if self.journal._chars:
+                            self.journal._chars.pop()
+                    for c in emoji_sym:
+                        self.journal.push(c)
+                    if hasattr(self, "overlay") and getattr(self.overlay, "visible", False):
+                        self.overlay.hide()
+                        set_popup_visible(False)
+                    self._record_event(f"Emoji shortcode: '{last_w}:' -> '{emoji_sym}'", char=emoji_sym)
+                    return
+
         if self.cfg.fix_punctuation_spacing and ch in ".,!?:؛،؟)»]":
             lang = current_language()
             if lang and lang.tag == "fa":

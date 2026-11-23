@@ -310,7 +310,7 @@ class AppPollingMixin:
         )
 
         prefix = self.journal.last_word()
-        if prefix and is_numeric_or_symbol_token(prefix):
+        if prefix and not prefix.startswith(":") and is_numeric_or_symbol_token(prefix):
             if self.overlay.visible:
                 self.overlay.hide()
                 set_popup_visible(False)
@@ -338,6 +338,16 @@ class AppPollingMixin:
                 cands = self.predictor.predict(
                     "", context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
                 )
+                if getattr(self.cfg, "ai_inline_completion_enabled", False):
+                    from ravan.core.online_predictor import ai_continuation_candidates
+
+                    if getattr(self, "ai_engine", None) is None and hasattr(self, "_init_ai"):
+                        self._init_ai()
+                    ai_cands = ai_continuation_candidates(context_word, getattr(self, "ai_engine", None))
+                    for ac in ai_cands:
+                        if all(c.text != ac.text for c in cands):
+                            cands.insert(0, ac)
+                    cands = cands[: self.cfg.prediction_max_candidates]
                 if cands:
                     if getattr(self.overlay, "has_custom_pos", False) and self.overlay.custom_x >= 0:
                         cx, cy, ch = self.overlay.custom_x, self.overlay.custom_y, 16
@@ -369,6 +379,14 @@ class AppPollingMixin:
         cands = self.predictor.predict(
             prefix, context_word, self.cfg.prediction_max_candidates, app_name=self._current_exe
         )
+        if getattr(self.cfg, "google_input_enabled", False) and prefix.isascii() and len(prefix) >= 2:
+            from ravan.core.online_predictor import google_input_candidates
+
+            g_cands = google_input_candidates(prefix, limit=3, timeout=0.6)
+            for gc in g_cands:
+                if all(c.text != gc.text for c in cands):
+                    cands.append(gc)
+            cands = cands[: self.cfg.prediction_max_candidates]
         if not cands:
             if (
                 self.overlay.predicting

@@ -27,7 +27,7 @@ from .snippet_groups import (
     snippet_matches_app,
     validate_image_path,
 )
-from .snippet_macros import fetch_clipboard, get_macro_values
+from .snippet_macros import expand_dynamic_macros, fetch_clipboard, get_macro_values
 from .snippet_regex import (
     expand_capture_groups,
     extract_regex_pattern,
@@ -85,8 +85,8 @@ def render_form_template(template: str, values: dict[str, str]) -> str:
     return render_form_template_with_specs(template, values, fields)
 
 
-def render_template(template: str) -> str:
-    """Replace {{placeholder}} with dynamic date/time/uuid/math values."""
+def render_template(template: str, app_name: str | None = None) -> str:
+    """Replace {{placeholder}} with dynamic date/time/uuid/math/greeting/app values."""
     if "{{" not in template:
         return template
 
@@ -111,8 +111,9 @@ def render_template(template: str) -> str:
         _eval_math,
         template,
     )
+    rendered = expand_dynamic_macros(rendered, app_name=app_name)
 
-    values = get_macro_values()
+    values = get_macro_values(app_name=app_name)
     rendered = re.sub(
         r"\{\{\s*([^\s}]+)\s*\}\}",
         lambda m: values.get(m.group(1).lower(), m.group(0)),
@@ -336,7 +337,7 @@ class SnippetEngine:
         )
         if match is not None:
             snippet, repl_text = match
-            rendered = render_template(repl_text)
+            rendered = render_template(repl_text, app_name=app_name)
             clean_text, cursor_offset = parse_cursor_placeholder(rendered)
             return clean_text, cursor_offset
 

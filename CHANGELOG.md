@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-23
+
+### Added
+- **Advanced Offline Suite (
+avan/core/unit_converter.py, 
+avan/core/emoji_search.py, 
+avan/core/thesaurus.py, 
+avan/core/advanced_paste.py, 
+avan/platform/ocr.py)**:
+  - Live bilingual unit, temperature, Rial/Toman/words, and 20+ city timezone conversions in calc.py.
+  - Context-aware snippet macros: time-of-day greetings ({{greeting_fa}}, {{greeting_en}}), relative Jalali/Gregorian date arithmetic ({{jalali:+3d}}, {{date:-1w}}), and app-conditional expansions ({{if_app:telegram:...|...}}).
+  - Bilingual emoji and typography symbol quick-search (:تیک, :rocket, :قلب:) integrated into live predictor and colon auto-expansion.
+  - Offline Persian thesaurus (lookup_synonyms), context-aware homophone guard, and harakat helper.
+  - Advanced Paste clipboard transformer (	sv_to_markdown, 	sv_to_json, clean_fa, url_to_markdown, strip_harakat, extract_links/emails/
+umbers).
+  - Zero-dependency Windows Native WinRT OCR (Windows.Media.Ocr) with automatic Persian ZWNJ and homophone normalization.
+- **Online & Hybrid AI Suite (
+avan/core/online_predictor.py, 
+avan/core/ai.py, 
+avan/ui/app_ai.py, 
+avan/ui/settings_ai_voice.py)**:
+  - Opt-in Google Input Tools API hybrid Finglish transliteration and predictor with bounded LRU cache and zero-lag offline fallback.
+  - Opt-in AI inline sentence continuation suggestions (complete & quick_reply presets).
+  - Direct in-place AI Magic hotkey (Ctrl+Alt+M) for instant selection or last-sentence transformation without opening a dialog, with Quick Undo support.
+
 ## [3.0.0] - 2026-11-16
 
 ### Added

@@ -220,6 +220,14 @@ def reset_tab_defaults(win: Any, tab_name: str) -> None:
             win._ai_model_var.set(AI_PROVIDER_PRESETS["ollama"].default_model)
         if hasattr(win, "_ai_api_key_var"):
             win._ai_api_key_var.set(d.ai_api_key)
+        if hasattr(win, "_ai_magic_hotkey_var"):
+            win._ai_magic_hotkey_var.set(hotkey_to_text(d.ai_magic_hotkey))
+        if hasattr(win, "_ai_magic_action_var"):
+            win._ai_magic_action_var.set(d.ai_magic_action)
+        if hasattr(win, "_ai_inline_completion_var"):
+            win._ai_inline_completion_var.set(d.ai_inline_completion_enabled)
+        if hasattr(win, "_google_input_enabled_var"):
+            win._google_input_enabled_var.set(d.google_input_enabled)
         if hasattr(win, "_ai_test_status_var"):
             win._ai_test_status_var.set("")
         if hasattr(win, "_voice_enabled_var"):

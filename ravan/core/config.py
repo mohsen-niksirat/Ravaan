@@ -139,6 +139,10 @@ class Config:
     ai_api_key: str = ""
     ai_model: str = ""
     ai_replace_selection: bool = False
+    ai_magic_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("M", ["Ctrl", "Alt"]))
+    ai_magic_action: str = "formal_fa"
+    ai_inline_completion_enabled: bool = False
+    google_input_enabled: bool = False
     voice_dictation_enabled: bool = False
     voice_dictation_hotkey: HotkeySpec = field(default_factory=lambda: HotkeySpec("V", ["Ctrl", "Alt"]))
     voice_mode: str = "offline"  # "offline" | "cloud" | "hybrid"
@@ -564,6 +568,10 @@ def config_from_dict(raw_data: dict[str, Any]) -> Config:
         ai_api_key=ai_key,
         ai_model=str(data.get("ai_model", "")),
         ai_replace_selection=bool(data.get("ai_replace_selection", False)),
+        ai_magic_hotkey=_hotkey_from_dict(data.get("ai_magic_hotkey"), HotkeySpec("M", ["Ctrl", "Alt"])),
+        ai_magic_action=str(data.get("ai_magic_action", "formal_fa") or "formal_fa"),
+        ai_inline_completion_enabled=bool(data.get("ai_inline_completion_enabled", False)),
+        google_input_enabled=bool(data.get("google_input_enabled", False)),
         voice_dictation_enabled=bool(data.get("voice_dictation_enabled", False)),
         voice_dictation_hotkey=_hotkey_from_dict(data.get("voice_dictation_hotkey"), HotkeySpec("V", ["Ctrl", "Alt"])),
         voice_mode=(

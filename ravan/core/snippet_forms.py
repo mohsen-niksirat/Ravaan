@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ravan.core.snippet_macros import BUILTIN_PLACEHOLDERS
+from ravan.core.snippet_macros import is_builtin_macro_expr
 
 log = logging.getLogger(__name__)
 
@@ -125,13 +125,7 @@ def parse_form_fields(
     for content, _s, _e in placeholders:
         content = content.strip()
         low = content.lower()
-        if (
-            low in BUILTIN_PLACEHOLDERS
-            or low in ("$0", "0", "cursor")
-            or low.startswith("calc:")
-            or low.startswith("math:")
-            or low.startswith("eval:")
-        ):
+        if is_builtin_macro_expr(low):
             continue
 
         raw_default: str | None = None
@@ -239,13 +233,7 @@ def render_form_template_with_specs(
     for content, start, end in placeholders:
         content_stripped = content.strip()
         low = content_stripped.lower()
-        if (
-            low in BUILTIN_PLACEHOLDERS
-            or low in ("$0", "0", "cursor")
-            or low.startswith("calc:")
-            or low.startswith("math:")
-            or low.startswith("eval:")
-        ):
+        if is_builtin_macro_expr(low):
             continue
         valid_placeholders.append((content_stripped, start, end))
 

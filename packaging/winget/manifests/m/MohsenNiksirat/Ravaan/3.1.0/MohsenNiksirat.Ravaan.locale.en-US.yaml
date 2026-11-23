@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+
+PackageIdentifier: MohsenNiksirat.Ravaan
+PackageVersion: 3.1.0
+PackageLocale: en-US
+Publisher: Mohsen Niksirat
+PublisherUrl: https://github.com/mohsen-niksirat
+PublisherSupportUrl: https://github.com/mohsen-niksirat/Ravaan/issues
+Author: Mohsen Niksirat
+PackageName: Ravaan
+PackageUrl: https://github.com/mohsen-niksirat/Ravaan
+License: MIT
+LicenseUrl: https://github.com/mohsen-niksirat/Ravaan/blob/main/LICENSE
+Copyright: Copyright (c) 2026 Mohsen Niksirat
+CopyrightUrl: https://github.com/mohsen-niksirat/Ravaan/blob/main/LICENSE
+ShortDescription: Intelligent Persian and bilingual typing assistant for Windows with zero telemetry.
+Description: |-
+  Ravaan (روان) is an intelligent, privacy-first Persian/English typing assistant for Windows.
+  Version 3.1.0 introduces a Fluent 2 vector UI kit, Voice 2.0 WinMM offline/hybrid dictation
+  with live floating waveform capsule, AI 2.0 streaming Spotlight command palette with Before/After
+  diff, and Ravaan Hub community .ravaanpack browser with SHA-256 verification.
+Moniker: ravaan
+Tags:
+  - persian
+  - farsi
+  - typing
+  - assistant
+  - autocomplete
+  - zwnj
+  - finglish
+  - privacy
+  - voice
+  - ai
+ReleaseNotesUrl: https://github.com/mohsen-niksirat/Ravaan/releases/tag/v3.1.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

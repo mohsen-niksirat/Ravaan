@@ -28,7 +28,7 @@ class TestVersionConsistency:
     """Verifies that all version metadata across the repository are in 100% agreement."""
 
     def test_all_versions_equal_3_0_0(self):
-        expected_version = "3.0.0"
+        expected_version = "3.1.0"
 
         # 1. ravan module
         assert ravan.__version__ == expected_version, (

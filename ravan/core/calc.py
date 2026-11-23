@@ -141,7 +141,14 @@ def calculate(
     decimals: int | None = None,
     currency: str | None = None,
 ) -> str | None:
-    """Evaluate expression, supporting rounding (=N) and currency (toman/rial)."""
+    """Evaluate expression, supporting rounding (=N), currency (toman/rial), and unit/timezone conversions."""
+    if decimals is None and currency is None:
+        from ravan.core.unit_converter import evaluate_conversion
+
+        conv = evaluate_conversion(expr)
+        if conv is not None:
+            return conv
+
     has_persian = any("\u06f0" <= c <= "\u06f9" for c in expr) or any(c in "تر٪" for c in expr)
 
     # Check if expr includes trailing macro (=2, =t, =r)
@@ -183,9 +190,15 @@ def calculate(
 
 
 def extract_math_expression(text: str) -> str | None:
-    """Extract a trailing math expression from text preceding an '=' trigger."""
+    """Extract a trailing math or unit/timezone conversion expression preceding an '=' trigger."""
     if not text:
         return None
+    from ravan.core.unit_converter import extract_conversion_expression
+
+    conv_expr = extract_conversion_expression(text)
+    if conv_expr is not None:
+        return conv_expr
+
     i = len(text)
     while i > 0 and text[i - 1] in _MATH_CHARS:
         i -= 1

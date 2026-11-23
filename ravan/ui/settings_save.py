@@ -119,6 +119,7 @@ def save_settings_window(win: Any) -> None:
     # Validate & persist AI and Voice hotkeys + settings
     for hk_attr, cfg_attr, lbl in (
         ("_ai_hotkey_var", "ai_assistant_hotkey", "AI assistant"),
+        ("_ai_magic_hotkey_var", "ai_magic_hotkey", "AI magic"),
         ("_voice_hotkey_var", "voice_dictation_hotkey", "Voice dictation"),
     ):
         if hasattr(win, hk_attr):
@@ -140,6 +141,12 @@ def save_settings_window(win: Any) -> None:
         cfg.ai_model = str(win._ai_model_var.get()).strip()
     if hasattr(win, "_ai_api_key_var"):
         cfg.ai_api_key = str(win._ai_api_key_var.get()).strip()
+    if hasattr(win, "_ai_magic_action_var"):
+        cfg.ai_magic_action = str(win._ai_magic_action_var.get()).strip() or "formal_fa"
+    if hasattr(win, "_ai_inline_completion_var"):
+        cfg.ai_inline_completion_enabled = bool(win._ai_inline_completion_var.get())
+    if hasattr(win, "_google_input_enabled_var"):
+        cfg.google_input_enabled = bool(win._google_input_enabled_var.get())
     if hasattr(win, "_voice_enabled_var"):
         cfg.voice_dictation_enabled = bool(win._voice_enabled_var.get())
     if hasattr(win, "_voice_mode_var"):

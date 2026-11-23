@@ -183,4 +183,51 @@ def _build_ai_card(
     r += 1
 
     ttk.Label(ai_card, textvariable=win._ai_test_status_var, style="CardSub.TLabel").grid(row=r, column=1, columnspan=2, sticky=align, **pad)
+    r += 1
+
+    # Direct In-Place AI Magic Hotkey & Action + Online Hybrid Helpers
+    magic_hk = getattr(win.cfg, "ai_magic_hotkey", None) or HotkeySpec("M", ["Ctrl", "Alt"])
+    win._ai_magic_hotkey_var = tk.StringVar(value=hotkey_to_text(magic_hk))
+    ttk.Label(
+        ai_card,
+        text=t("settings.ai_magic_hk", "میانبر جادوی درجا (بدون پنجره):" if rtl else "Direct AI Magic Hotkey:"),
+        style="Card.TLabel",
+    ).grid(row=r, column=0, sticky=align, **pad)
+    m_hk_ent = ttk.Entry(ai_card, textvariable=win._ai_magic_hotkey_var, width=20, justify="center")
+    m_hk_ent.grid(row=r, column=1, sticky=align, **pad)
+    _bind_live_capture(m_hk_ent, win._ai_magic_hotkey_var)
+
+    magic_actions = ["formal_fa", "rewrite", "translate", "fix_grammar", "pinglish_to_fa", "complete", "quick_reply"]
+    cur_magic_act = str(getattr(win.cfg, "ai_magic_action", "formal_fa") or "formal_fa")
+    if cur_magic_act not in magic_actions:
+        cur_magic_act = "formal_fa"
+    win._ai_magic_action_var = tk.StringVar(value=cur_magic_act)
+    cb_magic = ttk.Combobox(ai_card, textvariable=win._ai_magic_action_var, values=magic_actions, state="readonly", width=16)
+    cb_magic.grid(row=r, column=2, sticky=align, **pad)
+    r += 1
+
+    win._ai_inline_completion_var = tk.BooleanVar(
+        value=bool(getattr(win.cfg, "ai_inline_completion_enabled", False))
+    )
+    FluentToggleSwitch(
+        ai_card,
+        text=t("settings.ai_inline_comp", "تکمیل هوشمند ادامه جمله در باکس پیشنهاد" if rtl else "AI Inline Sentence Continuation"),
+        subtitle=t("settings.ai_inline_comp_sub", "پیشنهاد ادامه طبیعی جمله با هوش مصنوعی انتخابی" if rtl else "Suggest 3–7 word natural sentence continuations via your configured AI provider"),
+        variable=win._ai_inline_completion_var,
+        palette=pal,
+        rtl=rtl,
+    ).grid(row=r, column=0, columnspan=3, sticky="ew", **pad)
+    r += 1
+
+    win._google_input_enabled_var = tk.BooleanVar(
+        value=bool(getattr(win.cfg, "google_input_enabled", False))
+    )
+    FluentToggleSwitch(
+        ai_card,
+        text=t("settings.google_input", "پیش‌بینی‌کننده و فینگلیش هیبریدی گوگل (Google Input Tools)" if rtl else "Google Input Tools Hybrid Predictor & Finglish Helper"),
+        subtitle=t("settings.google_input_sub", "ترکیب دیکشنری آفلاین با پیشنهادهای آنلاین گوگل (با کش محلی و بازگشت فوری آفلاین)" if rtl else "Combines offline dictionary with live Google Input Tools suggestions (LRU cached, zero-lag fallback)"),
+        variable=win._google_input_enabled_var,
+        palette=pal,
+        rtl=rtl,
+    ).grid(row=r, column=0, columnspan=3, sticky="ew", **pad)
     return row + 1
